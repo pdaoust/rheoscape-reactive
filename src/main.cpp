@@ -1,6 +1,5 @@
 #include <Arduino.h>
-#include <ValueStream.hpp>
-#include <EventStream.hpp>
+#include <Stream.hpp>
 
 // put function declarations here:
 int myFunction(int, int);
