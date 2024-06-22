@@ -23,7 +23,7 @@
 #include <type_traits>
 #include <utility>
 
-// Version identifier: 0.3.4-11-g221d8f4
+// Version identifier: 0.3.4-12-g87b7059
 // <iostream> support: EXCLUDED
 // List of included units:
 //   amperes
@@ -336,28 +336,28 @@ struct type_identity {
 };
 
 // Source: adapted from (https://en.cppreference.com/w/cpp/types/integral_constant).
-template <bool T>
-using bool_constant = std::integral_constant<bool, T>;
+template <bool B>
+using bool_constant = std::integral_constant<bool, B>;
 
 // Source: adapted from (https://en.cppreference.com/w/cpp/types/conjunction).
 template <class...>
 struct conjunction : std::true_type {};
-template <class T1>
-struct conjunction<T1> : T1 {};
-template <class T1, class... Tn>
-struct conjunction<T1, Tn...> : std::conditional_t<bool(T1::value), conjunction<Tn...>, T1> {};
+template <class B>
+struct conjunction<B> : B {};
+template <class B, class... Bn>
+struct conjunction<B, Bn...> : std::conditional_t<bool(B::value), conjunction<Bn...>, B> {};
 
 // Source: adapted from (https://en.cppreference.com/w/cpp/types/disjunction).
 template <class...>
 struct disjunction : std::false_type {};
-template <class T1>
-struct disjunction<T1> : T1 {};
-template <class T1, class... Tn>
-struct disjunction<T1, Tn...> : std::conditional_t<bool(T1::value), T1, disjunction<Tn...>> {};
+template <class B>
+struct disjunction<B> : B {};
+template <class B, class... Bn>
+struct disjunction<B, Bn...> : std::conditional_t<bool(B::value), B, disjunction<Bn...>> {};
 
 // Source: adapted from (https://en.cppreference.com/w/cpp/types/negation).
-template <class T>
-struct negation : stdx::bool_constant<!static_cast<bool>(T::value)> {};
+template <class B>
+struct negation : stdx::bool_constant<!static_cast<bool>(B::value)> {};
 
 // Source: adapted from (https://en.cppreference.com/w/cpp/types/remove_cvref).
 template <class T>
@@ -1701,8 +1701,17 @@ using CommonMagnitudeT = typename CommonMagnitude<Ms...>::type;
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Value based interface for Magnitude.
 
-static constexpr auto MAGNITUDE_ONE = Magnitude<>{};
-static constexpr auto MAGNITUDE_PI = Magnitude<Pi>{};
+static constexpr auto ONE = Magnitude<>{};
+
+#ifndef PI
+// Some users must work with frameworks that define `PI` as a macro.  Having a macro with this
+// easily collidable name is exceedingly unwise.  Nevertheless, that's not the users' fault, so we
+// accommodate those frameworks by omitting the definition of `PI` in this case.
+//
+// If you are stuck with such a framework, you can choose a different name that does not collide,
+// and reproduce the following line in your own system.
+static constexpr auto PI = Magnitude<Pi>{};
+#endif
 
 template <typename... BP1s, typename... BP2s>
 constexpr auto operator*(Magnitude<BP1s...>, Magnitude<BP2s...>) {
@@ -6373,3 +6382,4 @@ namespace symbols {
 constexpr auto b = SymbolFor<Bits>{};
 }
 }  // namespace au
+
