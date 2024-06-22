@@ -3,18 +3,26 @@
 
 #include <functional>
 #include <core_types.hpp>
-#include <operators/castUnit.hpp>
-#include <operators/map.hpp>
 #include <Arduino.h>
 
-using arduino_ms = au::Quantity<au::Milli<au::Seconds>, unsigned long>;
-using arduino_ms_float = au::Quantity<au::Milli<au::Seconds>, float>;
-constexpr auto make_arduino_ms = au::milli(au::seconds);
+class arduino_millis_clock {
+  public:
+    typedef unsigned long ref;
+    typedef std::milli period;
+    typedef std::chrono::duration<unsigned long, std::milli> duration;
+    typedef std::chrono::time_point<arduino_millis_clock, arduino_millis_clock::duration> time_point;
 
-source_fn<unsigned long> arduinoMillisClock() {
-  return [](push_fn<unsigned long> push) {
+    static constexpr bool is_steady = true;
+
+    static arduino_millis_clock::time_point now() {
+      return arduino_millis_clock::time_point(arduino_millis_clock::duration(millis()));
+    }
+};
+
+source_fn<arduino_millis_clock::time_point> arduinoMillisClock() {
+  return [](push_fn<arduino_millis_clock::time_point> push) {
     return [push]() {
-      push(millis());
+      push(arduino_millis_clock::now());
     };
   };
 }
