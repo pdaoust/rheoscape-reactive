@@ -141,14 +141,14 @@ source_fn<TZipped> zip_(
       }
     });
 
-    pull_fn pullSource3 = source3([combiner, lastValue1, lastValue2, &lastValue3, lastValue4, push](T2 value) {
+    pull_fn pullSource3 = source3([combiner, lastValue1, lastValue2, &lastValue3, lastValue4, push](T3 value) {
       lastValue3 = value;
       if (lastValue1.has_value() && lastValue3.has_value() && lastValue4.has_value()) {
         push(combiner(lastValue1.value(), lastValue2.value(), value, lastValue4.value()));
       }
     });
 
-    pull_fn pullSource4 = source3([combiner, lastValue1, lastValue2, lastValue3, &lastValue4, push](T2 value) {
+    pull_fn pullSource4 = source4([combiner, lastValue1, lastValue2, lastValue3, &lastValue4, push](T4 value) {
       lastValue4 = value;
       if (lastValue1.has_value() && lastValue2.has_value() && lastValue3.has_value()) {
         push(combiner(lastValue1.value(), lastValue2.value(), lastValue3.value(), value));
