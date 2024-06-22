@@ -48,6 +48,12 @@ class Rheo {
     Rheo<TOut> _(pipe_fn<T, TOut> pipe) {
       return Rheo<TOut>(pipe([this](push_fn<T> pushFn) { return this->sourceFn(pushFn); }));
     }
+
+    // Call this repeatedly (or on an interval) to turn the producer into a push source.
+    // This is especially useful for interval timers.
+    void drip() {
+      _pullFn();
+    }
 };
 
 #endif

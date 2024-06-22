@@ -6,14 +6,20 @@
 
 // Don't use this with two pulls, or a push and a pull!
 // In fact, it won't even let you pull.
+
 template <typename T>
-pipe_fn<T, T> merge(source_fn<T> other) {
-  return [other](source_fn<T> source) {
-    return [other, source](push_fn<TOut> push) {
-      source([push](TIn value) { push(value); });
-      other([push](TIn value) { push(value); });
-      return [](){};
-    };
+source_fn<T> merge(source_fn<T> source1, source_fn<T> source2) {
+  return [source1, source2](push_fn<T> push) {
+    source1([push](T value) { push(value); });
+    source2([push](T value) { push(value); });
+    return [](){};
+  };
+}
+
+template <typename T>
+pipe_fn<T, T> merge(source_fn<T> source2) {
+  return [source2](source_fn<T> source1) {
+    return merge(source1, source2);
   };
 }
 

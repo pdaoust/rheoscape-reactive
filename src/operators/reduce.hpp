@@ -5,20 +5,25 @@
 #include <core_types.hpp>
 
 template <typename T>
-pipe_fn<T, T> reduce(std::function<T(T, T)> reducer) {
-  std::optional<T> acc;
-  return [reducer, &acc](source_fn<T> source) {
-    return [reducer, source, &acc](push_fn<T> push) {
-      return source([reducer, push, &acc](T value) {
-        if (!acc.has_value()) {
-          acc = value;
-          push(value);
-        } else {
-          acc = reducer(acc.value(), value);
-          push(acc.value());
-        }
-      });
-    };
+source_fn<T> reduce_(source_fn<T> source, reduce_fn<T> reducer) {
+  return [source, reducer](push_fn<T> push) {
+    std::optional<T> acc;
+    return source([reducer, &acc, push](T value) {
+      if (!acc.has_value()) {
+        acc = value;
+        push(value);
+      } else {
+        acc = reducer(acc.value(), value);
+        push(acc.value());
+      }
+    });
+  };
+}
+
+template <typename T>
+pipe_fn<T, T> reduce(reduce_fn<T> reducer) {
+  return [reducer](source_fn<T> source) {
+    return reduce_(source, reducer);
   };
 }
 
