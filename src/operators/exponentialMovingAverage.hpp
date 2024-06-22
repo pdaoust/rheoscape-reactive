@@ -16,7 +16,7 @@
 // any movements faster than this will get filtered out.
 template <typename TCalc, typename TTime>
 source_fn<TCalc> exponentialMovingAverage_(source_fn<TCalc> source, source_fn<TTime> clockSource, TTime timeConstant) {
-  source_fn<TSValue<TTime, TCalc>> timestamped = zip_<TCalc, TTime, TSValue<TTime, TCalc>>(source, clockSource, [](TCalc value, TTime timestamp) { return TSValue<TTime, TCalc> { timestamp, value }; });
+  source_fn<TSValue<TTime, TCalc>> timestamped = zip_<TSValue<TTime, TCalc>, TCalc, TTime>(source, clockSource, [](TCalc value, TTime timestamp) { return TSValue<TTime, TCalc> { timestamp, value }; });
 
   source_fn<TSValue<TTime, TCalc>> calculated = reduce_<TSValue<TTime, TCalc>>(timestamped, [timeConstant](TSValue<TTime, TCalc> prev, TSValue<TTime, TCalc> next) {
     TTime timeDelta = next.time - prev.time;
@@ -25,7 +25,7 @@ source_fn<TCalc> exponentialMovingAverage_(source_fn<TCalc> source, source_fn<TT
     return TSValue<TTime, TCalc> { next.time, integrated };
   });
   
-  return map_<TSValue<TTime, TCalc>, TCalc>(calculated, [](TSValue<TTime, TCalc> value) { return value.value; });
+  return map_<TCalc, TSValue<TTime, TCalc>>(calculated, [](TSValue<TTime, TCalc> value) { return value.value; });
 }
 
 template <typename TCalc, typename TTime>

@@ -52,7 +52,7 @@ pipe_fn<T, T> bangBang(source_fn<SetpointAndHysteresis<T>> boundsSource) {
 // Takes a process command value that tells it what direction 'on' means.
 // E.g., a heater drives temperature upwards when it turns on,
 // so onDrivesProcess should be ProcessCommand::up.
-map_fn<ProcessCommand, SwitchState> drivePlant(ProcessCommand onDrivesProcess) {
+map_fn<SwitchState, ProcessCommand> drivePlant(ProcessCommand onDrivesProcess) {
   return [onDrivesProcess](ProcessCommand direction) {
     return direction == onDrivesProcess ? SwitchState::on : SwitchState::off;
   };
@@ -62,7 +62,7 @@ map_fn<ProcessCommand, SwitchState> drivePlant(ProcessCommand onDrivesProcess) {
 // Takes a process command value that tells it what direction 'open' means.
 // E.g., a vent drives temperature downwards when it opens,
 // so openDrivesProcess should be ProcessCommand::down.
-map_fn<ProcessCommand, GateCommand> driveGate(ProcessCommand openDrivesProcess) {
+map_fn<GateCommand, ProcessCommand> driveGate(ProcessCommand openDrivesProcess) {
   return [openDrivesProcess](ProcessCommand direction) {
     return direction == openDrivesProcess ? GateCommand::open : GateCommand::close;
   };

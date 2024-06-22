@@ -41,7 +41,7 @@ source_fn<TVal> pid_(
   source_fn<TTime> clockSource,
   source_fn<PidWeights<TVal>> weightsSource
 ) {
-  source_fn<PidData<TVal, TTime>> zippedSource = zip_<TVal, TVal, TTime, PidWeights<TVal>, PidData<TVal, TTime>>(
+  source_fn<PidData<TVal, TTime>> zippedSource = zip_<PidData<TVal, TTime>, TVal, TVal, TTime, PidWeights<TVal>>(
     processVariableSource,
     setpointSource,
     clockSource,
@@ -51,7 +51,7 @@ source_fn<TVal> pid_(
     }
   );
 
-  source_fn<PidState<TVal, TTime>> calculatedSource = fold_<PidData<TVal, TTime>, PidState<TVal, TTime>>(
+  source_fn<PidState<TVal, TTime>> calculatedSource = fold_<PidState<TVal, TTime>, PidData<TVal, TTime>>(
     zippedSource,
     PidState<TVal, TTime> { 0, 0, 0, 0 },
     [](PidState<TVal, TTime> prevState, PidData<TVal, TTime> values) {
@@ -66,7 +66,7 @@ source_fn<TVal> pid_(
     }
   );
 
-  return map_<PidState<TVal, TTime>, TVal>(calculatedSource, [](PidState<TVal, TTime> value) { return value.control; });
+  return map_<TVal, PidState<TVal, TTime>>(calculatedSource, [](PidState<TVal, TTime> value) { return value.control; });
 }
 
 template <typename TVal, typename TTime>

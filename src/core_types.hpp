@@ -28,28 +28,28 @@ using source_fn = std::function<pull_fn(push_fn<T>)>;
 // and optionally uses its pull function),
 // and optionally returns a value.
 // This value is mostly useful for method chaining.
-template <typename T, typename TReturn>
+template <typename TReturn, typename T>
 using sink_fn = std::function<TReturn(source_fn<T>)>;
 
 // A sink function that doesn't return a value.
 template <typename T>
-using cap_fn = sink_fn<T, void>;
+using cap_fn = sink_fn<void, T>;
 
 // A sink function that is also (or rather, returns) a source function!
 // The signature for its factory (which is called an operator) usually looks like this:
 //
 //   (params) => (source_fn) => (push_fn) => (pull_fn)
-template <typename TIn, typename TOut>
+template <typename TOut, typename TIn>
 using pipe_fn = sink_fn<TIn, source_fn<TOut>>;
 
 // Some types for common functional operators.
-template <typename TIn, typename TOut>
+template <typename TOut, typename TIn>
 using map_fn = std::function<TOut(TIn)>;
 
 template <typename T>
 using reduce_fn = std::function<T(T, T)>;
 
-template <typename TIn, typename TAcc>
+template <typename TAcc, typename TIn>
 using fold_fn = std::function<TAcc(TAcc, TIn)>;
 
 template <typename T>
@@ -58,13 +58,13 @@ using filter_fn = std::function<bool(T)>;
 template <typename T>
 using exec_fn = std::function<void(T)>;
 
-template <typename T1, typename T2, typename TCombined>
+template <typename TCombined, typename T1, typename T2>
 using combine2_fn = std::function<TCombined(T1, T2)>;
 
-template <typename T1, typename T2, typename T3, typename TCombined>
+template <typename TCombined, typename T1, typename T2, typename T3>
 using combine3_fn = std::function<TCombined(T1, T2, T3)>;
 
-template <typename T1, typename T2, typename T3, typename T4, typename TCombined>
+template <typename TCombined, typename T1, typename T2, typename T3, typename T4>
 using combine4_fn = std::function<TCombined(T1, T2, T3, T4)>;
 
 // Shorthands for different kinds of time:
