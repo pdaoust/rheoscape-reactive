@@ -3,68 +3,75 @@
 
 #include <functional>
 #include <core_types.hpp>
+#include <types/au_noio.hpp>
 #include <operators/fold.hpp>
+#include <operators/map.hpp>
 #include <operators/zip.hpp>
 
-template <typename T>
+template <typename TVal>
 struct PidWeights {
-  T Kp;
-  T Ki;
-  T Kd;
-  PidWeights(T Kp, T Ki, T Kd)
+  TVal Kp;
+  TVal Ki;
+  TVal Kd;
+  PidWeights(TVal Kp, TVal Ki, TVal Kd)
   : Kp(Kp), Ki(Ki), Kd(Kd)
   { }
 };
 
-template <typename TProc, typename TTime>
+template <typename TVal, typename TTime>
 struct PidData {
-  TProc processVariable;
-  TProc setpoint;
+  TVal processVariable;
+  TVal setpoint;
   TTime timestamp;
-  PidWeights<TProc> weights;
+  PidWeights<TVal> weights;
 };
 
-template <typename TError, typename TIntegral, typename TControl, typename TTime>
+template <typename TVal, typename TTime>
 struct PidState {
-  TError error;
-  TIntegral integral;
-  TControl control;
+  TVal error;
+  TVal integral;
+  TVal control;
   TTime timestamp;
 };
 
-template <typename TProc, typename TError, typename TIntegral, typename TControl, typename TTime, typename TInterval>
-source_fn<TControl> pid_(source_fn<TProc> processVariableSource, source_fn<TProc> setpointSource, source_fn<TTime> clockSource, source_fn<PidWeights<TProc>> weightsSource) {
-  source_fn<PidData<TProc, TTime>> zippedSource = zip_(
+template <typename TVal, typename TTime>
+source_fn<TVal> pid_(
+  source_fn<TVal> processVariableSource,
+  source_fn<TVal> setpointSource,
+  source_fn<TTime> clockSource,
+  source_fn<PidWeights<TVal>> weightsSource
+) {
+  source_fn<PidData<TVal, TTime>> zippedSource = zip_<TVal, TVal, TTime, PidWeights<TVal>, PidData<TVal, TTime>>(
     processVariableSource,
     setpointSource,
     clockSource,
     weightsSource,
-    [](TProc processVariable, TProc setpoint, TTime timestamp, PidWeights<TProc> weights) {
-      return PidData { processVariable, setpoint, timestamp, weights };
+    [](TVal processVariable, TVal setpoint, TTime timestamp, PidWeights<TVal> weights) {
+      return PidData<TVal, TTime> { processVariable, setpoint, timestamp, weights };
     }
   );
 
-  source_fn<PidState<typename TError, typename TIntegral, typename TControl, typename TTime>> calculatedSource = fold_(
+  source_fn<PidState<TVal, TTime>> calculatedSource = fold_<PidData<TVal, TTime>, PidState<TVal, TTime>>(
     zippedSource,
-    PidState { 0, 0, 0, 0 },
-    [](pidState prevState, zipped values) {
+    PidState<TVal, TTime> { 0, 0, 0, 0 },
+    [](PidState<TVal, TTime> prevState, PidData<TVal, TTime> values) {
       // Error is delta between desired value and measured value.
       // Error = proportional term
-      TError error = values.setpoint - values.processVariable;
-      TInterval timeDelta = values.timestamp - prevState.timestamp;
-      TIntegral integral = prevState.integral + error * timeDelta;
-      auto derivative = (error - prevState.error) / timeDelta;
-      TControl control = values.Kp * error + values.Ki * integral + values.Kd * derivative;
-      return PidState { error, integral, control, values.timestamp };
+      TVal error = values.setpoint - values.processVariable;
+      TTime timeDelta = values.timestamp - prevState.timestamp;
+      TVal integral = prevState.integral + error * timeDelta;
+      TVal derivative = (error - prevState.error) / timeDelta;
+      TVal control = values.weights.Kp * error + values.weights.Ki * integral + values.weights.Kd * derivative;
+      return PidState<TVal, TTime> { error, integral, control, values.timestamp };
     }
   );
 
-  return map_(calculatedSource, [](pidState value) { return value.control; });
+  return map_<PidState<TVal, TTime>, TVal>(calculatedSource, [](PidState<TVal, TTime> value) { return value.control; });
 }
 
-template <typename TProc, typename TError, typename TIntegral, typename TControl, typename TTime, typename TInterval>
-pipe_fn<TProc, TControl> pid(source_fn<TProc> setpointSource, source_fn<TTime> clockSource, source_fn<PidWeights<TProc>> weightsSource) {
-  return [setpointSource, clockSource, weightsSource](source_fn<T> processVariableSource) {
+template <typename TVal, typename TTime>
+pipe_fn<TVal, TVal> pid(source_fn<TVal> setpointSource, source_fn<TTime> clockSource, source_fn<PidWeights<TVal>> weightsSource) {
+  return [setpointSource, clockSource, weightsSource](source_fn<TVal> processVariableSource) {
     return pid_(processVariableSource, setpointSource, clockSource, weightsSource);
   };
 }

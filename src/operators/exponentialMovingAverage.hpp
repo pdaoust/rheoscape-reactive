@@ -3,6 +3,7 @@
 
 #include <functional>
 #include <core_types.hpp>
+#include <types/TSValue.hpp>
 #include <operators/map.hpp>
 #include <operators/reduce.hpp>
 #include <operators/zip.hpp>
@@ -13,27 +14,24 @@
 // the time constant is the period of the cutoff frequency.
 // Any movements slower than this will get integrated;
 // any movements faster than this will get filtered out.
-template <typename TSource, typename TTime, typename TInterval>
-source_fn<TSource> exponentialMovingAverage_(source_fn<TSource> source, source_fn<TTime> clockSource, TInterval timeConstant) {
-  source_fn<std::tuple<TSource, TTime>> timestamped = zip_<TSource, TTime, std::tuple<TSource, TTime>>(source, clockSource);
-  source_fn<std::tuple<TSource, TTime>> calculated = reduce_<std::tuple<TSource, TTime>>(timestamped, [timeConstant](auto prev, auto next) {
-    TSource prevValue = std::get<0>(prev);
-    TTime prevTS = std::get<1>(prev);
-    TSource nextValue = std::get<0>(next);
-    TTime nextTS = std::get<1>(next);
+template <typename TCalc, typename TTime>
+source_fn<TCalc> exponentialMovingAverage_(source_fn<TCalc> source, source_fn<TTime> clockSource, TTime timeConstant) {
+  source_fn<TSValue<TTime, TCalc>> timestamped = zip_<TCalc, TTime, TSValue<TTime, TCalc>>(source, clockSource, [](TCalc value, TTime timestamp) { return TSValue<TTime, TCalc> { timestamp, value }; });
 
-    TInterval timeDelta = nextTS - prevTS;
-    auto alpha = 1 - pow(M_E, -timeDelta / timeConstant);
-    TSource integrated = prevValue + alpha * (nextValue - prevValue);
-    return std::tuple<TSource, TTime>(integrated, nextTS);
+  source_fn<TSValue<TTime, TCalc>> calculated = reduce_<TSValue<TTime, TCalc>>(timestamped, [timeConstant](TSValue<TTime, TCalc> prev, TSValue<TTime, TCalc> next) {
+    TTime timeDelta = next.time - prev.time;
+    TCalc alpha = 1 - pow(M_E, -timeDelta / timeConstant);
+    TCalc integrated = prev.value + alpha * (next.value - prev.value);
+    return TSValue<TTime, TCalc> { next.time, integrated };
   });
-  return map_<std::tuple<TSource, TTime>, TSource>(calculated, [](auto value) { return std::get<0>(value); });
+  
+  return map_<TSValue<TTime, TCalc>, TCalc>(calculated, [](TSValue<TTime, TCalc> value) { return value.value; });
 }
 
-template <typename TSource, typename TTime, typename TInterval>
-pipe_fn<TSource, TSource> exponentialMovingAverage(source_fn<TTime> clockSource, TInterval timeConstant) {
-  return [clockSource, timeConstant](source_fn<TSource> source) {
-    return exponentialMovingAverage_(source, clockSource, timeConstant);
+template <typename TCalc, typename TTime>
+pipe_fn<TCalc, TCalc> exponentialMovingAverage(source_fn<TTime> clockSource, TTime timeConstant) {
+  return [clockSource, timeConstant](source_fn<TCalc> source) {
+    return exponentialMovingAverage_<TCalc, TTime>(source, clockSource, timeConstant);
   };
 }
 

@@ -8,17 +8,10 @@ int myFunction(int, int);
 void setup() {
   // put your setup code here, to run once:
   int result = myFunction(2, 3);
-  auto blup = exponentialMovingAverage_(constant(16.0f), arduinoMillisClockFloat(), make_arduino_ms(1600.0f));
+  auto blup = exponentialMovingAverage_(constant(16.0f), arduinoMillisClock(), (unsigned long)1600);
   auto blop = au::seconds(1500) / au::seconds(500.0f);
-
-  auto prevTime = au::seconds(1500);
-  auto nextTime = au::seconds(1600);
-  auto timeConstant = au::seconds(3);
-  auto timeDelta = nextTime - prevTime;
-  auto alpha = 1 - pow(M_E, -timeDelta / au::seconds(3));
-  auto prevValue = au::kelvins_pt(32.0f);
-  auto nextValue = au::kelvins_pt(34.4f);
-  auto integrated = prevValue + alpha * (nextValue - prevValue);
+  
+  auto pidController = pid_(constant(300.0f), constant(300.0f), arduinoMillisClock(), constant(PidWeights(0.0f, 0.0f, 0.0f)));
 }
 
 void loop() {
