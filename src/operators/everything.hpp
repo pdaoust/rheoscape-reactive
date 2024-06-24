@@ -1,5 +1,6 @@
-#include <operators/bangBang.hpp>
 #include <operators/au_unit_helpers.hpp>
+#include <operators/bangBang.hpp>
+#include <operators/chrono_helpers.hpp>
 #include <operators/count.hpp>
 #include <operators/dedupe.hpp>
 #include <operators/exponentialMovingAverage.hpp>
@@ -7,6 +8,7 @@
 #include <operators/fold.hpp>
 #include <operators/foreach.hpp>
 #include <operators/interval.hpp>
+#include <operators/lift.hpp>
 #include <operators/map.hpp>
 #include <operators/merge.hpp>
 #include <operators/pid.hpp>
