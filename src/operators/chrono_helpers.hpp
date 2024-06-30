@@ -11,9 +11,9 @@ map_fn<typename TClock::time_point, typename TClock::duration::rep> convertToChr
   return [](typename TClock::duration::rep value) { return TClock::time_point(value); };
 }
 
-template <class TClock>
-map_fn<typename TClock::duration, typename TClock::duration::rep> convertToChronoDuration() {
-  return [](typename TClock::duration::rep value) { return TClock::duration(value); };
+template <class TDuration>
+map_fn<TDuration, typename TDuration::rep> convertToChronoDuration() {
+  return [](typename TDuration::rep value) { return TDuration(value); };
 }
 
 template <class TClock>
@@ -21,31 +21,31 @@ map_fn<typename TClock::duration, typename TClock::time_point> convertTimePointT
   return [](typename TClock::time_point value) { return value.time_since_epoch(); };
 }
 
-template <typename TClock, class Rep, class Period>
-map_fn<Rep, std::chrono::time_point<TClock, std::chrono::duration<Rep, Period>>> stripChrono() {
-  return [](std::chrono::time_point<TClock, std::chrono::duration<Rep, Period>> v) { return v.time_since_epoch().count(); };
+template <typename TTimePoint>
+map_fn<typename TTimePoint::duration::rep, TTimePoint> stripChrono() {
+  return [](TTimePoint v) { return v.time_since_epoch().count(); };
 }
 
-template <class Rep, class Period>
-map_fn<Rep, std::chrono::duration<Rep, Period>> stripChrono() {
-  return [](std::chrono::duration<Rep, Period> v) { return v.count(); };
+template <class TDuration>
+map_fn<typename TDuration::rep, TDuration> stripChrono() {
+  return [](TDuration v) { return v.count(); };
 }
 
-template <typename TClock, typename Rep, typename Period>
-pipe_fn<std::chrono::time_point<TClock, std::chrono::duration<Rep, Period>>, std::chrono::time_point<TClock, std::chrono::duration<Rep, Period>>> liftToChronoTimePoint(pipe_fn<Rep, Rep> scalarPipe) {
+template <typename TClock>
+pipe_fn<typename TClock::time_point, typename TClock::time_point> liftToChronoTimePoint(pipe_fn<typename TClock::duration::rep, typename TClock::duration::rep> scalarPipe) {
   return lift(
     scalarPipe,
-    convertToChronoTimePoint<TClock, Rep, Period>(),
-    stripChrono<TClock, Rep, Period>()
+    convertToChronoTimePoint<TClock>(),
+    stripChrono<typename TClock::time_point>()
   );
 }
 
-template <typename Rep, typename Period>
-pipe_fn<std::chrono::duration<Rep, Period>, std::chrono::duration<Rep, Period>> liftToChronoDuration(pipe_fn<Rep, Rep> scalarPipe) {
+template <typename TDuration>
+pipe_fn<TDuration, TDuration> liftToChronoDuration(pipe_fn<typename TDuration::rep, typename TDuration::rep> scalarPipe) {
   return lift(
     scalarPipe,
-    convertToChronoDuration<Rep, Period>(),
-    stripChrono<Rep, Period>()
+    convertToChronoDuration<TDuration>(),
+    stripChrono<TDuration>()
   );
 }
 

@@ -7,12 +7,12 @@
 #include <operators/lift.hpp>
 
 template <typename TRepOut, typename TRepIn, typename TUnit>
-map_fn<au::Quantity<TUnit, TRepIn>, au::Quantity<TUnit, TRepOut>> castUnitRep() {
+map_fn<au::Quantity<TUnit, TRepOut>, au::Quantity<TUnit, TRepIn>> castUnitRep() {
   return au::rep_cast<TRepOut, TUnit, TRepIn>;
 }
 
 template <typename TRepOut, typename TRepIn, typename TUnit>
-map_fn<au::QuantityPoint<TUnit, TRepIn>, au::QuantityPoint<TUnit, TRepOut>> castUnitRep() {
+map_fn<au::QuantityPoint<TUnit, TRepOut>, au::QuantityPoint<TUnit, TRepIn>> castUnitRep() {
   return au::rep_cast<TRepOut, TUnit, TRepIn>;
 }
 
