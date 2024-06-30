@@ -18,7 +18,7 @@
 // whether this could be done with higher-order operators.
 // Investigate whether it can!
 template <typename T, typename TTimePoint, typename TInterval>
-source_fn<T> timedLatch_(source_fn<T> source, source_fn<TTimePoint> clockSource, TInterval duration, T defaultValue) {
+source_fn<T> timedLatch(source_fn<T> source, source_fn<TTimePoint> clockSource, TInterval duration, T defaultValue) {
   return [source, clockSource, duration, defaultValue](push_fn<T> push) {
     auto lastTimestamp = std::make_shared<std::optional<TTimePoint>>();
     auto latchStartTimestamp = std::make_shared<std::optional<TTimePoint>>();
@@ -55,7 +55,7 @@ source_fn<T> timedLatch_(source_fn<T> source, source_fn<TTimePoint> clockSource,
 template <typename T, typename TTimePoint, typename TInterval>
 pipe_fn<T, T> timedLatch(source_fn<TTimePoint> clockSource, TInterval duration, T defaultValue) {
   return [clockSource, duration, defaultValue](source_fn<T> source) {
-    return timedLatch_(source, clockSource, duration, defaultValue);
+    return timedLatch(source, clockSource, duration, defaultValue);
   };
 }
 

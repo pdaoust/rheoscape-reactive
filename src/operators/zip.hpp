@@ -9,14 +9,14 @@
 // Zip two streams together into one stream using a combining function.
 // If you're using this in a push stream, it won't start emitting values
 // until both sources have emitted a value.
-// Thereafter, it'll emit a zipped value every time _either_ source emits a value,
+// Thereafter, it'll emit a zipped value every time _either source emits a value,
 // updating the respective portion of the zipped value.
 // If you're using it in a pull stream, it'll pull both sources and combine them.
 // An optional combiner function can be passed so you can combine the two values the way you like;
 // the default just gloms them into a tuple.
 
 template <typename TZipped, typename T1, typename T2>
-source_fn<TZipped> zip_(
+source_fn<TZipped> zip(
   source_fn<T1> source1,
   source_fn<T2> source2,
   combine2_fn<TZipped, T1, T2> combiner = [](T1 v1, T2 v2) { return std::tuple(v1, v2); }
@@ -54,12 +54,12 @@ pipe_fn<TZipped, T1> zip(
   combine2_fn<TZipped, T1, T2> combiner = [](T1 v1, T2 v2) { return std::tuple(v1, v2); }
 ) {
   return [source2, combiner](source_fn<T1> source1) {
-    return zip_(source1, source2, combiner);
+    return zip(source1, source2, combiner);
   };
 }
 
 template <typename TZipped, typename T1, typename T2, typename T3>
-source_fn<TZipped> zip_(
+source_fn<TZipped> zip(
   source_fn<T1> source1,
   source_fn<T2> source2,
   source_fn<T3> source3,
@@ -110,12 +110,12 @@ pipe_fn<TZipped, T1> zip(
   combine3_fn<TZipped, T1, T2, T3> combiner = [](T1 v1, T2 v2, T3 v3) { return std::tuple(v1, v2, v3); }
 ) {
   return [source2, source3, combiner](source_fn<T1> source1) {
-    return zip_(source1, source2, source3, combiner);
+    return zip(source1, source2, source3, combiner);
   };
 }
 
 template <typename TZipped, typename T1, typename T2, typename T3, typename T4>
-source_fn<TZipped> zip_(
+source_fn<TZipped> zip(
   source_fn<T1> source1,
   source_fn<T2> source2,
   source_fn<T3> source3,
@@ -178,7 +178,7 @@ pipe_fn<TZipped, T1> zip(
   combine4_fn<TZipped, T1, T2, T3, T4> combiner = [](T1 v1, T2 v2, T3 v3, T4 v4) { return std::tuple(v1, v2, v3, v4); }
 ) {
   return [source2, source3, source4, combiner](source_fn<T1> source1) {
-    return zip_(source1, source2, source3, source4, combiner);
+    return zip(source1, source2, source3, source4, combiner);
   };
 }
 

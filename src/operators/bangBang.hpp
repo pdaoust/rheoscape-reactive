@@ -23,13 +23,13 @@ enum ProcessCommand {
 // After that, it'll keep pushing in a direction until it passes the other bound,
 // just like a thermostat.
 template <typename T>
-source_fn<ProcessCommand> bangBang_(source_fn<T> processVariableSource, source_fn<SetpointAndHysteresis<T>> boundsSource) {
-  auto zipped = zip_(
+source_fn<ProcessCommand> bangBang(source_fn<T> processVariableSource, source_fn<SetpointAndHysteresis<T>> boundsSource) {
+  auto zipped = zip(
     processVariableSource,
     boundsSource
   );
 
-  return fold_(
+  return fold(
     zipped,
     ProcessCommand::neutral,
     [](ProcessCommand acc, std::tuple<T, SetpointAndHysteresis<T>> value) {
@@ -50,7 +50,7 @@ source_fn<ProcessCommand> bangBang_(source_fn<T> processVariableSource, source_f
 template <typename T>
 pipe_fn<T, T> bangBang(source_fn<SetpointAndHysteresis<T>> boundsSource) {
   return [boundsSource](source_fn<T> processVariableSource) {
-    return bangBang_(processVariableSource, boundsSource);
+    return bangBang(processVariableSource, boundsSource);
   };
 }
 

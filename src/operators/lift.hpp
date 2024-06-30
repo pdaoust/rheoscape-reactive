@@ -7,7 +7,7 @@
 #include <operators/map.hpp>
 
 // Lift a pipe function to a higher-ordered type;
-// e.g., a pipe_fn<T, T> to a pipe_<std::optional<T>, std::optional<T>>.
+// e.g., a pipe_fn<T, T> to a pipe<std::optional<T>, std::optional<T>>.
 template <typename TLifted, typename T>
 pipe_fn<TLifted, TLifted> lift(
   pipe_fn<T, T> pipe,
@@ -17,10 +17,10 @@ pipe_fn<TLifted, TLifted> lift(
 ) {
   return [pipe, liftFn, lowerFn, canBeLowered](source_fn<TLifted> source) {
     source_fn<T> lowered = canBeLowered.has_value()
-      ? map_(filter_(source, canBeLowered.value()), lowerFn)
-      : map_(source, lowerFn);
+      ? map(filter(source, canBeLowered.value()), lowerFn)
+      : map(source, lowerFn);
     source_fn<T> processed = pipe(lowered);
-    return map_(liftFn);
+    return map(liftFn);
   };
 }
 

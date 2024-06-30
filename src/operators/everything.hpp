@@ -1,5 +1,6 @@
 #include <operators/au_unit_helpers.hpp>
 #include <operators/bangBang.hpp>
+#include <operators/choose.hpp>
 #include <operators/chrono_helpers.hpp>
 #include <operators/count.hpp>
 #include <operators/dedupe.hpp>
@@ -15,7 +16,6 @@
 #include <operators/reduce.hpp>
 #include <operators/sample.hpp>
 #include <operators/startWhen.hpp>
-#include <operators/switch.hpp>
 #include <operators/tap.hpp>
 #include <operators/timedLatch.hpp>
 #include <operators/toggle.hpp>

@@ -5,7 +5,7 @@
 #include <core_types.hpp>
 
 template <typename T>
-source_fn<T> filter_(source_fn<T> source, filter_fn<T> filterer) {
+source_fn<T> filter(source_fn<T> source, filter_fn<T> filterer) {
   return [source, filterer](push_fn<T> push) {
     return source([filterer, push](T value) { if (filterer(value)) push(value); });
   };
@@ -14,7 +14,7 @@ source_fn<T> filter_(source_fn<T> source, filter_fn<T> filterer) {
 template <typename T>
 pipe_fn<T, T> filter(filter_fn<T> filterer) {
   return [filterer](source_fn<T> source) {
-    return filter_(source, filterer);
+    return filter(source, filterer);
   };
 }
 

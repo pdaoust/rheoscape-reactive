@@ -8,7 +8,7 @@
 // A combiner function can optionally be passed; the default just returns the sampled value.
 
 template <typename TOut, typename TEvent, typename TSample>
-source_fn<TOut> sample_(
+source_fn<TOut> sample(
   source_fn<TEvent> eventSource,
   source_fn<TSample> sampleSource,
   combine2_fn<TOut, TEvent, TSample> combiner = [](TEvent event, TSample sample) { return sample; }
@@ -38,7 +38,7 @@ pipe_fn<TOut, TEvent> sample(
   combine2_fn<TOut, TEvent, TSample> combiner = [](TEvent event, TSample sample) { return sample; }
 ) {
   return [sampleSource, combiner](source_fn<TEvent> eventSource) {
-    return sample_(eventSource, sampleSource, combiner);
+    return sample(eventSource, sampleSource, combiner);
   };
 }
 
@@ -48,7 +48,7 @@ pipe_fn<TOut, TSample> sampleEvery(
   combine2_fn<TOut, TSample, TEvent> combiner = [](TSample sample, TEvent event) { return sample; }
 ) {
   return [eventSource, combiner](source_fn<TSample> sampleSource) {
-    return sample_(eventSource, sampleSource, combiner);
+    return sample(eventSource, sampleSource, combiner);
   };
 }
 

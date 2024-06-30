@@ -19,7 +19,7 @@
 // Or, for exponential backoff, you could use the `curve` function.
 
 template <typename TTimePoint, typename TInterval>
-source_fn<TTimePoint> interval_(source_fn<TTimePoint> timeSource, source_fn<TInterval> intervalSource) {
+source_fn<TTimePoint> interval(source_fn<TTimePoint> timeSource, source_fn<TInterval> intervalSource) {
   return [timeSource, intervalSource](push_fn<TTimePoint> push) {
     auto lastInterval = std::make_shared<std::optional<TInterval>>();
     auto lastIntervalTimestamp = std::make_shared<std::optional<TTimePoint>>();
@@ -49,7 +49,7 @@ source_fn<TTimePoint> interval_(source_fn<TTimePoint> timeSource, source_fn<TInt
 template <typename TTimePoint, typename TInterval>
 pipe_fn<TTimePoint, TTimePoint> interval(source_fn<TInterval> intervalSource) {
   return [intervalSource](source_fn<TTimePoint> timeSource) {
-    return interval_(timeSource, intervalSource);
+    return interval(timeSource, intervalSource);
   };
 }
 

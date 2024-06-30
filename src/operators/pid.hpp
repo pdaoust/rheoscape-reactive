@@ -70,14 +70,14 @@ template <
   // This is like saying the instantaneous rate of change of the proportional term.
   typename TD
 >
-source_fn<TCtl> pid_(
+source_fn<TCtl> pid(
   source_fn<TProc> processVariableSource,
   source_fn<TProc> setpointSource,
   source_fn<TTime> clockSource,
   source_fn<PidWeights<TKp, TKi, TKd>> weightsSource,
   std::optional<Range<TCtl>> clampRange = std::nullopt
 ) {
-  source_fn<PidData<TProc, TTime, TKp, TKi, TKd>> zippedSource = zip_(
+  source_fn<PidData<TProc, TTime, TKp, TKi, TKd>> zippedSource = zip(
     processVariableSource,
     setpointSource,
     clockSource,
@@ -87,7 +87,7 @@ source_fn<TCtl> pid_(
     }
   );
 
-  source_fn<PidState<TP, TI, TCtl, TTime>> calculatedSource = fold_(
+  source_fn<PidState<TP, TI, TCtl, TTime>> calculatedSource = fold(
     zippedSource,
     PidState<TP, TI, TCtl, TTime> { },
     (fold_fn<PidState<TP, TI, TCtl, TTime>, PidData<TProc, TTime, TKp, TKi, TKd>>)[clampRange](PidState<TP, TI, TCtl, TTime> prevState, PidData<TProc, TTime, TKp, TKi, TKd> values) {
@@ -118,7 +118,7 @@ source_fn<TCtl> pid_(
     }
   );
 
-  return map_(calculatedSource, (map_fn<TCtl, PidState<TP, TI, TCtl, TTime>>)[](PidState<TP, TI, TCtl, TTime> value) { return value.control; });
+  return map(calculatedSource, (map_fn<TCtl, PidState<TP, TI, TCtl, TTime>>)[](PidState<TP, TI, TCtl, TTime> value) { return value.control; });
 }
 
 template <
@@ -140,19 +140,19 @@ pipe_fn<TCtl, TProc> pid(
   std::optional<Range<TCtl>> clampRange = std::nullopt
 ) {
   return [setpointSource, clockSource, weightsSource](source_fn<TProc> processVariableSource) {
-    return pid_<TCtl, TProc, TTime, TInterval, TKp, TKi, TKd, TP, TI, TD>(processVariableSource, setpointSource, clockSource, weightsSource);
+    return pid<TCtl, TProc, TTime, TInterval, TKp, TKi, TKd, TP, TI, TD>(processVariableSource, setpointSource, clockSource, weightsSource);
   };
 }
 
 template <typename TCalc, typename TTime>
-source_fn<TCalc> pid_scalar_(
+source_fn<TCalc> pid_scalar(
   source_fn<TCalc> processVariableSource,
   source_fn<TCalc> setpointSource,
   source_fn<TTime> clockSource,
   source_fn<PidWeights<TCalc, TCalc, TCalc>> weightsSource,
   std::optional<Range<TCalc>> clampRange = std::nullopt
 ) {
-  return pid_<TCalc, TCalc, TTime, TTime, TCalc, TCalc, TCalc, TCalc, TCalc, TCalc>(processVariableSource, setpointSource, clockSource, weightsSource, clampRange);
+  return pid<TCalc, TCalc, TTime, TTime, TCalc, TCalc, TCalc, TCalc, TCalc, TCalc>(processVariableSource, setpointSource, clockSource, weightsSource, clampRange);
 }
 
 template <typename TTime>
@@ -177,14 +177,14 @@ template <typename TCtl, typename TProc, typename TTime>
 using au_TKd = decltype(std::declval<TCtl>() / std::declval<au_TD<TProc, TTime>>());
 
 template <typename TCtl, typename TProc, typename TTime>
-source_fn<TCtl> pid_au_(
+source_fn<TCtl> pid_au(
   source_fn<TProc> processVariableSource,
   source_fn<TProc> setpointSource,
   source_fn<TTime> clockSource,
   source_fn<PidWeights<au_TKp<TCtl, TProc>, au_TKi<TCtl, TProc, TTime>, au_TKd<TCtl, TProc, TTime>>> weightsSource,
   std::optional<Range<TCtl>> clampRange = std::nullopt
 ) {
-  return pid_<
+  return pid<
     TCtl,
     TProc,
     TTime,

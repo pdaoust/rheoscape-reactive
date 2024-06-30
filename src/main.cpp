@@ -9,11 +9,11 @@ void setup() {
   // put your setup code here, to run once:
   auto measured = constant(au::kelvins_pt(16.0f));
   auto clock = clockSource<arduino_millis_clock>();
-  auto auClock = map_(
-    map_(clock, convertTimePointToDuration<arduino_millis_clock>()),
+  auto auClock = map(
+    map(clock, convertTimePointToDuration<arduino_millis_clock>()),
     convertToQuantity<typename arduino_millis_clock::duration>()
   );
-  auto avg = exponentialMovingAverage_<
+  auto avg = exponentialMovingAverage<
     au::QuantityPoint<au::Kelvins, float>,
     typename arduino_millis_clock::time_point,
     typename arduino_millis_clock::duration,
@@ -26,14 +26,14 @@ void setup() {
 
   auto scalarClock = constant((unsigned long)1);
   auto scalarMeasured = constant(16.0f);
-  auto scalarAvg = exponentialMovingAverage_<
+  auto scalarAvg = exponentialMovingAverage<
     float,
     unsigned long,
     unsigned long,
     float
   >(scalarMeasured, scalarClock, (unsigned long)1400);
 
-  //auto pidController = pid_(constant(300.0f), constant(300.0f), arduinoMillisClock(), constant(PidWeights(0.0f, 0.0f, 0.0f)));
+  //auto pidController = pid(constant(300.0f), constant(300.0f), arduinoMillisClock(), constant(PidWeights(0.0f, 0.0f, 0.0f)));
 
   auto gg = std::chrono::steady_clock::now();
 }

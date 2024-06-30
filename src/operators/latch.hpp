@@ -9,7 +9,7 @@
 // There is no factory for this function because it already is a pipe function!
 // If you only want to push non-null values
 // rather than remembering the last non-null value and pushing it when pulled,
-// use `filter_<std::optional<T>>(source, notEmpty)`
+// use `filter<std::optional<T>>(source, notEmpty)`
 template <typename T>
 source_fn<T> latch(source_fn<std::optional<T>> source) {
   return [source](push_fn<T> push) {

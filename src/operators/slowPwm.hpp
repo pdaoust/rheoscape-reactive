@@ -11,9 +11,9 @@
 // and false in the second.
 // The cycle is aligned with the clock's epoch start.
 template <typename TTimePoint, typename TInterval>
-source_fn<bool> slowPwm_(source_fn<float> dutySource, source_fn<TTimePoint> clockSource, TInterval cycleLength) {
-  auto zipped = zip_<std::tuple<float, TTimePoint>>(dutySource, clockSource);
-  return map_(
+source_fn<bool> slowPwm(source_fn<float> dutySource, source_fn<TTimePoint> clockSource, TInterval cycleLength) {
+  auto zipped = zip<std::tuple<float, TTimePoint>>(dutySource, clockSource);
+  return map(
     zipped,
     (map_fn<bool>)[cycleLength](std::tuple<float, TTimePoint> value) {
       return (std::get<1>(value) % cycleLength) < std::get<0>(value) * cycleLength; 
@@ -24,7 +24,7 @@ source_fn<bool> slowPwm_(source_fn<float> dutySource, source_fn<TTimePoint> cloc
 template <typename TTimePoint, typename TInterval>
 pipe_fn<float, bool> slowPwm(source_fn<TTimePoint> clockSource, TInterval cycleLength) {
   return [clockSource, cycleLength](source_fn<float> dutySource) {
-    return slowPwm_(dutySource, clockSource, cycleLength);
+    return slowPwm(dutySource, clockSource, cycleLength);
   };
 }
 

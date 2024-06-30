@@ -5,7 +5,7 @@
 #include <core_types.hpp>
 
 template <typename T>
-source_fn<T> tap_(source_fn<T> source, exec_fn<T> exec) {
+source_fn<T> tap(source_fn<T> source, exec_fn<T> exec) {
   source([exec](T value) { exec(value); });
   return source;
 }
@@ -13,7 +13,7 @@ source_fn<T> tap_(source_fn<T> source, exec_fn<T> exec) {
 template <typename T>
 pipe_fn<T, T> tap(exec_fn<T> exec) {
   return [exec](source_fn<T> source) {
-    return tap_(source, exec);
+    return tap(source, exec);
   };
 }
 
