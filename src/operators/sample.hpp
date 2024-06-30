@@ -14,19 +14,19 @@ source_fn<TOut> sample_(
   combine2_fn<TOut, TEvent, TSample> combiner = [](TEvent event, TSample sample) { return sample; }
 ) {
   return [eventSource, sampleSource, combiner](push_fn<TOut> push) {
-    std::optional<TEvent> lastEventValue;
+    auto lastEventValue = std::make_shared<std::optional<TEvent>>;
     
-    pull_fn pullSample = sampleSource([combiner, push, &lastEventValue](TSample sampleValue) {
-      if (lastEventValue.has_value()) {
-        push(combiner(lastEventValue, sampleValue));
+    pull_fn pullSample = sampleSource([combiner, push, lastEventValue](TSample sampleValue) {
+      if (lastEventValue->has_value()) {
+        push(combiner(lastEventValue->value(), sampleValue));
         // Clear the event value out in case the sample source pushes something.
         // This prevents us from pushing a sample that _isn't_ sampled on an event.
-        lastEventValue = std::nullopt;
+        lastEventValue->reset();
       }
     });
 
-    return eventSource([&lastEventValue, pullSample](TEvent eventValue) {
-      lastEventValue = eventValue;
+    return eventSource([lastEventValue, pullSample](TEvent eventValue) {
+      lastEventValue->emplace(eventValue);
       pullSample();
     });
   };

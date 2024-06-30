@@ -7,8 +7,7 @@
 template <typename TAcc, typename TIn>
 source_fn<TAcc> fold_(source_fn<TIn> source, TAcc initialAcc, fold_fn<TAcc, TIn> folder) {
   return [source, initialAcc, folder](push_fn<TAcc> push) {
-    TAcc acc = initialAcc;
-    return source([folder, &acc, push](TIn value) {
+    return source([folder, acc = initialAcc, push](TIn value) mutable {
       acc = folder(acc, value);
       push(acc);
     });

@@ -26,9 +26,15 @@ map_fn<au::QuantityPoint<TUnitOut, TRep>, au::QuantityPoint<TUnitIn, TRep>> conv
   return [](au::QuantityPoint<TUnitIn, TRep> value) { return value.as(TUnitOut{}); };
 }
 
+// Conversion for things that can be converted to au quantities automatically
+template <typename TDuration>
+map_fn<decltype(au::as_quantity(TDuration{})), TDuration> convertToQuantity() {
+  return [](TDuration value) { return au::as_quantity(value); };
+}
+
 template <typename TUnit, typename TRep>
 map_fn<au::Quantity<TUnit, TRep>, TRep> convertToQuantity() {
-  return [](TRep value) { return decltype(std::declval<au::Quantity<TUnit, TRep>(value); };
+  return [](TRep value) { return au::Quantity<TUnit, TRep>(value); };
 }
 
 template <typename TUnit, typename TRep>

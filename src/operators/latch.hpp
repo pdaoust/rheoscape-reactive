@@ -14,7 +14,7 @@ template <typename T>
 source_fn<T> latch(source_fn<std::optional<T>> source) {
   return [source](push_fn<T> push) {
     std::optional<T> lastSeenValue;
-    return source([push, &lastSeenValue](std::optional<T> value) {
+    return source([push, lastSeenValue](std::optional<T> value) mutable {
       if (value.has_value()) {
         lastSeenValue = value;
       }

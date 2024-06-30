@@ -3,30 +3,22 @@
 
 #include <functional>
 #include <core_types.hpp>
+#include <operators/zip.hpp>
 
+// Given a clock and a time interval,
+// turn a float between 0.0 and 1.0 into a slow PWM
+// that outputs true in the first part of the cycle
+// and false in the second.
+// The cycle is aligned with the clock's epoch start.
 template <typename TTimePoint, typename TInterval>
 source_fn<bool> slowPwm_(source_fn<float> dutySource, source_fn<TTimePoint> clockSource, TInterval cycleLength) {
-  return [dutySource, clockSource, cycleLength](push_fn<bool> push) {
-    std::optional<TTimePoint> lastCycleStart;
-    std::optional<TInterval> elapsed;
-
-    pull_fn pullClock = clockSource([&lastCycleStart, &elapsed, cycleLength](TTimePoint ts) {
-      elapsed = ts - lastCycleStart;
-      if (elapsed >= cycleLength) {
-        // Catch up if it's been more than one cycle since we sampled the clock.
-        lastCycleStart += cycleLength * floor(elapsed / cycleLength);
-      }
-    });
-
-    pull_fn pullDuty = dutySource([elapsed, cycleLength, push](float value) {
-      push(value > 0 && elapsed / cycleLength <= value);
-    });
-
-    return []() {
-      pullClock();
-      pullDuty();
-    };
-  };
+  auto zipped = zip_<std::tuple<float, TTimePoint>>(dutySource, clockSource);
+  return map_(
+    zipped,
+    (map_fn<bool>)[cycleLength](std::tuple<float, TTimePoint> value) {
+      return (std::get<1>(value) % cycleLength) < std::get<0>(value) * cycleLength; 
+    }
+  );
 }
 
 template <typename TTimePoint, typename TInterval>

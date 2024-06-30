@@ -8,12 +8,12 @@ template <typename T>
 source_fn<T> reduce_(source_fn<T> source, reduce_fn<T> reducer) {
   return [source, reducer](push_fn<T> push) {
     std::optional<T> acc;
-    return source([reducer, &acc, push](T value) {
+    return source([reducer, acc, push](T value) mutable {
       if (!acc.has_value()) {
-        acc = value;
+        acc.emplace(value);
         push(value);
       } else {
-        acc = reducer(acc.value(), value);
+        acc.emplace(reducer(acc.value(), value));
         push(acc.value());
       }
     });

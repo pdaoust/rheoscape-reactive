@@ -14,24 +14,33 @@
 // the time constant is the period of the cutoff frequency.
 // Any movements slower than this will get integrated;
 // any movements faster than this will get filtered out.
-template <typename TCalc, typename TTime>
-source_fn<TCalc> exponentialMovingAverage_(source_fn<TCalc> source, source_fn<TTime> clockSource, TTime timeConstant) {
-  source_fn<TSValue<TTime, TCalc>> timestamped = zip_<TSValue<TTime, TCalc>, TCalc, TTime>(source, clockSource, [](TCalc value, TTime timestamp) { return TSValue<TTime, TCalc> { timestamp, value }; });
+template <typename TVal, typename TTime, typename TInterval, typename TRep>
+source_fn<TVal> exponentialMovingAverage_(source_fn<TVal> source, source_fn<TTime> clockSource, TInterval timeConstant) {
+  source_fn<TSValue<TTime, TVal>> timestamped = zip_<TSValue<TTime, TVal>, TVal, TTime>(
+    source,
+    clockSource,
+    [](TVal value, TTime timestamp) {
+      return TSValue<TTime, TVal>{ timestamp, value };
+    }
+  );
 
-  source_fn<TSValue<TTime, TCalc>> calculated = reduce_<TSValue<TTime, TCalc>>(timestamped, [timeConstant](TSValue<TTime, TCalc> prev, TSValue<TTime, TCalc> next) {
-    TTime timeDelta = next.time - prev.time;
-    TCalc alpha = 1 - pow(M_E, -timeDelta / timeConstant);
-    TCalc integrated = prev.value + alpha * (next.value - prev.value);
-    return TSValue<TTime, TCalc> { next.time, integrated };
-  });
+  source_fn<TSValue<TTime, TVal>> calculated = reduce_<TSValue<TTime, TVal>>(
+    timestamped,
+    [timeConstant](TSValue<TTime, TVal> prev, TSValue<TTime, TVal> next) {
+      TInterval timeDelta = next.time - prev.time;
+      TRep alpha = 1 - pow(M_E, -timeDelta / timeConstant);
+      TVal integrated = prev.value + alpha * (next.value - prev.value);
+      return TSValue<TTime, TVal>{ std::move(next.time), std::move(integrated) };
+    }
+  );
   
-  return map_<TCalc, TSValue<TTime, TCalc>>(calculated, [](TSValue<TTime, TCalc> value) { return value.value; });
+  return map_<TVal, TSValue<TTime, TVal>>(calculated, [](TSValue<TTime, TVal> value) { return value.value; });
 }
 
-template <typename TCalc, typename TTime>
-pipe_fn<TCalc, TCalc> exponentialMovingAverage(source_fn<TTime> clockSource, TTime timeConstant) {
-  return [clockSource, timeConstant](source_fn<TCalc> source) {
-    return exponentialMovingAverage_<TCalc, TTime>(source, clockSource, timeConstant);
+template <typename TVal, typename TTime, typename TInterval, typename TRep>
+pipe_fn<TVal, TVal> exponentialMovingAverage(source_fn<TTime> clockSource, TInterval timeConstant) {
+  return [clockSource, timeConstant](source_fn<TVal> source) {
+    return exponentialMovingAverage_<TVal, TTime, TInterval, TRep>(source, clockSource, timeConstant);
   };
 }
 

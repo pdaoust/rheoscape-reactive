@@ -3,19 +3,19 @@
 
 template <typename T>
 struct Range {
-  T min;
-  T max;
+  const T min;
+  const T max;
 
-  Range(T min, T max) : min(min), max(max) { }
+  Range(const T min, const T max) : min(min), max(max) { }
 };
 
 template <typename T>
 struct SetpointAndHysteresis {
-  T setpoint;
+  const T setpoint;
   // The distance that the measured value may diverge from the setpoint in either direction.
-  T hysteresis;
+  const T hysteresis;
 
-  SetpointAndHysteresis(T setpoint, T hysteresis) : setpoint(setpoint), hysteresis(hysteresis) { }
+  SetpointAndHysteresis(const T setpoint, const T hysteresis) : setpoint(setpoint), hysteresis(hysteresis) { }
 
   SetpointAndHysteresis(Range<T> range) 
   :

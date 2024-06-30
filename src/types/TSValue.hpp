@@ -5,8 +5,8 @@
 
 template <typename TTime, typename TVal>
 struct TSValue {
-  TTime time;
-  TVal value;
+  const TTime time;
+  const TVal value;
 
   TSValue(TTime time, TVal value)
   :

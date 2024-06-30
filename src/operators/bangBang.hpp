@@ -4,12 +4,16 @@
 #include <functional>
 #include <core_types.hpp>
 #include <types/Range.hpp>
+#include <operators/fold.hpp>
+#include <operators/zip.hpp>
 
 enum ProcessCommand {
   // Below target; push the process up.
   up,
   // Above target; push the process down.
   down,
+  // This value is necessary in case the bang bang process starts inside the setpoint range.
+  neutral,
 };
 
 // Control a process using a bang-bang algorithm,
@@ -20,25 +24,27 @@ enum ProcessCommand {
 // just like a thermostat.
 template <typename T>
 source_fn<ProcessCommand> bangBang_(source_fn<T> processVariableSource, source_fn<SetpointAndHysteresis<T>> boundsSource) {
-  return [processVariableSource, boundsSource](push_fn<ProcessCommand> push) {
-    std::optional<SetpointAndHysteresis<T>> bounds;
-    pull_fn pullBounds = boundsSource([&bounds](SetpointAndHysteresis<T> value) { bounds = value; });
+  auto zipped = zip_(
+    processVariableSource,
+    boundsSource
+  );
 
-    std::optional<ProcessCommand> lastNonNeutralDirection;
-    pull_fn pullProcessVariable = processVariableSource([push, bounds, &lastNonNeutralDirection](T value) {
-      if (value < bounds.min()) {
-        lastNonNeutralDirection = ProcessCommand::up;
-        push(ProcessCommand::up);
-      } else if (value > bounds.max()) {
-        lastNonNeutralDirection = ProcessCommand::down;
-        push(ProcessCommand::down);
-      } else if (lastNonNeutralDirection.has_value()) {
-        // In the dead zone _and_ the process was previously being pushed up or down.
-        // Keep on pushing it in that direction until it goes out of bounds.
-        push(lastNonNeutralDirection.value());
+  return fold_(
+    zipped,
+    ProcessCommand::neutral,
+    [](ProcessCommand acc, std::tuple<T, SetpointAndHysteresis<T>> value) {
+      if (std::get<0>(value) < std::get<1>(value).min) {
+        return ProcessCommand::up;
+      } else if (std::get<0>(value) > std::get<1>(value).max) {
+        return ProcessCommand::down;
+      } else {
+        // In the dead zone.
+        // Keep on pushing it whatever direction it was previously going in
+        // until it goes out of bounds.
+        return acc;
       }
-    });
-  };
+    }
+  );
 }
 
 template <typename T>

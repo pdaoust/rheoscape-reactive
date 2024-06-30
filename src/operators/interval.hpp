@@ -8,7 +8,7 @@
 // Send a timestamp at the interval specified by the interval source.
 // The time source should supply its numbers regularly,
 // as time points that can be subtracted from each other
-// to yield values in the interval source.
+// to yield values of the interval source's type.
 // (For Arduino millis, that's unsigned long for both.)
 // The interval source must be pullable,
 // must yield a new number to specify the next interval
@@ -21,25 +21,25 @@
 template <typename TTimePoint, typename TInterval>
 source_fn<TTimePoint> interval_(source_fn<TTimePoint> timeSource, source_fn<TInterval> intervalSource) {
   return [timeSource, intervalSource](push_fn<TTimePoint> push) {
-    std::optional<TInterval> lastInterval;
-    std::optional<TTimePoint> lastIntervalTimestamp;
+    auto lastInterval = std::make_shared<std::optional<TInterval>>();
+    auto lastIntervalTimestamp = std::make_shared<std::optional<TTimePoint>>();
 
-    pull_fn pullNextInterval = intervalSource([&lastInterval](TInterval interval) {
-      lastInterval = interval;
+    pull_fn pullNextInterval = intervalSource([lastInterval](TInterval interval) {
+      lastInterval->emplace(interval);
     });
 
-    return timeSource([&lastInterval, &lastIntervalTimestamp, pullNextInterval, push](TTimePoint timestamp) {
-      if (!lastIntervalTimestamp.has_value()) {
+    return timeSource([lastInterval, lastIntervalTimestamp, pullNextInterval, push](TTimePoint timestamp) {
+      if (!lastIntervalTimestamp->has_value()) {
         // First pull or push of a timestamp; start the thing!
-        lastIntervalTimestamp = timestamp;
+        lastIntervalTimestamp->emplace(timestamp);
       }
 
-      if (!lastInterval.has_value() || timestamp - lastIntervalTimestamp.value() >= lastInterval.value()) {
+      if (!lastInterval->has_value() || timestamp - lastIntervalTimestamp->value() >= lastInterval.value()) {
         // An interval has passed. Push the timestamp and get the next interval.
         // Don't use the current timestamp; that'll result in uneven interval spacing!
         // Better to have unevenly emitted timestamps than unevenly calculated intervals.
-        lastIntervalTimestamp = lastIntervalTimestamp.value() + lastInterval.value();
-        push(lastIntervalTimestamp.value());
+        lastIntervalTimestamp->emplace(lastIntervalTimestamp->value() + lastInterval->value());
+        push(lastIntervalTimestamp->value());
         pullNextInterval();
       }
     });

@@ -9,13 +9,13 @@
 template <typename T>
 source_fn<T> toggle_(source_fn<T> valueSource, source_fn<bool> toggleSource) {
   return [valueSource, toggleSource](push_fn<T> push) {
-    std::optional<bool> toggleState;
-    pull_fn pullToggleSource = toggleSource([&toggleState](bool value) {
-      toggleState = value;
+    auto toggleState = std::make_shared<std::optional<bool>>();
+    pull_fn pullToggleSource = toggleSource([toggleState](bool value) {
+      toggleState->emplace(value);
     });
 
     pull_fn pullValueSource = valueSource([push, toggleState](T value) {
-      if (toggleState.has_value() && toggleState.value()) {
+      if (toggleState->has_value() && toggleState->value()) {
         push(value);
       }
     });

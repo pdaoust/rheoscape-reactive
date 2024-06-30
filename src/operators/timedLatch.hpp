@@ -14,30 +14,33 @@
 // before the latch period is up,
 // you'll still get the value that triggered the latch period
 // rather than whatever it is now.
+// FIXME: I'm too tired right now to figure out
+// whether this could be done with higher-order operators.
+// Investigate whether it can!
 template <typename T, typename TTimePoint, typename TInterval>
 source_fn<T> timedLatch_(source_fn<T> source, source_fn<TTimePoint> clockSource, TInterval duration, T defaultValue) {
   return [source, clockSource, duration, defaultValue](push_fn<T> push) {
-    std::optional<T> lastTimestamp;
-    std::optional<TTimePoint> latchStartTimestamp;
+    auto lastTimestamp = std::make_shared<std::optional<TTimePoint>>();
+    auto latchStartTimestamp = std::make_shared<std::optional<TTimePoint>>();
 
-    pull_fn pullClock = clockSource([&lastTimestamp](TTimePoint ts) {
-      lastTimestamp = ts;
+    pull_fn pullClock = clockSource([lastTimestamp](TTimePoint ts) {
+      lastTimestamp->emplace(ts);
     });
 
-    pull_fn pullSource = source([duration, defaultValue, push, lastTimestamp, &latchStartTimestamp](T value) {
+    pull_fn pullSource = source([duration, defaultValue, push, lastTimestamp, latchStartTimestamp](T value) {
       if (value == defaultValue) {
         push(value);
-      } else if (!latchStartTimestamp.has_value()) {
+      } else if (!latchStartTimestamp->has_value()) {
         // Starting a new latch period.
-        latchStartTimestamp = lastTimestamp;
+        latchStartTimestamp->emplace(lastTimestamp->value());
         push(value);
-      } else if (lastTimestamp.value() - latchStartTimestamp.value() < duration) {
+      } else if (lastTimestamp->value() - latchStartTimestamp->value() < duration) {
         // Within the latch period.
         push(value);
       } else {
         // Outside the latch period.
         // End it.
-        latchStartTimestamp = std::nullopt;
+        latchStartTimestamp->reset();
         push(defaultValue);
       }
     });

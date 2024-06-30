@@ -7,13 +7,35 @@ int myFunction(int, int);
 
 void setup() {
   // put your setup code here, to run once:
-  int result = myFunction(2, 3);
-  auto measured = constant(16.0f);
-  auto clock = map_(arduinoMillisClock(), stripChrono<arduino_millis_clock, typename arduino_millis_clock::duration::rep, typename arduino_millis_clock::duration::period>());
-  auto blup = liftToQuantity<au::Kelvins, float>(exponentialMovingAverage<float>(clock, (unsigned long)1600));
-  auto flob = 13.0f * au::Kelvins{};
-  
-  auto pidController = pid_(constant(300.0f), constant(300.0f), arduinoMillisClock(), constant(PidWeights(0.0f, 0.0f, 0.0f)));
+  auto measured = constant(au::kelvins_pt(16.0f));
+  auto clock = clockSource<arduino_millis_clock>();
+  auto auClock = map_(
+    map_(clock, convertTimePointToDuration<arduino_millis_clock>()),
+    convertToQuantity<typename arduino_millis_clock::duration>()
+  );
+  auto avg = exponentialMovingAverage_<
+    au::QuantityPoint<au::Kelvins, float>,
+    typename arduino_millis_clock::time_point,
+    typename arduino_millis_clock::duration,
+    float
+  >(
+    measured,
+    clock,
+    arduino_millis_clock::duration((unsigned long)1400)
+  );
+
+  auto scalarClock = constant((unsigned long)1);
+  auto scalarMeasured = constant(16.0f);
+  auto scalarAvg = exponentialMovingAverage_<
+    float,
+    unsigned long,
+    unsigned long,
+    float
+  >(scalarMeasured, scalarClock, (unsigned long)1400);
+
+  //auto pidController = pid_(constant(300.0f), constant(300.0f), arduinoMillisClock(), constant(PidWeights(0.0f, 0.0f, 0.0f)));
+
+  auto gg = std::chrono::steady_clock::now();
 }
 
 void loop() {
