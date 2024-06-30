@@ -4,6 +4,26 @@
 #include <chrono>
 #include <functional>
 
+// Rheoscape is not a library.
+// It's just a specification for hybrid reactive/pullable iterables
+// and how they should work.
+// Every source is a function that takes a `push` callback and an `end` callback,
+// and returns a `pull` callback.
+// A consumer, called a sink, figures out what it wants to do when a source pushes to it,
+// figures out what it wants to do when a source ends,
+// and then calls a source function with callbacks that embody that logic.
+// It receives a function that it can then use to pull new data if it likes.
+//
+// SPECS
+//
+// * A source function is bound to only one sink function.
+//   (A `share` operator can be written to handle pushing a source's values to multiple sinks.)
+// * A source function MUST call the end callback again
+//   if its pull function is called after it's already ended.
+// * A sink _SHOULD_ stop trying to pull
+//   if a source function has already called the sink's end function.
+// * An end function _MAY_ be idempotent.
+
 // A function that a sink provides to a source
 // to allow the source to push a value to the sink.
 template <typename T>
