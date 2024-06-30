@@ -24,9 +24,9 @@ class State {
 };
 
 template <typename T>
-source_fn<T> state(State<T> state) {
+source_fn<T> state(State<T>& state) {
   return [state](push_fn<T> push) {
-    return [push, state](){ push(state.get()); };
+    return [push, state](){ push(state->get()); };
   };
 }
 
