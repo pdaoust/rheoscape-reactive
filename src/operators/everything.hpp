@@ -2,6 +2,7 @@
 #include <operators/bangBang.hpp>
 #include <operators/choose.hpp>
 #include <operators/chrono_helpers.hpp>
+#include <operators/concat.hpp>
 #include <operators/count.hpp>
 #include <operators/dedupe.hpp>
 #include <operators/exponentialMovingAverage.hpp>
