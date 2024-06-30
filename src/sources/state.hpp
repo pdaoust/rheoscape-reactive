@@ -45,12 +45,8 @@ class State {
 template <typename T>
 source_fn<T> state(State<T>& state) {
   return [state](push_fn<T> push, end_fn end) {
-    return [state, push, end, alreadyEnded = false]() mutable {
-      if (alreadyEnded) {
-        return;
-      }
+    return [state, push, end]() {
       if (state->isEnded()) {
-        alreadyEnded = true;
         end();
       } else {
         push(state->get());
