@@ -6,7 +6,7 @@
 #include <Arduino.h>
 
 source_fn<bool> digitalPinSource(int pin, uint8_t pinModeFlag) {
-  return [pin, pinModeFlag](push_fn<bool> push) {
+  return [pin, pinModeFlag](push_fn<bool> push, end_fn _) {
     return [pin, pinModeFlag, push]() {
       pinMode(pin, INPUT | pinModeFlag);
       push((bool)digitalRead(pin));

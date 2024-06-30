@@ -18,6 +18,6 @@
 #include <operators/startWhen.hpp>
 #include <operators/tap.hpp>
 #include <operators/timedLatch.hpp>
+#include <operators/takeWhile.hpp>
 #include <operators/toggle.hpp>
-#include <operators/while.hpp>
 #include <operators/zip.hpp>

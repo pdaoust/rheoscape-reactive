@@ -9,18 +9,27 @@
 template <typename T>
 using push_fn = std::function<void(T)>;
 
+// A function that takes nothing and returns nothing,
+// but when called, serves as a signal to a source or sink
+// that something should happen.
+using signal_fn = std::function<void()>;
+
 // A function that a source provides to a sink
 // to allow the sink to request a new value from the source.
-using pull_fn = std::function<void()>;
+using pull_fn = signal_fn;
+
+// A function that a sink provides to a source
+// to allow the source to signal that there won't be any more values.
+using end_fn = signal_fn;
 
 // A function that produces values and pushes them to a sink.
-// It needs to receive the sink's push function,
+// It needs to receive a push function and an end function from the sink,
 // and returns a pull function to the sink.
 // It's usually created inside a factory that has a structure like this:
 //
 //   (params) => (push_fn) => (pull_fn)
 template <typename T>
-using source_fn = std::function<pull_fn(push_fn<T>)>;
+using source_fn = std::function<pull_fn(push_fn<T>, end_fn)>;
 
 // A function that receives a source function,
 // binds itself to the source

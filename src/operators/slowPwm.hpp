@@ -7,22 +7,24 @@
 
 // Given a clock and a time interval,
 // turn a float between 0.0 and 1.0 into a slow PWM
-// that outputs true in the first part of the cycle
-// and false in the second.
+// that outputs `on` in the first part of the cycle
+// and `off` in the second.
 // The cycle is aligned with the clock's epoch start.
 template <typename TTimePoint, typename TInterval>
-source_fn<bool> slowPwm(source_fn<float> dutySource, source_fn<TTimePoint> clockSource, TInterval cycleLength) {
+source_fn<SwitchState> slowPwm(source_fn<float> dutySource, source_fn<TTimePoint> clockSource, TInterval cycleLength) {
   auto zipped = zip<std::tuple<float, TTimePoint>>(dutySource, clockSource);
   return map(
     zipped,
-    (map_fn<bool>)[cycleLength](std::tuple<float, TTimePoint> value) {
-      return (std::get<1>(value) % cycleLength) < std::get<0>(value) * cycleLength; 
+    (map_fn<SwitchState>)[cycleLength](std::tuple<float, TTimePoint> value) {
+      return (std::get<1>(value) % cycleLength) < std::get<0>(value) * cycleLength
+        ? SwitchState::on
+        : SwitchState::off;
     }
   );
 }
 
 template <typename TTimePoint, typename TInterval>
-pipe_fn<float, bool> slowPwm(source_fn<TTimePoint> clockSource, TInterval cycleLength) {
+pipe_fn<float, SwitchState> slowPwm(source_fn<TTimePoint> clockSource, TInterval cycleLength) {
   return [clockSource, cycleLength](source_fn<float> dutySource) {
     return slowPwm(dutySource, clockSource, cycleLength);
   };

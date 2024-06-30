@@ -8,14 +8,17 @@
 // There is no factory for this function because it already is a pipe function!
 template <typename T>
 source_fn<T> dedupe(source_fn<T> source) {
-  return [source](push_fn<T> push) {
+  return [source](push_fn<T> push, end_fn end) {
     std::optional<T> lastSeenValue;
-    return source([push, lastSeenValue](T value) mutable {
-      if (!lastSeenValue.has_value() || lastSeenValue.value() != value) {
-        lastSeenValue = value;
-        push(value);
-      }
-    });
+    return source(
+      [push, lastSeenValue](T value) mutable {
+        if (!lastSeenValue.has_value() || lastSeenValue.value() != value) {
+          lastSeenValue = value;
+          push(value);
+        }
+      },
+      end
+    );
   };
 }
 

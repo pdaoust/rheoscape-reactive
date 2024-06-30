@@ -6,16 +6,19 @@
 
 template <typename T>
 source_fn<T> startWhen(source_fn<T> source, filter_fn<T> condition) {
-  return [source, condition](push_fn<T> push) {
+  return [source, condition](push_fn<T> push, end_fn end) {
     bool started = false;
-    return source([condition, push, started](T value) mutable {
-      if (!started && condition(value)) {
-        started = true;
-      }
-      if (started) {
-        push(value);
-      }
-    });
+    return source(
+      [condition, push, started](T value) mutable {
+        if (!started && condition(value)) {
+          started = true;
+        }
+        if (started) {
+          push(value);
+        }
+      },
+      end
+    );
   };
 }
 

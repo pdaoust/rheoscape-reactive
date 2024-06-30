@@ -6,7 +6,7 @@
 
 template <typename T>
 source_fn<T> empty() {
-  return [](push_fn<T> push) {
+  return [](push_fn<T> push, end_fn _) {
     return [](){};
   };
 }

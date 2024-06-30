@@ -9,9 +9,27 @@
 
 template <typename T>
 source_fn<T> merge(source_fn<T> source1, source_fn<T> source2) {
-  return [source1, source2](push_fn<T> push) {
-    source1([push](T value) { push(value); });
-    source2([push](T value) { push(value); });
+  return [source1, source2](push_fn<T> push, end_fn end) {
+    auto source1HasEnded = std::make_shared<bool>();
+    auto source2HasEnded = std::make_shared<bool>();
+    source1(
+      [push](T value) { push(value); },
+      [end, source1HasEnded, source2HasEnded]() {
+        source1HasEnded = true;
+        if (source2HasEnded) {
+          end();
+        }
+      }
+    );
+    source2(
+      [push](T value) { push(value); },
+      [end, source1HasEnded, source2HasEnded]() {
+        source2HasEnded = true;
+        if (source1HasEnded) {
+          end();
+        }
+      }
+    );
     return [](){};
   };
 }

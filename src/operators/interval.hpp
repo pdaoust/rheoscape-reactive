@@ -3,6 +3,7 @@
 
 #include <functional>
 #include <core_types.hpp>
+#include <util.hpp>
 #include <sources/constant.hpp>
 
 // Send a timestamp at the interval specified by the interval source.
@@ -17,32 +18,52 @@
 // The simplest interval source is `constant(interval)`.
 // (There's an alias for it called `every`, in this file.)
 // Or, for exponential backoff, you could use the `curve` function.
+//
+// This function ends when either of its sources ends.
+
+// TODO: could this entire thing be replaced with a filter or a reduce?
+// Something like
+//    filter(timeSource, [](ts) { return !(ts % interval); }
+// But with something that would allow it to snap to time intervals if it missed one
 
 template <typename TTimePoint, typename TInterval>
 source_fn<TTimePoint> interval(source_fn<TTimePoint> timeSource, source_fn<TInterval> intervalSource) {
-  return [timeSource, intervalSource](push_fn<TTimePoint> push) {
+  return [timeSource, intervalSource](push_fn<TTimePoint> push, end_fn end) {
     auto lastInterval = std::make_shared<std::optional<TInterval>>();
     auto lastIntervalTimestamp = std::make_shared<std::optional<TTimePoint>>();
+    auto endAny = std::make_shared<EndAny>();
 
-    pull_fn pullNextInterval = intervalSource([lastInterval](TInterval interval) {
-      lastInterval->emplace(interval);
-    });
+    pull_fn pullNextInterval = intervalSource(
+      [lastInterval, endAny](TInterval interval) {
+        if (endAny->ended) {
+          return;
+        }
+        lastInterval->emplace(interval);
+      },
+      endAny->upstream_end_fn
+    );
 
-    return timeSource([lastInterval, lastIntervalTimestamp, pullNextInterval, push](TTimePoint timestamp) {
-      if (!lastIntervalTimestamp->has_value()) {
-        // First pull or push of a timestamp; start the thing!
-        lastIntervalTimestamp->emplace(timestamp);
-      }
+    return timeSource(
+      [lastInterval, lastIntervalTimestamp, pullNextInterval, push, endAny](TTimePoint timestamp) {
+        if (endAny->ended) {
+          return;
+        }
+        if (!lastIntervalTimestamp->has_value()) {
+          // First pull or push of a timestamp; start the thing!
+          lastIntervalTimestamp->emplace(timestamp);
+        }
 
-      if (!lastInterval->has_value() || timestamp - lastIntervalTimestamp->value() >= lastInterval.value()) {
-        // An interval has passed. Push the timestamp and get the next interval.
-        // Don't use the current timestamp; that'll result in uneven interval spacing!
-        // Better to have unevenly emitted timestamps than unevenly calculated intervals.
-        lastIntervalTimestamp->emplace(lastIntervalTimestamp->value() + lastInterval->value());
-        push(lastIntervalTimestamp->value());
-        pullNextInterval();
-      }
-    });
+        if (!lastInterval->has_value() || timestamp - lastIntervalTimestamp->value() >= lastInterval.value()) {
+          // An interval has passed. Push the timestamp and get the next interval.
+          // Don't use the current timestamp; that'll result in uneven interval spacing!
+          // Better to have unevenly emitted timestamps than unevenly calculated intervals.
+          lastIntervalTimestamp->emplace(lastIntervalTimestamp->value() + lastInterval->value());
+          push(lastIntervalTimestamp->value());
+          pullNextInterval();
+        }
+      },
+      endAny->upstream_end_fn
+    );
   };
 }
 
