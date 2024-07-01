@@ -31,7 +31,7 @@ source_fn<TTimePoint> interval(source_fn<TTimePoint> timeSource, source_fn<TInte
   return [timeSource, intervalSource](push_fn<TTimePoint> push, end_fn end) {
     auto lastInterval = std::make_shared<std::optional<TInterval>>();
     auto lastIntervalTimestamp = std::make_shared<std::optional<TTimePoint>>();
-    auto endAny = std::make_shared<EndAny>();
+    auto endAny = std::make_shared<EndAny>(end);
 
     pull_fn pullNextInterval = intervalSource(
       [lastInterval, endAny](TInterval interval) {

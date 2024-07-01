@@ -9,14 +9,17 @@
 template <typename T>
 source_fn<T> takeWhile(source_fn<T> source, size_t count) {
   return [source, count](push_fn<T> push, end_fn end) {
-    return source([count, push, end, i = 0](T value) mutable {
-      if (i < count) {
-        push(value);
-        i ++;
-      } else {
-        end();
-      }
-    });
+    return source(
+      [count, push, end, i = 0](T value) mutable {
+        if (i < count) {
+          push(value);
+          i ++;
+        } else {
+          end();
+        }
+      },
+      end
+    );
   };
 }
 

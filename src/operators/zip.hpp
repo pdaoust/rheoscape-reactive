@@ -147,7 +147,7 @@ source_fn<TZipped> zip(
     auto lastValue2 = std::make_shared<std::optional<T2>>();
     auto lastValue3 = std::make_shared<std::optional<T3>>();
     auto lastValue4 = std::make_shared<std::optional<T4>>();
-    auto endAny = std::make_shared<EndAny>();
+    auto endAny = std::make_shared<EndAny>(end);
 
     pull_fn pullSource1 = source1(
       [combiner, lastValue1, lastValue2, lastValue3, lastValue4, push, endAny](T1 value) {

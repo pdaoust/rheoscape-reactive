@@ -9,18 +9,21 @@
 template <typename T>
 source_fn<T> takeWhile(source_fn<T> source, filter_fn<T> condition) {
   return [source, condition](push_fn<T> push, end_fn end) {
-    return source([condition, push, end, running = true](T value) mutable {
-      if (running) {
-        if (condition(value)) {
-          running = false;
-          end();
+    return source(
+      [condition, push, end, running = true](T value) mutable {
+        if (running) {
+          if (condition(value)) {
+            running = false;
+            end();
+          } else {
+            push(value);
+          }
         } else {
-          push(value);
+          end();
         }
-      } else {
-        end();
-      }
-    });
+      },
+      end
+    );
   };
 }
 

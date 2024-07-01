@@ -6,11 +6,14 @@
 
 template <typename T>
 source_fn<T> tap(source_fn<T> source, exec_fn<T> exec) {
-  source(
-    [exec](T value) { exec(value); },
-    [](){}
-  );
-  return source;
+  return [source, exec](push_fn<T> push, end_fn end) {
+    return source(
+      [exec](T value) {
+        exec(value);
+      },
+      end
+    );
+  };
 }
 
 template <typename T>

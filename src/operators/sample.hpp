@@ -17,7 +17,7 @@ source_fn<TOut> sample(
 ) {
   return [eventSource, sampleSource, combiner](push_fn<TOut> push, end_fn end) {
     auto lastEventValue = std::make_shared<std::optional<TEvent>>;
-    auto endAny = std::make_shared<EndAny>();
+    auto endAny = std::make_shared<EndAny>(end);
     
     pull_fn pullSample = sampleSource(
       [combiner, push, lastEventValue, endAny](TSample sampleValue) {

@@ -1,5 +1,5 @@
-#ifndef RHEOSCAPE_MERGE
-#define RHEOSCAPE_MERGE
+#ifndef RHEOSCAPE_CONCAT
+#define RHEOSCAPE_CONCAT
 
 #include <functional>
 #include <core_types.hpp>

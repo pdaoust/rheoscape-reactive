@@ -8,7 +8,7 @@
 // hold a value for a while before reverting to a default value.
 // The initial non-default value will be pushed,
 // then the default value will be pushed at the end of the latch duration.
-// Of course you can push it as many times as you like inside or out of a latch
+// Of course you can pull it as many times as you like inside or out of a latch
 // to get the latched or default value too.
 // If the value changes to the default or another value
 // before the latch period is up,
@@ -25,7 +25,7 @@ source_fn<T> timedLatch(source_fn<T> source, source_fn<TTimePoint> clockSource, 
   return [source, clockSource, duration, defaultValue](push_fn<T> push, end_fn end) {
     auto lastTimestamp = std::make_shared<std::optional<TTimePoint>>();
     auto latchStartTimestamp = std::make_shared<std::optional<TTimePoint>>();
-    auto endAny = std::make_shared<EndAny>();
+    auto endAny = std::make_shared<EndAny>(end);
 
     pull_fn pullClock = clockSource(
       [lastTimestamp, endAny](TTimePoint ts) {

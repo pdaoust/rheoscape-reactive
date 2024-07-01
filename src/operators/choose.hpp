@@ -5,6 +5,7 @@
 #include <map>
 #include <unordered_set>
 #include <core_types.hpp>
+#include <util.hpp>
 
 // Switch among a map of value sources with a switch source.
 // Everything is off until the switch source pushes the first value that matches a map key.
@@ -13,14 +14,15 @@
 // This source function kinda consumes the `end` signals of all the upstream sources;
 // that is, it won't signal to the sink that it's ended
 // until _all_ of its upstream sources are also ended.
-// However, it will end if the switch key source ends.
+// However, it will end if the switch key source ends, regardless of the other upstream sources.
 template <typename TKey, typename TVal>
 source_fn<TVal> choose(std::map<TKey, source_fn<TVal>> valueSourceMap, source_fn<TVal> switchSource) {
   return [valueSourceMap, switchSource](push_fn<TVal> push, end_fn end) {
     auto switchState = std::make_shared<std::optional<TKey>>();
 
-    auto pullValueFns = std::make_shared<std::map<TKey, pull_fn>>();
     auto endedSources = std::make_shared<std::unordered_set<TKey>>();
+    auto endAny = std::make_shared<EndAny>(end);
+    auto pullValueFns = std::make_shared<std::map<TKey, pull_fn>>();
     for (std::pair<TKey, source_fn<TVal>> const& pair : valueSourceMap) {
       pullValueFns[pair.first] = pair.second(
         [push, switchState, pair](TVal value) {
@@ -31,10 +33,11 @@ source_fn<TVal> choose(std::map<TKey, source_fn<TVal>> valueSourceMap, source_fn
             push(value);
           }
         },
-        [&valueSourceMap, end, endedSources, pair]() {
+        [&valueSourceMap, end, endedSources, endAny, pair]() {
           endedSources->emplace(pair.first);
           // End this source if all the upstream sources are ended.
           if (endedSources->size() == valueSourceMap->size()) {
+            endAny->ended = true;
             end();
           }
         }
@@ -44,15 +47,22 @@ source_fn<TVal> choose(std::map<TKey, source_fn<TVal>> valueSourceMap, source_fn
     pull_fn pullSwitchSource = switchSource(
       [switchState](TKey key) { switchState->emplace(key); },
       // End this source if the switch key source ends.
-      end
+      [end, endAny]() {
+        endAny->ended = true;
+        end();
+      }
     );
 
-    return [switchState, pullValueFns, pullSwitchSource]() {
-      // Pull this one first to give us a better chance of getting a desired switch state.
-      pullSwitchSource();
-      // Only pull the value source that's switched on.
-      if (pullValueFns->count(switchState)) {
-        pullValueFns[switchState]();
+    return [switchState, pullValueFns, pullSwitchSource, end, endAny]() {
+      if (endAny->ended) {
+        end();
+      } else {
+        // Pull this one first to give us a better chance of getting a desired switch state.
+        pullSwitchSource();
+        // Only pull the value source that's switched on.
+        if (pullValueFns->count(switchState)) {
+          pullValueFns[switchState]();
+        }
       }
     };
   };
