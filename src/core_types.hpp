@@ -14,6 +14,15 @@
 // and then calls a source function with callbacks that embody that logic.
 // It receives a function that it can then use to pull new data if it likes.
 //
+// There are other conventions, which are built on the above source function and sink idea:
+//
+// * A **sink function** is a sink-as-a-function, naturally --
+//   it takes a source function and binds to it.
+// * A **pipe function** is a sink function
+//   that's also a source function factory --
+//   it binds to the sink, then returns a source function
+//   that transforms the upstream source in some way.
+//
 // SPECS
 //
 // * A source function is bound to only one sink function.
@@ -23,6 +32,10 @@
 // * A sink _SHOULD_ stop trying to pull
 //   if a source function has already called the sink's end function.
 // * An end function _MAY_ be idempotent.
+// * A pipe function _SHOULD_ pass its downstream end callback to its upstream source functions
+//   and pass its upstream pull callbacks to its downstream sink function
+//   in whatever way makes sense -- that is, it doesn't need to pass them directly,
+//   but a pull and an end should do something that the consumer expects them to do.
 
 // A function that a sink provides to a source
 // to allow the source to push a value to the sink.
