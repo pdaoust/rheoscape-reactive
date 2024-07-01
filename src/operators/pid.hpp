@@ -102,19 +102,16 @@ source_fn<TCtl> pid(
       // Clamp the control variable and disable integration
       // when the control variable goes out of range
       // to prevent integrator windup.
-      TI newIntegral;
       if (clampRange.has_value()) {
         if (control > clampRange.value().max) {
           control = clampRange.value().max;
-          newIntegral = prevState.integral;
+          integral = prevState.integral;
         } else if (control < clampRange.value().min) {
           control = clampRange.value().min;
-          newIntegral = prevState.integral;
-        } else {
-          newIntegral = integral;
+          integral = prevState.integral;
         }
       }
-      return PidState<TP, TI, TCtl, TTime> { error, newIntegral, control, values.timestamp };
+      return PidState<TP, TI, TCtl, TTime> { error, integral, control, values.timestamp };
     }
   );
 
