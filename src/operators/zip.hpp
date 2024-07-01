@@ -142,7 +142,7 @@ source_fn<TZipped> zip(
   source_fn<T4> source4,
   combine4_fn<TZipped, T1, T2, T3, T4> combiner = [](T1 v1, T2 v2, T3 v3, T4 v4) { return std::tuple(v1, v2, v3, v4); }
 ) {
-  return [source1, source2, source3, source4, combiner](push_fn<TZipped> push, end_fn) {
+  return [source1, source2, source3, source4, combiner](push_fn<TZipped> push, end_fn end) {
     auto lastValue1 = std::make_shared<std::optional<T1>>();
     auto lastValue2 = std::make_shared<std::optional<T2>>();
     auto lastValue3 = std::make_shared<std::optional<T3>>();
