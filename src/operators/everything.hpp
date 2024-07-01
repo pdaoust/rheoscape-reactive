@@ -18,7 +18,8 @@
 #include <operators/sample.hpp>
 #include <operators/startWhen.hpp>
 #include <operators/tap.hpp>
-#include <operators/timedLatch.hpp>
+#include <operators/take.hpp>
 #include <operators/takeWhile.hpp>
+#include <operators/timedLatch.hpp>
 #include <operators/toggle.hpp>
 #include <operators/zip.hpp>

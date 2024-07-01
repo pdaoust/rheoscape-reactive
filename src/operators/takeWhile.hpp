@@ -1,5 +1,5 @@
-#ifndef RHEOSCAPE_UNTIL
-#define RHEOSCAPE_UNTIL
+#ifndef RHEOSCAPE_TAKE_WHILE
+#define RHEOSCAPE_TAKE_WHILE
 
 #include <functional>
 #include <core_types.hpp>
@@ -9,14 +9,16 @@
 template <typename T>
 source_fn<T> takeWhile(source_fn<T> source, filter_fn<T> condition) {
   return [source, condition](push_fn<T> push, end_fn end) {
-    bool running = true;
-    return source([condition, push, end, running](T value) mutable {
-      if (running && condition(value)) {
-        running = false;
-        end();
-      }
+    return source([condition, push, end, running = true](T value) mutable {
       if (running) {
-        push(value);
+        if (condition(value)) {
+          running = false;
+          end();
+        } else {
+          push(value);
+        }
+      } else {
+        end();
       }
     });
   };
@@ -25,7 +27,7 @@ source_fn<T> takeWhile(source_fn<T> source, filter_fn<T> condition) {
 template <typename T>
 pipe_fn<T, T> takeWhile(filter_fn<T> condition) {
   return [condition](source_fn<T> source) {
-    return until(source, condition);
+    return takeWhile(source, condition);
   };
 }
 
