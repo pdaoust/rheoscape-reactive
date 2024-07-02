@@ -1,25 +1,26 @@
-#ifndef RHEOSCAPE_ARDUINO_MILLIS_CLOCK
-#define RHEOSCAPE_ARDUINO_MILLIS_CLOCK
+#pragma once
 
 #include <chrono>
 #include <types/TSValue.hpp>
 #include <Arduino.h>
 
-class arduino_millis_clock {
-  public:
-    typedef std::chrono::duration<unsigned long, std::milli> duration;
-    typedef arduino_millis_clock::duration::rep rep;
-    typedef arduino_millis_clock::duration::period period;
-    typedef std::chrono::time_point<arduino_millis_clock, arduino_millis_clock::duration> time_point;
+namespace rheo {
 
-    static constexpr bool is_steady = true;
+  class arduino_millis_clock {
+    public:
+      typedef std::chrono::duration<unsigned long, std::milli> duration;
+      typedef arduino_millis_clock::duration::rep rep;
+      typedef arduino_millis_clock::duration::period period;
+      typedef std::chrono::time_point<arduino_millis_clock, arduino_millis_clock::duration> time_point;
 
-    static arduino_millis_clock::time_point now() noexcept {
-      return arduino_millis_clock::time_point(arduino_millis_clock::duration(millis()));
-    }
-};
+      static constexpr bool is_steady = true;
 
-template <typename T>
-struct ATSValue : TSValue<arduino_millis_clock::time_point, T> {};
+      static arduino_millis_clock::time_point now() noexcept {
+        return arduino_millis_clock::time_point(arduino_millis_clock::duration(millis()));
+      }
+  };
 
-#endif
+  template <typename T>
+  struct ATSValue : TSValue<arduino_millis_clock::time_point, T> {};
+
+}

@@ -1,24 +1,25 @@
-#ifndef RHEOSCAPE_TSVALUE
-#define RHEOSCAPE_TSVALUE
+#pragma once
 
 #include <core_types.hpp>
 
-template <typename TTime, typename TVal>
-struct TSValue {
-  const TTime time;
-  const TVal value;
+namespace rheo {
 
-  TSValue(TTime time, TVal value)
-  :
-    time(time),
-    value(value)
-  { }
-};
+  template <typename TTime, typename TVal>
+  struct TSValue {
+    const TTime time;
+    const TVal value;
 
-template <typename T>
-struct MTSValue : TSValue<mono_time_point, T> {};
+    TSValue(TTime time, TVal value)
+    :
+      time(time),
+      value(value)
+    { }
+  };
 
-template <typename T>
-struct WTSValue : TSValue<wall_time_point, T> {};
+  template <typename T>
+  struct MTSValue : TSValue<mono_time_point, T> {};
 
-#endif
+  template <typename T>
+  struct WTSValue : TSValue<wall_time_point, T> {};
+
+}

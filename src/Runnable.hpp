@@ -1,22 +1,23 @@
-#ifndef RHEOSCAPE_RUNNABLE_HPP
-#define RHEOSCAPE_RUNNABLE_HPP
+#pragma once
 
 #include <chrono>
 #include <functional>
 #include <TSValue.hpp>
 
-class Runnable {
-  private:
-    std::function<void(mono_time_point)> _run;
+namespace rheo {
 
-  public:
-    Runnable(std::function<void(mono_time_point)> run)
-    : _run(run)
-    { }
+  class Runnable {
+    private:
+      std::function<void(mono_time_point)> _run;
 
-    void run(mono_time_point ts) {
-      _run(ts);
-    }
-};
+    public:
+      Runnable(std::function<void(mono_time_point)> run)
+      : _run(run)
+      { }
 
-#endif
+      void run(mono_time_point ts) {
+        _run(ts);
+      }
+  };
+
+}

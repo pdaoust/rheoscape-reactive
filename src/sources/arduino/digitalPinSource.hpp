@@ -1,17 +1,18 @@
-#ifndef RHEOSCAPE_DIGITAL_PIN_SOURCE
-#define RHEOSCAPE_DIGITAL_PIN_SOURCE
+#pragma once
 
 #include <functional>
 #include <core_types.hpp>
 #include <Arduino.h>
 
-source_fn<bool> digitalPinSource(int pin, uint8_t pinModeFlag) {
-  return [pin, pinModeFlag](push_fn<bool> push, end_fn _) {
-    return [pin, pinModeFlag, push]() {
-      pinMode(pin, INPUT | pinModeFlag);
-      push((bool)digitalRead(pin));
-    };
-  };
-}
+namespace rheo {
 
-#endif
+  source_fn<bool> digitalPinSource(int pin, uint8_t pinModeFlag) {
+    return [pin, pinModeFlag](push_fn<bool> push, end_fn _) {
+      return [pin, pinModeFlag, push]() {
+        pinMode(pin, INPUT | pinModeFlag);
+        push((bool)digitalRead(pin));
+      };
+    };
+  }
+
+}
