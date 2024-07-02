@@ -1,0 +1,45 @@
+#pragma once
+
+#include <functional>
+#include <core_types.hpp>
+#include <operators/zip.hpp>
+
+namespace rheo {
+  
+  // Only allow at most one value per interval,
+  // dropping everything in between.
+  template <typename T, typename TTime, typename TInterval>
+  source_fn<T> throttle(source_fn<T> source, source_fn<TTime> clockSource, TInterval interval) {
+    auto timestamped = zip<TSValue<TTime, TVal>, TVal, TTime>(
+      source,
+      clockSource,
+      [](TVal value, TTime timestamp) {
+        return TSValue<TTime, TVal>{ timestamp, value };
+      }
+    );
+
+    return [interval](push_fn<T> push, end_fn end) {
+      return source(
+        [push, intervalStart = std::optional<TTime>()](TSValue<T, TTime> value) mutable {
+          if (intervalStart.has_value() && value.timestamp - intervalStart.value() > interval) {
+            intervalStart = std::nullopt;
+          }
+
+          if (!intervalStart.has_value()) {
+            intervalStart = value.timestamp;
+            push(value);
+          }
+        },
+        end
+      );
+    };
+  }
+
+  template <typename T, typename TTime, typename TInterval>
+  pipe_fn<T, T> debounce(source_fn<TTime> clockSource, TInterval interval) {
+    return [clockSource, interval](source_fn source) {
+      return debounce(source, clockSource, interval);
+    };
+  }
+
+}

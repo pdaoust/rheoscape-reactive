@@ -4,6 +4,7 @@
 #include <operators/chrono_helpers.hpp>
 #include <operators/concat.hpp>
 #include <operators/count.hpp>
+#include <operators/debounce.hpp>
 #include <operators/dedupe.hpp>
 #include <operators/exponentialMovingAverage.hpp>
 #include <operators/filter.hpp>
@@ -20,6 +21,8 @@
 #include <operators/tap.hpp>
 #include <operators/take.hpp>
 #include <operators/takeWhile.hpp>
+#include <operators/throttle.hpp>
 #include <operators/timedLatch.hpp>
+#include <operators/timestamp.hpp>
 #include <operators/toggle.hpp>
 #include <operators/zip.hpp>
