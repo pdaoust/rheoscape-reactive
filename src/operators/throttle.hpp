@@ -10,17 +10,11 @@ namespace rheo {
   // dropping everything in between.
   template <typename T, typename TTime, typename TInterval>
   source_fn<T> throttle(source_fn<T> source, source_fn<TTime> clockSource, TInterval interval) {
-    auto timestamped = zip<TSValue<TTime, TVal>, TVal, TTime>(
-      source,
-      clockSource,
-      [](TVal value, TTime timestamp) {
-        return TSValue<TTime, TVal>{ timestamp, value };
-      }
-    );
+    auto timestamped = timestamp(source, clockSource);
 
-    return [interval](push_fn<T> push, end_fn end) {
-      return source(
-        [push, intervalStart = std::optional<TTime>()](TSValue<T, TTime> value) mutable {
+    return [interval, timestamped](push_fn<T> push, end_fn end) {
+      return timestamped(
+        [interval, push, intervalStart = std::optional<TTime>()](TSValue<T, TTime> value) mutable {
           if (intervalStart.has_value() && value.timestamp - intervalStart.value() > interval) {
             intervalStart = std::nullopt;
           }
@@ -36,9 +30,9 @@ namespace rheo {
   }
 
   template <typename T, typename TTime, typename TInterval>
-  pipe_fn<T, T> debounce(source_fn<TTime> clockSource, TInterval interval) {
-    return [clockSource, interval](source_fn source) {
-      return debounce(source, clockSource, interval);
+  pipe_fn<T, T> throttle(source_fn<TTime> clockSource, TInterval interval) {
+    return [clockSource, interval](source_fn<T> source) {
+      return throttle(source, clockSource, interval);
     };
   }
 

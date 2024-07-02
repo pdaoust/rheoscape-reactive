@@ -5,7 +5,7 @@
 #include <types/TSValue.hpp>
 #include <operators/map.hpp>
 #include <operators/reduce.hpp>
-#include <operators/zip.hpp>
+#include <operators/timestamp.hpp>
 
 namespace rheo {
 
@@ -17,13 +17,7 @@ namespace rheo {
   // any movements faster than this will get filtered out.
   template <typename TVal, typename TTime, typename TInterval, typename TRep>
   source_fn<TVal> exponentialMovingAverage(source_fn<TVal> source, source_fn<TTime> clockSource, TInterval timeConstant) {
-    source_fn<TSValue<TTime, TVal>> timestamped = zip<TSValue<TTime, TVal>, TVal, TTime>(
-      source,
-      clockSource,
-      [](TVal value, TTime timestamp) {
-        return TSValue<TTime, TVal>{ timestamp, value };
-      }
-    );
+    auto timestamped = timestamp(source, clockSource);
 
     source_fn<TSValue<TTime, TVal>> calculated = reduce<TSValue<TTime, TVal>>(
       timestamped,

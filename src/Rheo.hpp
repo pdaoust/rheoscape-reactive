@@ -41,7 +41,7 @@ namespace rheo {
       }
       
       void _end() {
-        for (end_fn : _endFns) {
+        for (end_fn endFn : _endFns) {
           endFn();
         }
       }

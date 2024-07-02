@@ -2,7 +2,7 @@
 
 #include <functional>
 #include <core_types.hpp>
-#include <operators/zip.hpp>
+#include <operators/timestamp.hpp>
 
 namespace rheo {
 
@@ -14,11 +14,11 @@ namespace rheo {
 
   template <typename TTimePoint, typename TInterval>
   source_fn<SwitchState> slowPwm(source_fn<float> dutySource, source_fn<TTimePoint> clockSource, TInterval cycleLength) {
-    auto zipped = zip<std::tuple<float, TTimePoint>>(dutySource, clockSource);
+    auto zipped = timestamp(dutySource, clockSource);
     return map(
       zipped,
       (map_fn<SwitchState>)[cycleLength](std::tuple<float, TTimePoint> value) {
-        return (std::get<1>(value) % cycleLength) < std::get<0>(value) * cycleLength
+        return (value.timestamp % cycleLength) < value.value * cycleLength
           ? SwitchState::on
           : SwitchState::off;
       }

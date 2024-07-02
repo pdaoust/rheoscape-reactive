@@ -12,11 +12,12 @@ namespace rheo {
   source_fn<T> debounce(source_fn<T> source, source_fn<TTime> clockSource, TInterval interval) {
     auto timestamped = timestamp(source, clockSource);
 
-    return [interval](push_fn<T> push, end_fn end) {
-      return source(
+    return [interval, timestamped](push_fn<T> push, end_fn end) {
+      return timestamped(
         [
+          interval,
           push,
-          startState = std::optional<TSValue<TTime, T>>(),
+          startState = std::optional<TSValue<TTime, T>>()
         ](TSValue<TTime, T> value) mutable {
           if (startState.has_value()) {
             if (value.timestamp - startState.value().timestamp > interval) {
@@ -33,6 +34,13 @@ namespace rheo {
         },
         end
       );
+    };
+  }
+
+  template <typename T, typename TTime, typename TInterval>
+  pipe_fn<T, T> debounce(source_fn<TTime> clockSource, TInterval interval) {
+    return [clockSource, interval](source_fn<T> source) {
+      return debounce(source, clockSource, interval);
     };
   }
 
