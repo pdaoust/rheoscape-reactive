@@ -36,4 +36,16 @@ namespace rheo {
     };
   }
 
+  template <typename T>
+  source_fn<T> takeUntil(source_fn<T> source, filter_fn<T> condition) {
+    return takeWhile(source, [condition](T value) { return !condition(value); });
+  }
+
+  template <typename T>
+  pipe_fn<T> takeUntil(filter_fn<T> condition) {
+    return [condition](source_fn<T> source) {
+      return takeUntil(source, condition);
+    };
+  }
+
 }
