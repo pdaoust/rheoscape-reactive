@@ -2,6 +2,8 @@
 #include <types/au_noio.hpp>
 #include <rheoscape_everything.hpp>
 
+using namespace rheo;
+
 // put function declarations here:
 int myFunction(int, int);
 

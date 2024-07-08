@@ -7,8 +7,12 @@
 namespace rheo {
 
   template <typename T, typename TTime>
-  source_fn<T> timestamp(source_fn<T> source, source_fn<TTime> clockSource) {
-    return zip(source, clockSource, [](T value, TTime timestamp) { return TSValue<TTime, T> { timestamp, value }; });
+  source_fn<TSValue<TTime, T>> timestamp(source_fn<T> source, source_fn<TTime> clockSource) {
+    return zip(
+      source,
+      clockSource,
+      (combine2_fn<TSValue<TTime, T>, T, TTime>)[](T value, TTime timestamp) { return TSValue<TTime, T> { timestamp, value }; }
+    );
   }
 
 }
