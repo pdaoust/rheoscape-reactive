@@ -2,7 +2,7 @@
 
 #include <functional>
 #include <core_types.hpp>
-#include <types/TSValue.hpp>
+#include <types/TaggedValue.hpp>
 
 namespace rheo {
 
@@ -13,7 +13,7 @@ namespace rheo {
   // while the temperature was above 20.
 
   template <typename T, typename TTimePoint, typename TDuration>
-  source_fn<TSValue<TDuration, T>> stopwatch(source_fn<T> source, source_fn<TTimePoint> clockSource, filter_fn<T> lapCondition) {
+  source_fn<TaggedValue<T, TDuration>> stopwatch(source_fn<T> source, source_fn<TTimePoint> clockSource, filter_fn<T> lapCondition) {
     return zip(
       source,
       clockSource,
@@ -28,7 +28,7 @@ namespace rheo {
         }
 
         lastValueMatched = thisValueMatches;
-        return TSValue<TDuration, T>(value, ts - lapStart.value());
+        return TaggedValue(value, ts - lapStart.value());
       }
     );
   }

@@ -17,8 +17,8 @@ namespace rheo {
         [
           interval,
           push,
-          startState = std::optional<TSValue<TTime, T>>()
-        ](TSValue<TTime, T> value) mutable {
+          startState = std::optional<TaggedValue<T, TTime>>()
+        ](TaggedValue<T, TTime> value) mutable {
           if (startState.has_value()) {
             if (value.timestamp - startState.value().timestamp > interval) {
               startState = std::nullopt;

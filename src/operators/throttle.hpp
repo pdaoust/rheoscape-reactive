@@ -14,13 +14,13 @@ namespace rheo {
 
     return [interval, timestamped](push_fn<T> push, end_fn end) {
       return timestamped(
-        [interval, push, intervalStart = std::optional<TTime>()](TSValue<T, TTime> value) mutable {
-          if (intervalStart.has_value() && value.timestamp - intervalStart.value() > interval) {
+        [interval, push, intervalStart = std::optional<TTime>()](TaggedValue<TTime, T> value) mutable {
+          if (intervalStart.has_value() && value.tag - intervalStart.value() > interval) {
             intervalStart = std::nullopt;
           }
 
           if (!intervalStart.has_value()) {
-            intervalStart = value.timestamp;
+            intervalStart = value.tag;
             push(value);
           }
         },

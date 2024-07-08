@@ -2,7 +2,7 @@
 
 #include <functional>
 #include <core_types.hpp>
-#include <types/TSValue.hpp>
+#include <types/TaggedValue.hpp>
 #include <operators/map.hpp>
 #include <operators/reduce.hpp>
 #include <operators/timestamp.hpp>
@@ -19,17 +19,17 @@ namespace rheo {
   source_fn<TVal> exponentialMovingAverage(source_fn<TVal> source, source_fn<TTime> clockSource, TInterval timeConstant) {
     auto timestamped = timestamp(source, clockSource);
 
-    source_fn<TSValue<TTime, TVal>> calculated = reduce<TSValue<TTime, TVal>>(
+    source_fn<TaggedValue<TVal, TTime>> calculated = reduce<TaggedValue<TVal, TTime>>(
       timestamped,
-      [timeConstant](TSValue<TTime, TVal> prev, TSValue<TTime, TVal> next) {
-        TInterval timeDelta = next.time - prev.time;
+      (reduce_fn<TaggedValue<TVal, TTime>>)[timeConstant](TaggedValue<TVal, TTime> prev, TaggedValue<TVal, TTime> next) {
+        TInterval timeDelta = next.tag - prev.tag;
         TRep alpha = 1 - pow(M_E, -timeDelta / timeConstant);
         TVal integrated = prev.value + alpha * (next.value - prev.value);
-        return TSValue<TTime, TVal>{ std::move(next.time), std::move(integrated) };
+        return TaggedValue(integrated, next.tag);
       }
     );
     
-    return map<TVal, TSValue<TTime, TVal>>(calculated, [](TSValue<TTime, TVal> value) { return value.value; });
+    return map<TVal, TaggedValue<TVal, TTime>>(calculated, [](TaggedValue<TVal, TTime> value) { return value.value; });
   }
 
   template <typename TVal, typename TTime, typename TInterval, typename TRep>
