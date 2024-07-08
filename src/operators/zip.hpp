@@ -11,8 +11,11 @@ namespace rheo {
   // Zip streams together into one stream using a combining function.
   // If you're using this in a push stream, it won't start emitting values
   // until both sources have emitted a value.
-  // Thereafter, it'll emit a zipped value every time _either source emits a value,
+  // Thereafter, it'll emit a zipped value every time _either_ source emits a value,
   // updating the respective portion of the zipped value.
+  // Make sure all the streams being zippped
+  // will push a value every time they're pulled,
+  // because it will only push a value once both streams have pushed.
   // If you're using it in a pull stream, it'll pull both sources and combine them.
   // An optional combiner function can be passed so you can combine the two values the way you like;
   // the default just gloms them into a tuple.
