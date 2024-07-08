@@ -18,6 +18,7 @@
 #include <operators/reduce.hpp>
 #include <operators/sample.hpp>
 #include <operators/startWhen.hpp>
+#include <operators/stopwatch.hpp>
 #include <operators/tap.hpp>
 #include <operators/take.hpp>
 #include <operators/takeWhile.hpp>
