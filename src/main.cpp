@@ -1,5 +1,4 @@
 #include <Arduino.h>
-#include <types/au_noio.hpp>
 #include <rheoscape_everything.hpp>
 
 using namespace rheo;
