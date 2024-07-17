@@ -3,4 +3,5 @@
 #include <types/Drip.hpp>
 #include <types/Pipe.hpp>
 #include <types/Range.hpp>
+#include <types/State.hpp>
 #include <types/TaggedValue.hpp>
