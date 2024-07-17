@@ -15,6 +15,10 @@ namespace rheo {
   // and then calls a source function with callbacks that embody that logic.
   // It receives a function that it can then use to pull new data if it likes.
   //
+  // The source function can be called many times, each with a different sink,
+  // but every act of binding should be considered a separate stream.
+  // Therefore, you could think of a source function as a 'stream factory'.
+  //
   // There are other conventions, which are built on the above source function and sink idea:
   //
   // * A **sink function** is a sink-as-a-function, naturally --
@@ -27,7 +31,6 @@ namespace rheo {
   // SPECS
   //
   // * A source function is bound to only one sink function.
-  //   (A `share` operator can be written to handle pushing a source's values to multiple sinks.)
   // * A source function MUST call the end callback again
   //   if its pull function is called after it's already ended.
   // * A sink _SHOULD_ stop trying to pull
@@ -70,7 +73,7 @@ namespace rheo {
   // (that is, passes it a push function that handles values pushed to it
   // and optionally uses its pull function),
   // and optionally returns a value.
-  // This value is mostly useful for method chaining.
+  // This type is mostly useful for method chaining.
   template <typename TReturn, typename T>
   using sink_fn = std::function<TReturn(source_fn<T>)>;
 
@@ -81,9 +84,9 @@ namespace rheo {
   // A sink function that is also (or rather, returns) a source function!
   // The signature for its factory (which is called an operator) usually looks like this:
   //
-  //   (params) => (source_fn) => (push_fn) => (pull_fn)
+  //   (params) => (source_fn) => (push_fn, end_fn) => (pull_fn)
   template <typename TOut, typename TIn>
-  using pipe_fn = sink_fn<TIn, source_fn<TOut>>;
+  using pipe_fn = sink_fn<source_fn<TOut>, TIn>;
 
   // Some types for common functional operators.
   template <typename TOut, typename TIn>
