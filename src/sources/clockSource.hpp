@@ -3,7 +3,6 @@
 #include <functional>
 #include <core_types.hpp>
 #include <types/TaggedValue.hpp>
-#include <Arduino.h>
 
 namespace rheo {
 
