@@ -5,3 +5,4 @@
 #include <sources/empty.hpp>
 #include <sources/state.hpp>
 #include <sources/fromIterator.hpp>
+#include <sources/fromObservable.hpp>
