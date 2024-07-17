@@ -1,5 +1,6 @@
 #include <operators/au_unit_helpers.hpp>
 #include <operators/bangBang.hpp>
+#include <operators/cache.hpp>
 #include <operators/choose.hpp>
 #include <operators/chrono_helpers.hpp>
 #include <operators/concat.hpp>
