@@ -31,12 +31,20 @@ namespace rheo {
   // SPECS
   //
   // * A source function is bound to only one sink function.
+  // * A source function MAY (and possibly SHOULD) end eagerly;
+  //   that is, if it knows that a subsequent pull would only trigger an end
+  //   (e.g., it's just pushed the last value in an array)
+  //   it can call its downstream end function before the subsequent pull.
+  // * If a source doesn't end, its source function signature still MUST accept an end function
+  //   (but it doesn't ever have to call it).
+  // * If a source can't be pulled, its source function signature still MUST return a pull function
+  //   (but it doesn't have to do anything if it's called).
   // * A source function MUST call the end callback again
   //   if its pull function is called after it's already ended.
-  // * A sink _SHOULD_ stop trying to pull
+  // * A sink SHOULD stop trying to pull
   //   if a source function has already called the sink's end function.
-  // * An end function _MAY_ be idempotent.
-  // * A pipe function _SHOULD_ pass its downstream end callback to its upstream source functions
+  // * An end function MAY be idempotent.
+  // * A pipe function MAY pass its downstream end callback to its upstream source functions
   //   and pass its upstream pull callbacks to its downstream sink function
   //   in whatever way makes sense -- that is, it doesn't need to pass them directly,
   //   but a pull and an end should do something that the consumer expects them to do.
