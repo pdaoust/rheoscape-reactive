@@ -14,12 +14,9 @@ namespace rheo {
     return [address, i2c, mode](push_fn<au::Quantity<au::Lux, float>> push, end_fn _) {
       auto sensor = std::make_shared<BH1750>();
       sensor->begin(mode, address, i2c);
-      return [sensor, push, lastReadValue = std::optional<float>()]() mutable {
+      return [sensor, push]() {
         if (sensor->measurementReady()) {
-          lastReadValue.emplace(sensor->readLightLevel());
-        }
-        if (lastReadValue.has_value()) {
-          push(au::lux(lastReadValue.value()));
+          push(au::lux(sensor->readLightLevel()));
         }
       };
     };
