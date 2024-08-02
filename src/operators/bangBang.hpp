@@ -10,11 +10,11 @@ namespace rheo {
 
   enum ProcessCommand {
     // Below target; push the process up.
-    up,
+    up = 1,
     // Above target; push the process down.
-    down,
+    down = -1,
     // This value is necessary in case the bang bang process starts inside the setpoint range.
-    neutral,
+    neutral = 0,
   };
 
   // Control a process using a bang-bang algorithm,
