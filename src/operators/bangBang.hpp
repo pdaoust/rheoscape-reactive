@@ -34,9 +34,9 @@ namespace rheo {
       zipped,
       ProcessCommand::neutral,
       [](ProcessCommand acc, std::tuple<T, SetpointAndHysteresis<T>> value) {
-        if (std::get<0>(value) < std::get<1>(value).min) {
+        if (std::get<0>(value) < std::get<1>(value).min()) {
           return ProcessCommand::up;
-        } else if (std::get<0>(value) > std::get<1>(value).max) {
+        } else if (std::get<0>(value) > std::get<1>(value).max()) {
           return ProcessCommand::down;
         } else {
           // In the dead zone.

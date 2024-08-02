@@ -26,7 +26,7 @@ namespace rheo {
   source_fn<TZipped> zip(
     source_fn<T1> source1,
     source_fn<T2> source2,
-    combine2_fn<TZipped, T1, T2> combiner = [](T1 v1, T2 v2) { return std::tuple(v1, v2); }
+    combine2_fn<TZipped, T1, T2> combiner
   ) {
     return [source1, source2, combiner](push_fn<TZipped> push, end_fn end) {
       auto lastValue1 = std::make_shared<std::optional<T1>>();
@@ -60,6 +60,13 @@ namespace rheo {
         pullSource2();
       };
     };
+  }
+
+  template <typename T1, typename T2>
+  source_fn<std::tuple<T1, T2>> zip(
+    source_fn<T1> source1, source_fn<T2> source2
+  ) {
+    return zip(source1, source2, [](T1 v1, T2 v2) { return std::tuple(v1, v2); });
   }
 
   template <typename TZipped, typename T1, typename T2>
