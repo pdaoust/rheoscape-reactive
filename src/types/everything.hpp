@@ -5,3 +5,4 @@
 #include <types/Range.hpp>
 #include <types/State.hpp>
 #include <types/TaggedValue.hpp>
+#include <types/Wrapper.hpp>

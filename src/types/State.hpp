@@ -94,6 +94,10 @@ namespace rheo {
           }
         };
       }
+
+      source_fn<T> sourceFn() {
+        return [this](push_fn<T> push, end_fn end) { return this->addSink(push, end); };
+      }
   };
 
 }
