@@ -25,7 +25,7 @@ namespace rheo {
   // just like a thermostat.
   template <typename T>
   source_fn<ProcessCommand> bangBang(source_fn<T> processVariableSource, source_fn<SetpointAndHysteresis<T>> boundsSource) {
-    auto zipped = zip<std::tuple<T, SetpointAndHysteresis<T>>>(
+    auto zipped = zipTuple(
       processVariableSource,
       boundsSource
     );

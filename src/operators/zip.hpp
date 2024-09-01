@@ -63,19 +63,26 @@ namespace rheo {
   }
 
   template <typename T1, typename T2>
-  source_fn<std::tuple<T1, T2>> zip(
-    source_fn<T1> source1, source_fn<T2> source2
-  ) {
-    return zip(source1, source2, [](T1 v1, T2 v2) { return std::tuple(v1, v2); });
+  source_fn<std::tuple<T1, T2>> zipTuple(source_fn<T1> source1, source_fn<T2> source2) {
+    return zip<std::tuple<T1, T2>, T1, T2>(source1, source2, [](T1 v1, T2 v2) { return std::tuple(v1, v2); });
   }
 
   template <typename TZipped, typename T1, typename T2>
   pipe_fn<TZipped, T1> zip(
     source_fn<T2> source2,
-    combine2_fn<TZipped, T1, T2> combiner = [](T1 v1, T2 v2) { return std::tuple(v1, v2); }
+    combine2_fn<TZipped, T1, T2> combiner
   ) {
     return [source2, combiner](source_fn<T1> source1) {
       return zip(source1, source2, combiner);
+    };
+  }
+
+  template <typename T1, typename T2>
+  pipe_fn<std::tuple<T1, T2>, T1> zipTuple(
+    source_fn<T2> source2
+  ) {
+    return [source2](source_fn<T1> source1) {
+      return zipTuple(source1, source2);
     };
   }
 
@@ -84,7 +91,7 @@ namespace rheo {
     source_fn<T1> source1,
     source_fn<T2> source2,
     source_fn<T3> source3,
-    combine3_fn<TZipped, T1, T2, T3> combiner = [](T1 v1, T2 v2, T3 v3) { return std::tuple(v1, v2, v3); }
+    combine3_fn<TZipped, T1, T2, T3> combiner
   ) {
     return [source1, source2, source3, combiner](push_fn<TZipped> push, end_fn end) {
       auto lastValue1 = std::make_shared<std::optional<T1>>();
@@ -134,6 +141,20 @@ namespace rheo {
     };
   }
 
+  template <typename T1, typename T2, typename T3>
+  source_fn<std::tuple<T1, T2, T3>> zipTuple(
+    source_fn<T1> source1,
+    source_fn<T2> source2,
+    source_fn<T3> source3
+  ) {
+    return zip<std::tuple<T1, T2, T3>, T1, T2, T3>(
+      source1,
+      source2,
+      source3,
+      [](T1 v1, T2 v2, T3 v3) { return std::tuple(v1, v2, v3); }
+    );
+  }
+
   template <typename TZipped, typename T1, typename T2, typename T3>
   pipe_fn<TZipped, T1> zip(
     source_fn<T2> source2,
@@ -145,13 +166,23 @@ namespace rheo {
     };
   }
 
+  template <typename T1, typename T2, typename T3>
+  pipe_fn<std::tuple<T1, T2, T3>, T1> zipTuple(
+    source_fn<T2> source2,
+    source_fn<T3> source3
+  ) {
+    return [source2, source3](source_fn<T1> source1) {
+      return zipTuple(source1, source2, source3);
+    };
+  }
+
   template <typename TZipped, typename T1, typename T2, typename T3, typename T4>
   source_fn<TZipped> zip(
     source_fn<T1> source1,
     source_fn<T2> source2,
     source_fn<T3> source3,
     source_fn<T4> source4,
-    combine4_fn<TZipped, T1, T2, T3, T4> combiner = [](T1 v1, T2 v2, T3 v3, T4 v4) { return std::tuple(v1, v2, v3, v4); }
+    combine4_fn<TZipped, T1, T2, T3, T4> combiner
   ) {
     return [source1, source2, source3, source4, combiner](push_fn<TZipped> push, end_fn end) {
       auto lastValue1 = std::make_shared<std::optional<T1>>();
@@ -214,6 +245,22 @@ namespace rheo {
     };
   }
 
+  template <typename T1, typename T2, typename T3, typename T4>
+  source_fn<std::tuple<T1, T2, T3, T4>> zipTuple(
+    source_fn<T1> source1,
+    source_fn<T2> source2,
+    source_fn<T3> source3,
+    source_fn<T4> source4
+  ) {
+    return zip<std::tuple<T1, T2, T3, T4>, T1, T2, T3, T4>(
+      source1,
+      source2,
+      source3,
+      source4,
+      [](T1 v1, T2 v2, T3 v3, T4 v4) { return std::tuple(v1, v2, v3, v4); }
+    );
+  }
+
   template <typename TZipped, typename T1, typename T2, typename T3, typename T4>
   pipe_fn<TZipped, T1> zip(
     source_fn<T2> source2,
@@ -223,6 +270,17 @@ namespace rheo {
   ) {
     return [source2, source3, source4, combiner](source_fn<T1> source1) {
       return zip(source1, source2, source3, source4, combiner);
+    };
+  }
+
+  template <typename T1, typename T2, typename T3, typename T4>
+  pipe_fn<std::tuple<T1, T2, T3, T4>, T1> zip(
+    source_fn<T2> source2,
+    source_fn<T3> source3,
+    source_fn<T4> source4
+  ) {
+    return [source2, source3, source4](source_fn<T1> source1) {
+      return zipTuple(source1, source2, source3, source4);
     };
   }
 
