@@ -30,7 +30,9 @@ namespace rheo {
   //
   // SPECS
   //
-  // * A source function is bound to only one sink function.
+  // * A source function SHOULD allow multiple sinks to bind to it,
+  //   and SHOULD independent streams for each act of binding.
+  //   (This is actually easier to do than creating one stream.)
   // * A source function MAY (and possibly SHOULD) end eagerly;
   //   that is, if it knows that a subsequent pull would only trigger an end
   //   (e.g., it's just pushed the last value in an array)
@@ -48,6 +50,11 @@ namespace rheo {
   //   and pass its upstream pull callbacks to its downstream sink function
   //   in whatever way makes sense -- that is, it doesn't need to pass them directly,
   //   but a pull and an end should do something that the consumer expects them to do.
+  // * A source that can push and models a persistent state MAY push its last value at bind time
+  //   but MUST NOT expect its sink to be ready to receive values at bind time;
+  //   the sink may have to do some setup first.
+  // * A source that models a stream of events SHOULD NOT push the last the last event
+  //   to its sink at bind time.
 
   // A function that a sink provides to a source
   // to allow the source to push a value to the sink.
@@ -100,11 +107,16 @@ namespace rheo {
   template <typename TOut, typename TIn>
   using map_fn = std::function<TOut(TIn)>;
 
+  // Does what it says on the tin.
+  // Some mapping functions need context.
+  template <typename TOut, typename TIn, typename TContext>
+  using map_with_context_fn = std::function<TOut(TIn, TContext)>;
+
   template <typename T>
-  using reduce_fn = std::function<T(T, T)>;
+  using reduce_fn = map_with_context_fn<T, T, T>;
 
   template <typename TAcc, typename TIn>
-  using fold_fn = std::function<TAcc(TAcc, TIn)>;
+  using fold_fn = map_with_context_fn<TAcc, TAcc, TIn>;
 
   template <typename T>
   using filter_fn = std::function<bool(T)>;
@@ -129,14 +141,14 @@ namespace rheo {
   using wall_duration = std::chrono::system_clock::duration;
   using wall_time_point = std::chrono::system_clock::time_point;
 
-  // Can be used for buttons/reeds/switches that drive a pin high or low,
-  // or for pins that turn relays/FETS/etc on or off.
+  // Can be used to represent the state of input switches that are pulled high or low,
+  // or to represent commands to drive switch outputs.
   enum class SwitchState {
     off,
     on,
   };
 
-  // Can be used for valves or doors.
+  // Can be used to represent the state of openable inputs such as doors or valves,
   enum class GateState {
     open,
     closed,
