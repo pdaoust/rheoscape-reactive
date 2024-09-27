@@ -5,14 +5,14 @@
 
 namespace rheo {
 
-  class bad_state_ended_access {
+  class bad_state_ended_access : std::exception {
     public:
       const char* what() {
         return "Tried to get or set the state of a State object that was ended";
       }
   };
 
-  class bad_state_unset_access {
+  class bad_state_unset_access : std::exception {
     public:
       const char* what() {
         return "Tried to access the state of a State object that was ended";
@@ -37,7 +37,7 @@ namespace rheo {
 
       void set(T value) {
         if (_isEnded) {
-          throw new bad_state_ended_access;
+          throw bad_state_ended_access();
         }
 
         _value = value;
@@ -48,10 +48,10 @@ namespace rheo {
 
       T get() {
         if (_isEnded) {
-          throw new bad_state_ended_access;
+          throw bad_state_ended_access();
         }
         if (!_value.has_value()) {
-          throw new bad_state_unset_access;
+          throw bad_state_unset_access();
         }
         return _value.value();
       }

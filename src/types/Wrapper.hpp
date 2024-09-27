@@ -16,4 +16,9 @@ namespace rheo {
     return std::make_shared<Wrapper<T>>(Wrapper<T> { value });
   }
 
+  template <typename T>
+  std::shared_ptr<Wrapper<T>> make_wrapper_shared() {
+    return std::make_shared<Wrapper<T>>(Wrapper<T>{});
+  }
+
 }

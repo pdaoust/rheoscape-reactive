@@ -4,7 +4,7 @@
 
 namespace rheo {
 
-  template <typename Rep, typename Period = std::milli>
+  template <typename Rep, typename Period>
   class mock_clock {
     private:
       mock_clock() = delete;
@@ -24,7 +24,7 @@ namespace rheo {
 
       static void setTime(Rep timestamp);
 
-      static void tick();
+      static void tick(Rep ticks = 1);
   };
 
   template <typename Rep, typename Period>
@@ -41,7 +41,9 @@ namespace rheo {
   }
 
   template <typename Rep, typename Period>
-  void mock_clock<Rep, Period>::tick() {
-    _timestamp ++;
+  void mock_clock<Rep, Period>::tick(Rep ticks) {
+    _timestamp += ticks;
   }
+
+  using mock_clock_ulong_millis = mock_clock<unsigned long, std::milli>;
 }
