@@ -11,10 +11,17 @@ namespace rheo {
   source_fn<T> sequence(T iBegin, T iEnd, T step) {
     return [iBegin, iEnd, step](push_fn<T> push, end_fn end) {
       return [iBegin, iEnd, step, push, end, i = iBegin]() mutable {
-        if (i <= iEnd) {
+        if (iBegin == iEnd) {
+          end();
+          return;
+        }
+        bool isBackwards = iBegin > iEnd;
+        if ((!isBackwards && i <= iEnd)
+            || (isBackwards && i >= iEnd)) {
           push(i);
           i += step;
-          if (i > iEnd) {
+          if ((!isBackwards && i > iEnd)
+              || (isBackwards && i < iEnd)) {
             end();
           }
         } else {
