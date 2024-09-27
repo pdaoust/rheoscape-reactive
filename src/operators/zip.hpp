@@ -4,6 +4,7 @@
 #include <memory>
 #include <utility>
 #include <core_types.hpp>
+#include <operators/map.hpp>
 #include <util.hpp>
 
 namespace rheo {
@@ -21,6 +22,9 @@ namespace rheo {
   // the default just gloms them into a tuple.
   //
   // All of these sources end when any of their upstream sources ends.
+  //
+  // WORD OF CAUTION: If the first source is a source that pushes its first value on bind,
+  // that first value will get missed because this operator needs to do some setup.
 
   template <typename TZipped, typename T1, typename T2>
   source_fn<TZipped> zip(
@@ -31,33 +35,39 @@ namespace rheo {
     return [source1, source2, combiner](push_fn<TZipped> push, end_fn end) {
       auto lastValue1 = std::make_shared<std::optional<T1>>();
       auto lastValue2 = std::make_shared<std::optional<T2>>();
+      auto pullSource1 = std::make_shared<std::optional<pull_fn>>();
+      auto pullSource2 = std::make_shared<std::optional<pull_fn>>();
       auto endAny = std::make_shared<EndAny>(end);
 
-      pull_fn pullSource1 = source1(
-        [combiner, push, lastValue1, lastValue2, endAny](T1 value) {
+      pullSource1->emplace(source1(
+        [combiner, push, lastValue1, lastValue2, pullSource2, endAny](T1 value) {
           lastValue1->emplace(value);
-          if (!endAny->ended && lastValue2->has_value()) {
+          if (pullSource2->has_value() && !lastValue2->has_value()) {
+            pullSource2->value()();
+          } else if (!endAny->ended && lastValue2->has_value()) {
             push(combiner(value, lastValue2->value()));
           }
         },
         endAny->upstream_end_fn
-      );
+      )); 
 
-      pull_fn pullSource2 = source2(
-        [combiner, push, lastValue1, lastValue2, endAny](T2 value) {
+      pullSource2->emplace(source2(
+        [combiner, push, lastValue1, lastValue2, pullSource1, endAny](T2 value) {
           lastValue2->emplace(value);
-          if (!endAny->ended && lastValue1->has_value()) {
+          if (pullSource1->has_value() && !lastValue1->has_value()) {
+            pullSource1->value()();
+          } else if (!endAny->ended && lastValue1->has_value()) {
             push(combiner(lastValue1->value(), value));
           }
         },
         endAny->upstream_end_fn
-      );
+      ));
 
       return [lastValue1, lastValue2, pullSource1, pullSource2]() {
         lastValue1->reset();
         lastValue2->reset();
-        pullSource1();
-        pullSource2();
+        // We don't need to pull from both; pulling from #1 will pull from #2.
+        pullSource1->value()();
       };
     };
   }
@@ -86,68 +96,51 @@ namespace rheo {
     };
   }
 
+  // map(
+  //   rheo::source_fn<
+  //     std::tuple<
+  //       std::tuple<int, char>,
+  //       bool>
+  //     >,
+  //     rheo::zip<
+  //       std::tuple<int, char, bool>,
+  //       int,
+  //       char,
+  //       bool
+  //     >(
+  //       source_fn<int>,
+  //       source_fn<char>,
+  //       source_fn<bool>,
+  //       combine3_fn<std::tuple<int, char, bool>, int, char, bool>
+  //     )::<lambda(std::tuple<std::tuple<int, char>, bool>)>
+  //   )
+
   template <typename TZipped, typename T1, typename T2, typename T3>
-  source_fn<TZipped> zip(
+  source_fn<TZipped> zip3(
     source_fn<T1> source1,
     source_fn<T2> source2,
     source_fn<T3> source3,
     combine3_fn<TZipped, T1, T2, T3> combiner
   ) {
-    return [source1, source2, source3, combiner](push_fn<TZipped> push, end_fn end) {
-      auto lastValue1 = std::make_shared<std::optional<T1>>();
-      auto lastValue2 = std::make_shared<std::optional<T2>>();
-      auto lastValue3 = std::make_shared<std::optional<T3>>();
-      auto endAny = std::make_shared<EndAny>(end);
-
-      pull_fn pullSource1 = source1(
-        [combiner, lastValue1, lastValue2, lastValue3, push, endAny](T1 value) {
-          lastValue1->emplace(value);
-          if (!endAny->ended && lastValue2.has_value() && lastValue3.has_value()) {
-            push(combiner(value, lastValue2.value(), lastValue3.value()));
-          }
-        },
-        endAny->upstream_end_fn
-      );
-
-      pull_fn pullSource2 = source2(
-        [combiner, lastValue1, lastValue2, lastValue3, push, endAny](T2 value) {
-          lastValue2->emplace(value);
-          if (!endAny->ended && lastValue1.has_value() && lastValue3.has_value()) {
-            push(combiner(lastValue1.value(), value, lastValue3.value()));
-          }
-        },
-        endAny->upstream_end_fn
-      );
-
-      pull_fn pullSource3 = source3(
-        [combiner, lastValue1, lastValue2, lastValue3, push, endAny](T2 value) {
-          lastValue3->emplace(value);
-          if (!endAny->ended && lastValue1.has_value() && lastValue3.has_value()) {
-            push(combiner(lastValue1.value(), lastValue2.value(), value));
-          }
-        },
-        endAny->upstream_end_fn
-      );
-
-      return [pullSource1, pullSource2, pullSource3, lastValue1, lastValue2, lastValue3]() {
-        // Clear 'em both out so we get fresh values.
-        lastValue1->reset();
-        lastValue2->reset();
-        lastValue3->reset();
-        pullSource1();
-        pullSource2();
-        pullSource3();
-      };
-    };
+    return map<TZipped, std::tuple<std::tuple<T1, T2>, T3>>(
+      zipTuple(zipTuple(source1, source2), source3),
+      (map_fn<TZipped, std::tuple<std::tuple<T1, T2>, T3>>)[combiner](std::tuple<std::tuple<T1, T2>, T3> value) {
+        return combiner(
+          std::get<0>(std::get<0>(value)),
+          std::get<1>(std::get<0>(value)),
+          std::get<1>(value)
+        );
+      }
+    );
   }
 
   template <typename T1, typename T2, typename T3>
-  source_fn<std::tuple<T1, T2, T3>> zipTuple(
+  source_fn<std::tuple<T1, T2, T3>> zip3Tuple(
     source_fn<T1> source1,
     source_fn<T2> source2,
     source_fn<T3> source3
   ) {
-    return zip<std::tuple<T1, T2, T3>, T1, T2, T3>(
+    return zip3<std::tuple<T1, T2, T3>, T1, T2, T3>(
       source1,
       source2,
       source3,
@@ -156,18 +149,18 @@ namespace rheo {
   }
 
   template <typename TZipped, typename T1, typename T2, typename T3>
-  pipe_fn<TZipped, T1> zip(
+  pipe_fn<TZipped, T1> zip3(
     source_fn<T2> source2,
     source_fn<T3> source3,
     combine3_fn<TZipped, T1, T2, T3> combiner = [](T1 v1, T2 v2, T3 v3) { return std::tuple(v1, v2, v3); }
   ) {
     return [source2, source3, combiner](source_fn<T1> source1) {
-      return zip(source1, source2, source3, combiner);
+      return zip3(source1, source2, source3, combiner);
     };
   }
 
   template <typename T1, typename T2, typename T3>
-  pipe_fn<std::tuple<T1, T2, T3>, T1> zipTuple(
+  pipe_fn<std::tuple<T1, T2, T3>, T1> zip3Tuple(
     source_fn<T2> source2,
     source_fn<T3> source3
   ) {
@@ -177,82 +170,34 @@ namespace rheo {
   }
 
   template <typename TZipped, typename T1, typename T2, typename T3, typename T4>
-  source_fn<TZipped> zip(
+  source_fn<TZipped> zip4(
     source_fn<T1> source1,
     source_fn<T2> source2,
     source_fn<T3> source3,
     source_fn<T4> source4,
     combine4_fn<TZipped, T1, T2, T3, T4> combiner
   ) {
-    return [source1, source2, source3, source4, combiner](push_fn<TZipped> push, end_fn end) {
-      auto lastValue1 = std::make_shared<std::optional<T1>>();
-      auto lastValue2 = std::make_shared<std::optional<T2>>();
-      auto lastValue3 = std::make_shared<std::optional<T3>>();
-      auto lastValue4 = std::make_shared<std::optional<T4>>();
-      auto endAny = std::make_shared<EndAny>(end);
-
-      pull_fn pullSource1 = source1(
-        [combiner, lastValue1, lastValue2, lastValue3, lastValue4, push, endAny](T1 value) {
-          lastValue1->emplace(value);
-          if (!endAny->ended && lastValue2.has_value() && lastValue3.has_value() && lastValue4.has_value()) {
-            push(combiner(value, lastValue2.value(), lastValue3.value(), lastValue4.value()));
-          }
-        },
-        endAny->upstream_end_fn
-      );
-
-      pull_fn pullSource2 = source2(
-        [combiner, lastValue1, lastValue2, lastValue3, lastValue4, push, endAny](T2 value) {
-          lastValue2->emplace(value);
-          if (!endAny->ended && lastValue1.has_value() && lastValue3.has_value() && lastValue4.has_value()) {
-            push(combiner(lastValue1.value(), value, lastValue3.value(), lastValue4.value()));
-          }
-        },
-        endAny->upstream_end_fn
-      );
-
-      pull_fn pullSource3 = source3(
-        [combiner, lastValue1, lastValue2, lastValue3, lastValue4, push, endAny](T3 value) {
-          lastValue3->emplace(value);
-          if (!endAny->ended && lastValue1.has_value() && lastValue3.has_value() && lastValue4.has_value()) {
-            push(combiner(lastValue1.value(), lastValue2.value(), value, lastValue4.value()));
-          }
-        },
-        endAny->upstream_end_fn
-      );
-
-      pull_fn pullSource4 = source4(
-        [combiner, lastValue1, lastValue2, lastValue3, lastValue4, push, endAny](T4 value) {
-          lastValue4->emplace(value);
-          if (!endAny->ended && lastValue1.has_value() && lastValue2.has_value() && lastValue3.has_value()) {
-            push(combiner(lastValue1.value(), lastValue2.value(), lastValue3.value(), value));
-          }
-        },
-        endAny->upstream_end_fn
-      );
-
-      return [pullSource1, pullSource2, pullSource3, pullSource4, lastValue1, lastValue2, lastValue3, lastValue4]() {
-        // Clear 'em both out so we get fresh values.
-        lastValue1->reset();
-        lastValue2->reset();
-        lastValue3->reset();
-        lastValue4->reset();
-        pullSource1();
-        pullSource2();
-        pullSource3();
-        pullSource4();
-      };
-    };
+    return map<TZipped, std::tuple<std::tuple<std::tuple<T1, T2>, T3>, T4>>(
+      zipTuple(zipTuple(zipTuple(source1, source2), source3), source4),
+      (map_fn<TZipped, std::tuple<std::tuple<std::tuple<T1, T2>, T3>, T4>>)[combiner](std::tuple<std::tuple<std::tuple<T1, T2>, T3>, T4> value) {
+        return combiner(
+          std::get<0>(std::get<0>(std::get<0>(value))),
+          std::get<1>(std::get<0>(std::get<0>(value))),
+          std::get<1>(std::get<0>(value)),
+          std::get<1>(value)
+        );
+      }
+    );
   }
 
   template <typename T1, typename T2, typename T3, typename T4>
-  source_fn<std::tuple<T1, T2, T3, T4>> zipTuple(
+  source_fn<std::tuple<T1, T2, T3, T4>> zip4Tuple(
     source_fn<T1> source1,
     source_fn<T2> source2,
     source_fn<T3> source3,
     source_fn<T4> source4
   ) {
-    return zip<std::tuple<T1, T2, T3, T4>, T1, T2, T3, T4>(
+    return zip4<std::tuple<T1, T2, T3, T4>, T1, T2, T3, T4>(
       source1,
       source2,
       source3,
@@ -262,25 +207,25 @@ namespace rheo {
   }
 
   template <typename TZipped, typename T1, typename T2, typename T3, typename T4>
-  pipe_fn<TZipped, T1> zip(
+  pipe_fn<TZipped, T1> zip4(
     source_fn<T2> source2,
     source_fn<T3> source3,
     source_fn<T4> source4,
     combine4_fn<TZipped, T1, T2, T3, T4> combiner = [](T1 v1, T2 v2, T3 v3, T4 v4) { return std::tuple(v1, v2, v3, v4); }
   ) {
     return [source2, source3, source4, combiner](source_fn<T1> source1) {
-      return zip(source1, source2, source3, source4, combiner);
+      return zip4(source1, source2, source3, source4, combiner);
     };
   }
 
   template <typename T1, typename T2, typename T3, typename T4>
-  pipe_fn<std::tuple<T1, T2, T3, T4>, T1> zip(
+  pipe_fn<std::tuple<T1, T2, T3, T4>, T1> zip4Tuple(
     source_fn<T2> source2,
     source_fn<T3> source3,
     source_fn<T4> source4
   ) {
     return [source2, source3, source4](source_fn<T1> source1) {
-      return zipTuple(source1, source2, source3, source4);
+      return zip4Tuple(source1, source2, source3, source4);
     };
   }
 

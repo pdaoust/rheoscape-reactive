@@ -19,8 +19,8 @@ namespace rheo {
   source_fn<T> cache(source_fn<T> source) {
     return [source](push_fn<T> push, end_fn _) {
       auto lastSeenValue = std::make_shared<std::optional<T>>();
-      auto isWithinPull = rheo::make_wrapper_shared(false);
-      auto didPushWithinPull = rheo::make_wrapper_shared(false);
+      auto isWithinPull = make_wrapper_shared(false);
+      auto didPushWithinPull = make_wrapper_shared(false);
 
       pull_fn pull = source(
         [push, lastSeenValue, isWithinPull, didPushWithinPull](T value) {

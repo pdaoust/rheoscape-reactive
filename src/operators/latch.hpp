@@ -6,7 +6,7 @@
 namespace rheo {
 
   // Push the last non-null value when pulled, even if the input source is null.
-  // Only pushes a value once a non-null value has been received.
+  // Only starts pushing values once the first non-null value has been received.
   // There is no factory for this function because it already is a pipe function!
   // If you only want to push non-null values
   // rather than remembering the last non-null value and pushing it when pulled,

@@ -13,7 +13,7 @@ namespace rheo {
   // to yield values of the interval source's type.
   // (For Arduino millis, that's unsigned long for both.)
   // The interval source must be pullable,
-  // must yield a new number to specify the next interval
+  // must yield another number to specify the next interval
   // after the previous interval has passed,
   // and should probably not do its own pushing.
   // The simplest interval source is `constant(interval)`.
@@ -49,12 +49,24 @@ namespace rheo {
           if (endAny->ended) {
             return;
           }
+
+          if (!lastInterval->has_value()) {
+            pullNextInterval();
+            if (!lastInterval->has_value()) {
+              // Can't start yet; we have no interval.
+              return;
+            }
+          }
+
+          // This comes after we pull the first interval.
+          // That's because we don't want to start counting
+          // until we know what we're counting from/to.          
           if (!lastIntervalTimestamp->has_value()) {
             // First pull or push of a timestamp; start the thing!
             lastIntervalTimestamp->emplace(timestamp);
           }
 
-          if (!lastInterval->has_value() || timestamp - lastIntervalTimestamp->value() >= lastInterval.value()) {
+          if (timestamp - lastIntervalTimestamp->value() >= lastInterval->value()) {
             // An interval has passed. Push the timestamp and get the next interval.
             // Don't use the current timestamp; that'll result in uneven interval spacing!
             // Better to have unevenly emitted timestamps than unevenly calculated intervals.
