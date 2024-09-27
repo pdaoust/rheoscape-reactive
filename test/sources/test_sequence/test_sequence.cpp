@@ -45,9 +45,26 @@ void test_sequence_can_be_bound_to_twice_and_yield_twice() {
   TEST_ASSERT_TRUE_MESSAGE(isEnded2, "second bound listener should be done now");
 }
 
+void test_sequence_can_go_backwards() {
+  int pushedValue = 0;
+  bool isEnded = false;
+  auto iterOverSequence = rheo::sequence(1, -10, -1);
+  auto pull = iterOverSequence(
+    [&pushedValue](int v) { pushedValue = v; },
+    [&isEnded](){ isEnded = true; }
+  );
+  for (int i = 1; i >= -10; i -= 1) {
+    TEST_ASSERT_FALSE_MESSAGE(isEnded, "shouldn't be ended until the last value");
+    pull();
+    TEST_ASSERT_EQUAL_MESSAGE(i, pushedValue, "should get next value in sequence");
+  }
+  TEST_ASSERT_TRUE_MESSAGE(isEnded, "should be done now");
+}
+
 int main(int argc, char **argv) {
   UNITY_BEGIN();
   RUN_TEST(test_sequence_yields_all_values_then_ends);
   RUN_TEST(test_sequence_can_be_bound_to_twice_and_yield_twice);
+  RUN_TEST(test_sequence_can_go_backwards);
   UNITY_END();
 }

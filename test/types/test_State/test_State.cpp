@@ -21,8 +21,9 @@ void test_State_throws_exception_when_unset() {
     myState.get();
     TEST_FAIL_MESSAGE("Should've thrown exception");
   } catch (rheo::bad_state_unset_access e) {
-    TEST_PASS_MESSAGE("Threw the right kind of exception");
+    TEST_PASS_MESSAGE(e.what());
   }
+  TEST_FAIL_MESSAGE("Didn't throw the right kind of exception at all");
 }
 
 void test_State_throws_exception_when_ended() {
@@ -32,8 +33,9 @@ void test_State_throws_exception_when_ended() {
     myState.get();
     TEST_FAIL_MESSAGE("Should've thrown exception");
   } catch (rheo::bad_state_ended_access e) {
-    TEST_PASS_MESSAGE("Threw the right kind of exception");
+    TEST_PASS_MESSAGE(e.what());
   }
+  TEST_FAIL_MESSAGE("Didn't throw the right kind of exception at all");
 }
 
 void test_State_pushes_value_when_set() {
@@ -43,14 +45,6 @@ void test_State_pushes_value_when_set() {
   TEST_ASSERT_EQUAL_MESSAGE(0, pushedValue, "Should be 0 before a myState is set");
   myState.set(11);
   TEST_ASSERT_EQUAL_MESSAGE(11, pushedValue, "Should be 11 after setting");
-}
-
-void test_State_pushes_on_change() {
-  rheo::State<int> myState;
-  int pushedValue = 0;
-  myState.addSink([&pushedValue](int v) { pushedValue = v; }, [](){});
-  myState.set(15);
-  TEST_ASSERT_EQUAL_MESSAGE(15, pushedValue, "New subscriber 2 should immediately get new myState");
 }
 
 void test_State_pushes_state_to_new_subscriber() {
@@ -86,6 +80,13 @@ void test_State_can_be_pulled() {
 
 int main(int argc, char **argv) {
   UNITY_BEGIN();
+  RUN_TEST(test_State_updates);
+  RUN_TEST(test_State_ends);
+  RUN_TEST(test_State_throws_exception_when_unset);
+  RUN_TEST(test_State_throws_exception_when_ended);
   RUN_TEST(test_State_pushes_value_when_set);
+  RUN_TEST(test_State_pushes_state_to_new_subscriber);
+  RUN_TEST(test_State_sends_end_signal);
+  RUN_TEST(test_State_can_be_pulled);
   UNITY_END();
 }

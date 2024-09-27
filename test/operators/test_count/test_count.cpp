@@ -27,5 +27,6 @@ void test_tagCount_tags_and_counts() {
 int main(int argc, char **argv) {
   UNITY_BEGIN();
   RUN_TEST(test_count_counts);
+  RUN_TEST(test_tagCount_tags_and_counts);
   UNITY_END();
 }

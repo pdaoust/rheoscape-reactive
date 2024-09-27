@@ -21,7 +21,7 @@ void test_Drip_drips() {
 void test_Drip_ends() {
   std::vector<int> numbers { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
   auto source = rheo::fromIterator(numbers.begin(), numbers.end());
-  int endCount;
+  int endCount = 0;
   auto dripper = rheo::Drip<int>(
     source,
     [](int _) {},
