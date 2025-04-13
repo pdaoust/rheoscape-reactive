@@ -8,7 +8,8 @@ namespace rheo {
   // When the passed source changes,
   // hold a value for a while before reverting to a default value.
   // The initial non-default value will be pushed,
-  // then the default value will be pushed at the end of the latch duration.
+  // then the default value will be pushed at the end of the latch duration
+  // (unless upstream has some new value, in which case it'll latch to that instead).
   // Of course you can pull it as many times as you like inside or out of a latch
   // to get the latched or default value too.
   // If the value changes to the default or another value
@@ -18,7 +19,7 @@ namespace rheo {
   //
   // This source ends when either of its sources ends.
 
-  // FIXME: I'm too tired right now to figure out
+  // TODO: I'm too tired right now to figure out
   // whether this could be done with higher-order operators.
   // Investigate whether it can!
   template <typename T, typename TTimePoint, typename TInterval>
@@ -31,6 +32,11 @@ namespace rheo {
       pull_fn pullClock = clockSource(
         [lastTimestamp, endAny](TTimePoint ts) {
           if (endAny->ended) {
+            // Don't end here --
+            // because there's a guard in the pull function,
+            // it'll always re-end on pull.
+            // But we don't want unsolicited pushes to do the same thing,
+            // cuz that seems weird.
             return;
           }
           lastTimestamp->emplace(ts);

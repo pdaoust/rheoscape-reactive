@@ -5,7 +5,7 @@
 
 namespace rheo {
 
-  // Re-emit values from the source function until a condition is met,
+  // Re-emit a number of values from the source function,
   // then end the source.
   template <typename T>
   source_fn<T> take(source_fn<T> source, size_t count) {

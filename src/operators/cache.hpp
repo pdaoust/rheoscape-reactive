@@ -14,6 +14,7 @@ namespace rheo {
   // that is, it somehow pushes outside of control flow when pulled --
   // you may get weird double-push behaviour,
   // getting the cached value followed by the upstream value.
+  // (Currently this doesn't exist because everything in rheoscape is single-threaded.)
 
   template <typename T>
   source_fn<T> cache(source_fn<T> source) {
