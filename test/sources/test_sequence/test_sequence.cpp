@@ -4,7 +4,7 @@
 void test_sequence_yields_all_values_then_ends() {
   int pushedValue = 0;
   bool isEnded = false;
-  auto iterOverSequence = rheo::sequence(1, 15, 2);
+  auto iterOverSequence = rheo::sequence(1, std::optional(15), 2);
   auto pull = iterOverSequence(
     [&pushedValue](int v) { pushedValue = v; },
     [&isEnded](){ isEnded = true; }
@@ -22,7 +22,7 @@ void test_sequence_can_be_bound_to_twice_and_yield_twice() {
   bool isEnded1 = false;
   int pushedValue2 = 0;
   bool isEnded2 = false;
-  auto iterOverSequence = rheo::sequence(1, 15, 2);
+  auto iterOverSequence = rheo::sequence(1, std::optional(15), 2);
   auto pull1 = iterOverSequence(
     [&pushedValue1](int v) { pushedValue1 = v; },
     [&isEnded1](){ isEnded1 = true; }
@@ -48,7 +48,7 @@ void test_sequence_can_be_bound_to_twice_and_yield_twice() {
 void test_sequence_can_go_backwards() {
   int pushedValue = 0;
   bool isEnded = false;
-  auto iterOverSequence = rheo::sequence(1, -10, -1);
+  auto iterOverSequence = rheo::sequence(1, std::optional(-10), -1);
   auto pull = iterOverSequence(
     [&pushedValue](int v) { pushedValue = v; },
     [&isEnded](){ isEnded = true; }
