@@ -14,4 +14,10 @@ namespace rheo {
     };
   }
 
+  template <typename TClock>
+  map_fn<typename TClock::duration, typename TClock::time_point> toDuration = [](TClock::time_point value) { return value.time_since_epoch(); };
+
+  template <typename TClock>
+  map_fn<typename TClock::duration::rep, typename TClock::time_point> toRep = [](TClock::time_point value) { return value.time_since_epoch().count(); };
+
 }

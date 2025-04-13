@@ -3,6 +3,7 @@
 #include <functional>
 #include <core_types.hpp>
 #include <types/TaggedValue.hpp>
+#include <operators/zip.hpp>
 
 namespace rheo {
 
@@ -12,14 +13,14 @@ namespace rheo {
   // and it wouldn't restart the stopwatch at 0 for every value
   // while the temperature was above 20.
 
-  template <typename T, typename TTimePoint, typename TDuration>
+  template <typename TDuration, typename T, typename TTimePoint>
   source_fn<TaggedValue<T, TDuration>> stopwatch(source_fn<T> source, source_fn<TTimePoint> clockSource, filter_fn<T> lapCondition) {
     return zip(
       source,
       clockSource,
       // This is kinda sneaky. We're turning `zip` into a reducer here,
       // because the combining callback has state.
-      [lapCondition, lapStart = std::optional<TTimePoint>(), lastValueMatched = false](T value, TTimePoint ts) mutable {
+      (combine2_fn<TaggedValue<T, TDuration>, T, TTimePoint>)[lapCondition, lapStart = std::optional<TTimePoint>(), lastValueMatched = false](T value, TTimePoint ts) mutable {
         bool thisValueMatches = lapCondition(value);
         if (!lapStart.has_value() || (!lastValueMatched && thisValueMatches)) {
           // We've either just started the stream

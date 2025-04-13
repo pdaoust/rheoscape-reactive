@@ -14,7 +14,7 @@ namespace rheo {
       return source(
         [condition, push, end, running = true](T value) mutable {
           if (running) {
-            if (condition(value)) {
+            if (!condition(value)) {
               running = false;
               end();
             } else {
@@ -38,7 +38,7 @@ namespace rheo {
 
   template <typename T>
   source_fn<T> takeUntil(source_fn<T> source, filter_fn<T> condition) {
-    return takeWhile(source, [condition](T value) { return !condition(value); });
+    return takeWhile(source, (filter_fn<T>)[condition](T value) { return !condition(value); });
   }
 
   template <typename T>

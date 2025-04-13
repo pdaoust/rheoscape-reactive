@@ -27,22 +27,25 @@ namespace rheo {
       std::vector<std::tuple<push_fn<T>, end_fn>> _sinks;
 
     public:
-      State(std::optional<T> initial = std::nullopt)
+      State(std::optional<T> initial = std::nullopt, bool initialPush = true)
       : _isEnded(false)
       {
         if (initial.has_value()) {
-          set(initial.value());
+          set(initial.value(), initialPush);
         }
       }
 
-      void set(T value) {
+      void set(T value, bool push = true) {
         if (_isEnded) {
           throw bad_state_ended_access();
         }
 
         _value = value;
-        for (auto subscriber : _sinks) {
-          std::get<0>(subscriber)(value);
+
+        if (push) {
+          for (auto subscriber : _sinks) {
+            std::get<0>(subscriber)(value);
+          }
         }
       }
 
@@ -56,14 +59,17 @@ namespace rheo {
         return _value.value();
       }
 
-      void end() {
+      void end(bool push = true) {
         if (_isEnded) {
           return;
         }
 
         _isEnded = true;
-        for (auto sink : _sinks) {
-          std::get<1>(sink)();
+
+        if (push) {
+          for (auto sink : _sinks) {
+            std::get<1>(sink)();
+          }
         }
       }
 

@@ -4,6 +4,7 @@
 #include <memory>
 #include <utility>
 #include <core_types.hpp>
+#include <types/Wrapper.hpp>
 #include <operators/map.hpp>
 #include <util.hpp>
 
@@ -33,42 +34,66 @@ namespace rheo {
     combine2_fn<TZipped, T1, T2> combiner
   ) {
     return [source1, source2, combiner](push_fn<TZipped> push, end_fn end) {
-      auto lastValue1 = std::make_shared<std::optional<T1>>();
-      auto lastValue2 = std::make_shared<std::optional<T2>>();
-      auto pullSource1 = std::make_shared<std::optional<pull_fn>>();
+      auto currentValue1 = std::make_shared<std::optional<T1>>();
+      auto currentValue2 = std::make_shared<std::optional<T2>>();
       auto pullSource2 = std::make_shared<std::optional<pull_fn>>();
       auto endAny = std::make_shared<EndAny>(end);
 
-      pullSource1->emplace(source1(
-        [combiner, push, lastValue1, lastValue2, pullSource2, endAny](T1 value) {
-          lastValue1->emplace(value);
-          if (pullSource2->has_value() && !lastValue2->has_value()) {
-            pullSource2->value()();
-          } else if (!endAny->ended && lastValue2->has_value()) {
-            push(combiner(value, lastValue2->value()));
+      auto pullSource1 = source1(
+        [combiner, push, currentValue1, currentValue2, pullSource2, endAny](T1 value) {
+          if (endAny->ended) {
+            // Return early if either of the upstreams has ended.
+            // We don't worry about pushing an end signal here;
+            // we've already wired the endAny up to both upstreams.
+            return;
+          }
+
+          if (!currentValue2->has_value()) {
+            // Our turn first.
+            // Remember the value we've just been pushed,
+            // then pass off control to the other push function
+            // so it can complete the zipping and push the zipped value.
+            currentValue1->emplace(value);
+
+            // Guard against the second pull source not existing at startup;
+            // this only matters if the first upstream pushes something immediately on bind.
+            if (pullSource2->has_value()) {
+              pullSource2->value()();
+            }
+
+            // Now reset the remembered current value to get us ready for next run.
+            currentValue1->reset();
+          } else {
+            // We're going second at the behest of the second pull function.
+            // Calculate the zipped value and push it.
+            push(combiner(value, currentValue2->value()));
           }
         },
         endAny->upstream_end_fn
-      )); 
+      );
 
       pullSource2->emplace(source2(
-        [combiner, push, lastValue1, lastValue2, pullSource1, endAny](T2 value) {
-          lastValue2->emplace(value);
-          if (pullSource1->has_value() && !lastValue1->has_value()) {
-            pullSource1->value()();
-          } else if (!endAny->ended && lastValue1->has_value()) {
-            push(combiner(lastValue1->value(), value));
+        [combiner, push, currentValue1, currentValue2, pullSource1, endAny](T2 value) {
+          // This push function is (nearly) identical to the first one, only backwards.
+          if (endAny->ended) {
+            return;
+          }
+          if (!currentValue1->has_value()) {
+            currentValue2->emplace(value);
+            // Here's the only place where they differ:
+            // we didn't need to wrap pullSource1 in a maybe.
+            pullSource1();
+            currentValue2->reset();
+          } else {
+            push(combiner(currentValue1->value(), value));
           }
         },
         endAny->upstream_end_fn
       ));
 
-      return [lastValue1, lastValue2, pullSource1, pullSource2]() {
-        lastValue1->reset();
-        lastValue2->reset();
-        // We don't need to pull from both; pulling from #1 will pull from #2.
-        pullSource1->value()();
-      };
+      // We don't need to pull from both when downstream pulls;
+      // pulling from #1 will pull from #2.
+      return pullSource1;
     };
   }
 

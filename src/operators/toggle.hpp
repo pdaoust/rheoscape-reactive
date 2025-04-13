@@ -13,9 +13,9 @@ namespace rheo {
   // This source ends when either of its sources ends.
   template <typename T>
   source_fn<T> toggle(source_fn<T> valueSource, source_fn<bool> toggleSource) {
-    auto zipped = zip(valueSource, toggleSource);
-    auto filtered = filter(zipped, [](std::tuple<T, bool> value) { return std::get<1>(value); });
-    return map<T>(filtered, [](std::tuple<T, bool> value) { return std::get<0>(value); });
+    auto zipped = zipTuple(valueSource, toggleSource);
+    auto filtered = filter(zipped, (rheo::filter_fn<std::tuple<T, bool>>)[](std::tuple<T, bool> value) { return std::get<1>(value); });
+    return map(filtered, (map_fn<T, std::tuple<T, bool>>)[](std::tuple<T, bool> value) { return std::get<0>(value); });
   }
 
   // A pipe to toggle a value source by the given boolean toggle source.

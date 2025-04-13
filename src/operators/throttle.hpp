@@ -2,7 +2,7 @@
 
 #include <functional>
 #include <core_types.hpp>
-#include <operators/zip.hpp>
+#include <operators/timestamp.hpp>
 
 namespace rheo {
   
@@ -14,14 +14,14 @@ namespace rheo {
 
     return [interval, timestamped](push_fn<T> push, end_fn end) {
       return timestamped(
-        [interval, push, intervalStart = std::optional<TTime>()](TaggedValue<TTime, T> value) mutable {
+        [interval, push, intervalStart = std::optional<TTime>()](TaggedValue<T, TTime> value) mutable {
           if (intervalStart.has_value() && value.tag - intervalStart.value() > interval) {
             intervalStart = std::nullopt;
           }
 
           if (!intervalStart.has_value()) {
             intervalStart = value.tag;
-            push(value);
+            push(value.value);
           }
         },
         end

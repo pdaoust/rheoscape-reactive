@@ -8,20 +8,23 @@
 namespace rheo {
 
   template <typename T>
-  source_fn<T> sequence(T iBegin, T iEnd, T step) {
+  source_fn<T> sequence(T iBegin, std::optional<T> iEnd = std::nullopt, T step = 1) {
     return [iBegin, iEnd, step](push_fn<T> push, end_fn end) {
       return [iBegin, iEnd, step, push, end, i = iBegin]() mutable {
-        if (iBegin == iEnd) {
+        if (iEnd.has_value() && iBegin == iEnd.value()) {
           end();
           return;
         }
-        bool isBackwards = iBegin > iEnd;
-        if ((!isBackwards && i <= iEnd)
-            || (isBackwards && i >= iEnd)) {
+        bool isBackwards = (iEnd.has_value() && iBegin > iEnd.value());
+        if (isBackwards && step > 0) {
+          step *= -1;
+        }
+        if ((!isBackwards && (!iEnd.has_value() || i <= iEnd.value()))
+            || (isBackwards && (!iEnd.has_value() || i >= iEnd.value()))) {
           push(i);
           i += step;
-          if ((!isBackwards && i > iEnd)
-              || (isBackwards && i < iEnd)) {
+          if ((!isBackwards && iEnd.has_value() && i > iEnd.value())
+              || (isBackwards && iEnd.has_value() && i < iEnd.value())) {
             end();
           }
         } else {

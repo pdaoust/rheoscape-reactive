@@ -30,7 +30,7 @@ namespace rheo {
       auto endAny = std::make_shared<EndAny>(end);
 
       pull_fn pullClock = clockSource(
-        [lastTimestamp, endAny](TTimePoint ts) {
+        [end, lastTimestamp, endAny](TTimePoint ts) {
           if (endAny->ended) {
             // Don't end here --
             // because there's a guard in the pull function,
@@ -45,7 +45,7 @@ namespace rheo {
       );
 
       pull_fn pullSource = source(
-        [duration, defaultValue, push, lastTimestamp, latchStartTimestamp, endAny](T value) {
+        [duration, defaultValue, push, end lastTimestamp, latchStartTimestamp, endAny](T value) {
           if (endAny->ended) {
             return;
           }
@@ -68,7 +68,11 @@ namespace rheo {
         endAny->upstream_end_fn
       );
 
-      return [pullClock, pullSource]() {
+      return [end, endAny, pullClock, pullSource]() {
+        if (endAny->ended) {
+          end();
+          return;
+        }
         pullClock();
         pullSource();
       };

@@ -9,8 +9,9 @@ namespace rheo {
   source_fn<T> tap(source_fn<T> source, exec_fn<T> exec) {
     return [source, exec](push_fn<T> push, end_fn end) {
       return source(
-        [exec](T value) {
+        [exec, push](T value) {
           exec(value);
+          push(value);
         },
         end
       );
