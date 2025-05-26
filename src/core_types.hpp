@@ -10,12 +10,21 @@ namespace rheo {
   // and how they should work.
   // Every source is a function that takes a `push` callback and an `end` callback,
   // and returns a `pull` callback.
+  //
   // A consumer, called a sink, figures out what it wants to do when a source pushes to it,
   // figures out what it wants to do when a source ends,
   // and then calls a source function with callbacks that embody that logic.
-  // It receives a function that it can then use to pull new data if it likes.
   //
-  // The source function can be called many times, each with a different sink,
+  // A sink is just a pair of functions --
+  // a callback to receive a pushed value,
+  // and a callback to handle the ending of a source.
+  // When a source function is called with a sink,
+  // the caller receives a function that it can then use
+  // to pull new data if it likes
+  // (and if the source function supports pulling).
+  //
+  // The source function can be called many times,
+  // each time binding to a new sink,
   // but every act of binding should be considered a separate stream.
   // Therefore, you could think of a source function as a 'stream factory'.
   //
@@ -92,9 +101,20 @@ namespace rheo {
   template <typename TReturn, typename T>
   using sink_fn = std::function<TReturn(source_fn<T>)>;
 
+  // A pair of functions that together constitute a sink
+  // to be passed to a source function.
+  template <typename T>
+  using sink = std::tuple<push_fn<T>, end_fn>;
+
   // A sink function that doesn't return a value.
   template <typename T>
   using cap_fn = sink_fn<void, T>;
+
+  // A sink function that can be pulled --
+  // that is, when bound to a source function,
+  // it returns a pull function to pull from the source.
+  template <typename T>
+  using pullable_sink_fn = sink_fn<pull_fn, T>;
 
   // A sink function that is also (or rather, returns) a source function!
   // The signature for its factory (which is called an operator) usually looks like this:

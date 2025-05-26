@@ -20,6 +20,10 @@ namespace rheo {
         return _sourceFn(pushFn, endFn);
       }
 
+      pull_fn _(pullable_sink_fn<T> sink) {
+        return sink(_sourceFn);
+      }
+
       template <typename TReturn>
       void _(cap_fn<T> cap) {
         cap(_sourceFn);

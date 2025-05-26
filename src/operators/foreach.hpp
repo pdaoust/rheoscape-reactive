@@ -10,9 +10,9 @@ namespace rheo {
   // The function below is just there for use in `Pipe`.
 
   template <typename T>
-  cap_fn<T> foreach(exec_fn<T> exec) {
+  pullable_sink_fn<T> foreach(exec_fn<T> exec) {
     return [exec](source_fn<T> source) {
-      source(
+      return source(
         [exec](T value) { exec(value); },
         [](){}
       );
