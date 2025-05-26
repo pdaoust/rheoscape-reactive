@@ -16,6 +16,7 @@
 #include <operators/lift.hpp>
 #include <operators/map.hpp>
 #include <operators/merge.hpp>
+#include <operators/normalize.hpp>
 #include <operators/pid.hpp>
 #include <operators/reduce.hpp>
 #include <operators/sample.hpp>
