@@ -1,18 +1,36 @@
 #pragma once
 
 #include <functional>
+#include <Adafruit_GFX.h>
 
-namespace rheo::sinks::arduino::adafruitGfx {
+namespace rheo::sinks::arduino::gfx {
 
   struct Coords {
     int16_t x;
     int16_t y;
+
+    friend Coords operator+(Coords lhs, const Coords& rhs) {
+      return Coords {
+        x: lhs.x + rhs.x,
+        y: lhs.y + rhs.y
+      };
+    }
+
+    friend Coords operator-(Coords lhs, const Coords& rhs) {
+      return Coords {
+        x: lhs.x - rhs.x,
+        y: lhs.y - rhs.y
+      };
+    }
   };
 
   struct Dimensions {
     uint16_t w;
     uint16_t h;
   };
+
+  template <typename TCanvas, typename TMask>
+  using GfxCommand = std::function<void(TCanvas&, TMask&)>;
 
   struct DisplayHints {
     uint8_t rotation;
@@ -38,8 +56,5 @@ namespace rheo::sinks::arduino::adafruitGfx {
     uint8_t size;
     bool wrap;
   };
-
-  template <typename TCanvas>
-  using GfxCommand = std::function<void(TCanvas&)>;
 
 }

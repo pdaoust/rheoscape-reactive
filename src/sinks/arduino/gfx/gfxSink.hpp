@@ -10,18 +10,15 @@
 
 namespace rheo::sinks::arduino::adafruitGfx {
 
-  template <typename TDisplay, typename TCanvas>
-  pull_fn _adafruitGfxSink(
-    source_fn<std::vector<GfxCommand<TCanvas>>> commandsSource,
-    source_fn<uint8_t> rotationSource,
-    TDisplay& display,
-    std::function<void(TDisplay&, TCanvas)> applyCanvasFunc 
+  template <typename TCanvas, typename TMask, typename THints>
+  source_fn<GfxCommand<TCanvas, TMask>> canvasSink(
+    source_fn<std::vector<GfxCommand<TCanvas, TMask>>> commandsSource,
+    source_fn<THints> hintsSource
   ) {
     return zip(
       commandsSource,
-      rotationSource,
-      [&display](std::vector<GfxCommand<TCanvas>> commands, uint8_t rotation) {
-        display.setRotation(rotation);
+      hintsSource,
+      [](std::vector<GfxCommand<TCanvas>> commands, THints hints) {
         TCanvas canvas(display.width(), display.height());
         for (const GfxCommand& command : commands) {
           command(&canvas);
