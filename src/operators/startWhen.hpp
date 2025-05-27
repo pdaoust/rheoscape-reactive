@@ -3,7 +3,7 @@
 #include <functional>
 #include <core_types.hpp>
 
-namespace rheo {
+namespace rheo::operators {
 
   template <typename T>
   source_fn<T> startWhen(source_fn<T> source, filter_fn<T> condition) {

@@ -5,7 +5,7 @@
 #include <types/TaggedValue.hpp>
 #include <operators/zip.hpp>
 
-namespace rheo {
+namespace rheo::operators {
 
   // Like `timestamp`, but resets the clock every time `lapCondition` is met.
   // It will glom contiguous values where `lapCondition` is met,

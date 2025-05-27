@@ -3,7 +3,7 @@
 #include <functional>
 #include <core_types.hpp>
 
-namespace rheo {
+namespace rheo::operators {
 
   template <typename T>
   source_fn<T> tap(source_fn<T> source, exec_fn<T> exec) {

@@ -4,7 +4,7 @@
 #include <core_types.hpp>
 #include <types/Wrapper.hpp>
 
-namespace rheo {
+namespace rheo::operators {
 
   // Remember the last upstream value,
   // so it can be pulled any time you like.

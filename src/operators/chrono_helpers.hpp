@@ -5,7 +5,7 @@
 #include <core_types.hpp>
 #include <operators/lift.hpp>
 
-namespace rheo {
+namespace rheo::operators {
 
   template <class TClock>
   map_fn<typename TClock::time_point, typename TClock::duration::rep> convertToChronoTimePoint() {

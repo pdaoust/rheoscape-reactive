@@ -9,7 +9,7 @@
 #include <types/TaggedValue.hpp>
 #include <types/Wrapper.hpp>
 
-namespace rheo {
+namespace rheo::operators {
   
   // Lift a pipe function to a higher-ordered type;
   // e.g., a pipe_fn<TIn, TOut> to a pipe<std::optional<TIn>, std::optional<TOut>>.

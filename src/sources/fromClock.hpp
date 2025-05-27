@@ -3,7 +3,7 @@
 #include <functional>
 #include <core_types.hpp>
 
-namespace rheo {
+namespace rheo::sources {
 
   template <typename TClock>
   source_fn<typename TClock::time_point> fromClock() {

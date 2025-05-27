@@ -3,7 +3,7 @@
 #include <functional>
 #include <core_types.hpp>
 
-namespace rheo {
+namespace rheo::operators {
 
   // Push the last non-empty value when pulled, even if the input source is empty.
   // Only starts pushing values once the first non-empty value has been received.

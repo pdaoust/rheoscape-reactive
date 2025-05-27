@@ -4,7 +4,7 @@
 #include <core_types.hpp>
 #include <operators/timestamp.hpp>
 
-namespace rheo {
+namespace rheo::operators {
   
   // Only allow at most one value per interval,
   // dropping everything in between.

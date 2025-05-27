@@ -3,7 +3,7 @@
 #include <operators/map.hpp>
 #include <operators/zip.hpp>
 
-namespace rheo {
+namespace rheo::operators {
 
   // Calculate the ouptut of a wave function
   // given a source for the t axis (such as time)

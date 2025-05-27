@@ -5,7 +5,7 @@
 #include <iterator>
 #include <core_types.hpp>
 
-namespace rheo {
+namespace rheo::sources {
 
   template <typename T>
   source_fn<T> sequence(T iBegin, std::optional<T> iEnd = std::nullopt, T step = 1) {

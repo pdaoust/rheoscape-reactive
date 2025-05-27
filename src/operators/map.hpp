@@ -3,7 +3,7 @@
 #include <functional>
 #include <core_types.hpp>
 
-namespace rheo {
+namespace rheo::operators {
 
   template <typename TOut, typename TIn>
   source_fn<TOut> map(source_fn<TIn> source, map_fn<TOut, TIn> mapper) {

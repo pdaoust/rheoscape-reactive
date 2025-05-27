@@ -3,7 +3,7 @@
 #include <functional>
 #include <core_types.hpp>
 
-namespace rheo {
+namespace rheo::operators {
 
   // There is no source_fn factory because foreach doesn't produce a source_fn.
   // And foreaching something is literally just binding a push function to it.

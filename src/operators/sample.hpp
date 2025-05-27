@@ -4,7 +4,7 @@
 #include <core_types.hpp>
 #include <util.hpp>
 
-namespace rheo {
+namespace rheo::operators {
 
   // Sample the second stream every time the first stream receives a value.
   // A combiner function can optionally be passed; the default just returns the sampled value.

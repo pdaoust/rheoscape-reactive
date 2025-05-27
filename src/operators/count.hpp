@@ -4,7 +4,7 @@
 #include <core_types.hpp>
 #include <types/TaggedValue.hpp>
 
-namespace rheo {
+namespace rheo::operators {
 
   template <typename T>
   source_fn<size_t> count(source_fn<T> source) {

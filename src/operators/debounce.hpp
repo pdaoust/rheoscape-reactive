@@ -4,7 +4,7 @@
 #include <core_types.hpp>
 #include <operators/timestamp.hpp>
 
-namespace rheo {
+namespace rheo::operators {
   
   // Don't emit a value until it's settled down
   // and matches the value recorded at the beginning of the interval.

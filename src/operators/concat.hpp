@@ -4,7 +4,7 @@
 #include <core_types.hpp>
 #include <types/Wrapper.hpp>
 
-namespace rheo {
+namespace rheo::operators {
 
   // Concatenate two sources into one,
   // starting the second one after the first one has ended.

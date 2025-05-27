@@ -4,7 +4,7 @@
 #include <functional>
 #include <core_types.hpp>
 
-namespace rheo {
+namespace rheo::sources {
 
   template <typename T>
   source_fn<T> fromObservable(std::function<void(std::function<void(T)>)> subscribeFn) {

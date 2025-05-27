@@ -8,7 +8,7 @@
 #include <operators/map.hpp>
 #include <operators/zip.hpp>
 
-namespace rheo {
+namespace rheo::operators {
 
   template <typename TKp, typename TKi, typename TKd>
   struct PidWeights {

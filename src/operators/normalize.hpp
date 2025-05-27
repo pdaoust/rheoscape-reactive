@@ -5,7 +5,7 @@
 #include <types/Range.hpp>
 #include <operators/zip.hpp>
 
-namespace rheo {
+namespace rheo::operators {
 
   template <typename TIn, typename TOut>
   source_fn<TOut> normalize(source_fn<TIn> source, source_fn<Range<TIn>> fromSource, source_fn<Range<TOut>> toSource) {

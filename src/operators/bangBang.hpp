@@ -6,7 +6,7 @@
 #include <operators/fold.hpp>
 #include <operators/zip.hpp>
 
-namespace rheo {
+namespace rheo::operators {
 
   enum ProcessCommand {
     // Below target; push the process up.

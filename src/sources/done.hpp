@@ -2,7 +2,7 @@
 
 #include <core_types.hpp>
 
-namespace rheo {
+namespace rheo::sources {
 
   // A source function that ends immediately.
 

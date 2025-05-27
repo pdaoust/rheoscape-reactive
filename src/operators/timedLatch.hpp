@@ -3,7 +3,7 @@
 #include <functional>
 #include <core_types.hpp>
 
-namespace rheo {
+namespace rheo::operators {
 
   // When the passed source changes,
   // hold a value for a while before reverting to a default value.

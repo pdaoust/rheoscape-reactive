@@ -4,7 +4,7 @@
 #include <core_types.hpp>
 #include <Arduino.h>
 
-namespace rheo {
+namespace rheo::sources::arduino {
 
   source_fn<bool> digitalPinSource(int pin, uint8_t pinModeFlag) {
     return [pin, pinModeFlag](push_fn<bool> push, end_fn _) {

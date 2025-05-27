@@ -5,7 +5,7 @@
 #include <iterator>
 #include <core_types.hpp>
 
-namespace rheo {
+namespace rheo::sources {
 
   template <typename TIter>
   source_fn<typename TIter::value_type> fromIterator(TIter iBegin, TIter iEnd) {

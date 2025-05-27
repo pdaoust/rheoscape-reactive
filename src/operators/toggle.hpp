@@ -6,7 +6,7 @@
 #include <operators/map.hpp>
 #include <operators/zip.hpp>
 
-namespace rheo {
+namespace rheo::operators {
 
   // Toggle a value source on and off with a boolean toggle source.
   // It's off until the toggle source pushes the first true value.

@@ -4,7 +4,7 @@
 #include <core_types.hpp>
 #include <Arduino.h>
 
-namespace rheo {
+namespace rheo::sources::arduino {
 
   source_fn<int> analogPinSource(int pin, uint8_t resolutionBits = 10) {
     return [pin, resolutionBits](push_fn<float> push, end_fn _) {

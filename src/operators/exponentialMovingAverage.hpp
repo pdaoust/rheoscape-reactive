@@ -7,7 +7,7 @@
 #include <operators/reduce.hpp>
 #include <operators/timestamp.hpp>
 
-namespace rheo {
+namespace rheo::operators {
 
   // Smooth an input reading over a moving average time interval,
   // using the exponential moving average or single-pole IIR method.

@@ -5,7 +5,7 @@
 #include <util.hpp>
 #include <sources/constant.hpp>
 
-namespace rheo {
+namespace rheo::operators {
 
   // Send a timestamp at the interval specified by the interval source.
   // The time source should supply its numbers regularly,

@@ -6,7 +6,7 @@
 #include <core_types.hpp>
 #include <util.hpp>
 
-namespace rheo {
+namespace rheo::operators {
 
   // Switch among a map of value sources with a switch source.
   // Everything is off until the switch source pushes the first value that matches a map key.

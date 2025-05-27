@@ -5,7 +5,7 @@
 #include <core_types.hpp>
 #include <operators/lift.hpp>
 
-namespace rheo {
+namespace rheo::operators {
   
   template <typename TRepOut, typename TRepIn, typename TUnit>
   map_fn<au::Quantity<TUnit, TRepOut>, au::Quantity<TUnit, TRepIn>> castUnitRep() {

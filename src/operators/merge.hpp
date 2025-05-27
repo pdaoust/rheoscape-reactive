@@ -10,7 +10,7 @@
 // and the first stream gets pulled first.
 // If one stream has ended, it'll still keep pushing values from the other one.
 
-namespace rheo {
+namespace rheo::operators {
 
   template <typename T1, typename T2>
   source_fn<std::variant<T1, T2>> merge(source_fn<T1> source1, source_fn<T2> source2) {

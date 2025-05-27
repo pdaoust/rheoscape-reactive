@@ -4,7 +4,7 @@
 #include <core_types.hpp>
 #include <types/Wrapper.hpp>
 
-namespace rheo {
+namespace rheo::operators {
   
   // Only push the first received instance of a value.
   // There is no factory for this function because it already is a pipe function!

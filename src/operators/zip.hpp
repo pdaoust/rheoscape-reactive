@@ -8,7 +8,7 @@
 #include <operators/map.hpp>
 #include <util.hpp>
 
-namespace rheo {
+namespace rheo::operators {
 
   // Zip streams together into one stream using a combining function.
   // If you're using this in a push stream, it won't start emitting values

@@ -3,7 +3,7 @@
 #include <functional>
 #include <core_types.hpp>
 
-namespace rheo {
+namespace rheo::operators {
 
   template <typename TAcc, typename TIn>
   source_fn<TAcc> fold(source_fn<TIn> source, TAcc initialAcc, fold_fn<TAcc, TIn> folder) {
