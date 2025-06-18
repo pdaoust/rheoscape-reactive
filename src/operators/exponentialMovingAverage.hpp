@@ -25,7 +25,7 @@ namespace rheo::operators {
         TInterval timeDelta = next.tag - prev.tag;
         TRep alpha = 1 - pow(M_E, -timeDelta / timeConstant);
         TVal integrated = prev.value + alpha * (next.value - prev.value);
-        return TaggedValue(integrated, next.tag);
+        return TaggedValue<TVal, TTime> { integrated, next.tag };
       }
     );
     

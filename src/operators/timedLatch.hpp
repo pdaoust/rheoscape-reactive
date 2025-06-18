@@ -45,7 +45,7 @@ namespace rheo::operators {
       );
 
       pull_fn pullSource = source(
-        [duration, defaultValue, push, end lastTimestamp, latchStartTimestamp, endAny](T value) {
+        [duration, defaultValue, push, lastTimestamp, latchStartTimestamp, endAny](T value) {
           if (endAny->ended) {
             return;
           }

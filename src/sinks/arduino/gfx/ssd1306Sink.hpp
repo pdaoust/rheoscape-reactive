@@ -2,10 +2,10 @@
 
 #include <functional>
 #include <core_types.hpp>
-#include <sinks/arduino/adafruitGfx/adafruitGfxSink.hpp>
+#include <sinks/arduino/gfx/gfxSink.hpp>
 #include <Adafruit_SSD1306.h>
 
-namespace rheo::sinks::arduino::adafruitGfx {
+namespace rheo::sinks::arduino::gfx {
   template <typename TCanvas>
   using GfxCommand = std::function<void(TCanvas&)>;
 
@@ -14,7 +14,7 @@ namespace rheo::sinks::arduino::adafruitGfx {
     source_fn<uint8_t> rotationSource,
     Adafruit_SSD1306& display
   ) {
-    return _adafruitGfxSink<Adafruit_SSD1306, GFXcanvas1>(
+    return _gfxSink<Adafruit_SSD1306, GFXcanvas1>(
       commandsSource,
       rotationSource,
       display,

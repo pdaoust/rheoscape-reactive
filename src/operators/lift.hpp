@@ -1,8 +1,7 @@
-
 #pragma once
 
-
 #include <functional>
+#include <variant>
 #include <core_types.hpp>
 #include <operators/filter.hpp>
 #include <operators/map.hpp>

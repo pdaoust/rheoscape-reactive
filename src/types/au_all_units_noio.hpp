@@ -5735,7 +5735,7 @@ namespace au {
 // Instead, follow instructions at (https://aurora-opensource.github.io/au/main/howto/new-units/).
 template <typename T>
 struct CelsiusLabel {
-    static constexpr const char label[] = "degC";
+    static constexpr const char label[] = "°C";
 };
 template <typename T>
 constexpr const char CelsiusLabel<T>::label[];
@@ -6876,7 +6876,7 @@ namespace au {
 // Instead, follow instructions at (https://aurora-opensource.github.io/au/main/howto/new-units/).
 template <typename T>
 struct FahrenheitLabel {
-    static constexpr const char label[] = "degF";
+    static constexpr const char label[] = "°F";
 };
 template <typename T>
 constexpr const char FahrenheitLabel<T>::label[];

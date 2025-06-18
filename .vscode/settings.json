@@ -58,6 +58,12 @@
     "compare": "cpp",
     "concepts": "cpp",
     "numbers": "cpp",
-    "span": "cpp"
+    "span": "cpp",
+    "bitset": "cpp",
+    "condition_variable": "cpp",
+    "list": "cpp",
+    "regex": "cpp",
+    "mutex": "cpp",
+    "thread": "cpp"
   }
 }

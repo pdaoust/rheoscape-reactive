@@ -1,6 +1,8 @@
 #include <core_types.hpp>
 #include <types/everything.hpp>
 #include <util.hpp>
-#include <Rheo.hpp>
+#include <au_helpers.hpp>
 #include <operators/everything.hpp>
+#include <sinks/everything.hpp>
 #include <sources/everything.hpp>
+#include <ui/lvgl/everything.hpp>

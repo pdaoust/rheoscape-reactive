@@ -3,9 +3,9 @@
 #include <functional>
 #include <core_types.hpp>
 #include <operators/zip.hpp>
-#include <sinks/arduino/adafruitGfx/types.hpp>
+#include <sinks/arduino/gfx/types.hpp>
 
-namespace rheo::sinks::arduino::adafruitGfx {
+namespace rheo::sinks::arduino::gfx {
 
   template <typename TCanvas, typename THints>
   source_fn<std::vector<GfxCommand<TCanvas>>> _widgetPipe(

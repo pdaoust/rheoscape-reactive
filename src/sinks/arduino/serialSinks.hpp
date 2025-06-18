@@ -4,7 +4,7 @@
 #include <core_types.hpp>
 #include <Arduino.h>
 
-namespace rheo {
+namespace rheo::sinks::arduino {
 
   pullable_sink_fn<std::string> serialStringSink() {
     return [](source_fn<std::string> source) {

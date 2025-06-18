@@ -12,7 +12,7 @@ namespace rheo::operators {
     return zip(
       source,
       clockSource,
-      (combine2_fn<TaggedValue<T, TTime>, T, TTime>)[](T value, TTime timestamp) { return TaggedValue { value, timestamp }; }
+      (combine2_fn<TaggedValue<T, TTime>, T, TTime>)[](T value, TTime timestamp) { return TaggedValue<T, TTime> { value, timestamp }; }
     );
   }
 

@@ -1,4 +1,3 @@
-#include <operators/au_unit_helpers.hpp>
 #include <operators/bangBang.hpp>
 #include <operators/cache.hpp>
 #include <operators/choose.hpp>
@@ -9,6 +8,7 @@
 #include <operators/dedupe.hpp>
 #include <operators/exponentialMovingAverage.hpp>
 #include <operators/filter.hpp>
+#include <operators/filterMap.hpp>
 #include <operators/fold.hpp>
 #include <operators/foreach.hpp>
 #include <operators/interval.hpp>
@@ -29,5 +29,6 @@
 #include <operators/timedLatch.hpp>
 #include <operators/timestamp.hpp>
 #include <operators/toggle.hpp>
+#include <operators/unwrap.hpp>
 #include <operators/waves.hpp>
 #include <operators/zip.hpp>

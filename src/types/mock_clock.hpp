@@ -28,10 +28,10 @@ namespace rheo {
   };
 
   template <typename Rep, typename Period>
-  mock_clock<Rep, Period>::rep mock_clock<Rep, Period>::_timestamp;
+  typename mock_clock<Rep, Period>::rep mock_clock<Rep, Period>::_timestamp;
 
   template <typename Rep, typename Period>
-  mock_clock<Rep, Period>::time_point mock_clock<Rep, Period>::now() noexcept {
+  typename mock_clock<Rep, Period>::time_point mock_clock<Rep, Period>::now() noexcept {
     return time_point(duration(_timestamp));
   }
 

@@ -4,7 +4,8 @@
 #include <core_types.hpp>
 #include <Arduino.h>
 
-namespace rheo {
+namespace rheo::sinks::arduino {
+
   pullable_sink_fn<bool> digitalPinSink(int pin) {
     return [pin](source_fn<bool> source) {
       return source(
@@ -16,4 +17,5 @@ namespace rheo {
       );
     };
   }
+
 }

@@ -78,13 +78,15 @@ namespace rheo {
       }
 
       // This can be used as-is as a source function.
-      pull_fn addSink(push_fn<T> push, end_fn end) {
+      pull_fn addSink(push_fn<T> push, end_fn end, bool initialPush = true) {
         _sinks.push_back(std::tuple(push, end));
-        if (_value.has_value()) {
-          // Push the initial value.
-          push(_value.value());
-        } else if (_isEnded) {
-          end();
+        if (initialPush) {
+          if (_value.has_value()) {
+            // Push the initial value.
+            push(_value.value());
+          } else if (_isEnded) {
+            end();
+          }
         }
 
         // The pull function consumes errors
@@ -101,8 +103,8 @@ namespace rheo {
         };
       }
 
-      source_fn<T> sourceFn() {
-        return [this](push_fn<T> push, end_fn end) { return this->addSink(push, end); };
+      source_fn<T> sourceFn(bool initialPush = true) {
+        return [this, initialPush](push_fn<T> push, end_fn end) { return this->addSink(push, end, initialPush); };
       }
   };
 
