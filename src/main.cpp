@@ -28,8 +28,7 @@ using namespace rheo::ui;
 const uint8_t i2cSdaPin = 41;
 const uint8_t i2cSclPin = 40;
 
-pull_fn pullActualTemp;
-pull_fn pullSmoothTemp;
+pull_fn pullTempAndHum;
 pull_fn pullSetpoint;
 
 lv_display_t* disp;
@@ -123,31 +122,62 @@ lv_obj_t* setpointEditor;
 
 void setup() {
   Serial.begin(115200);
-  Serial.println("Starting...");
-  // Set up the thermostat.
-  //auto temp = arduino::ds18b20::ds18b20(tempAddress, &sensors, arduino::ds18b20::Resolution::quarter_degree);
-  Wire.begin(i2cSdaPin, i2cSclPin);
-  auto tempAndHum = arduino::sht21(&Wire);
-  auto infallibleTemp = rheo::operators::filterMap(
-    tempAndHum,
-    (map_fn<std::optional<rheo::TempC>, std::variant<std::optional<rheo::TempC>, std::optional<rheo::Percent>>>)[](std::variant<std::optional<rheo::TempC>, std::optional<rheo::Percent>> value) {
-      if (std::holds_alternative<std::optional<TempC>>(value)) {
-        return (std::optional<rheo::TempC>)std::get<std::optional<rheo::TempC>>(value);
+  logging::registerSubscriber([](uint8_t logLevel, const char* topic, const char* message) {
+    if (logLevel <= LOG_LEVEL) {
+      Serial.print("[");
+      Serial.print(LOG_LEVEL_LABEL(logLevel));
+      if (topic != NULL) {
+        Serial.print(":");
+        Serial.print(topic);
       }
-      return (std::optional<rheo::TempC>)std::nullopt;
+      Serial.print("] ");
+      Serial.println(message);
     }
-  );
+  });
+
+  logging::debug(NULL, "Starting...");
+
+  // Set up the thermostat.
+  logging::debug(NULL, "starting I2C...");
+  Wire.begin(i2cSdaPin, i2cSclPin);
+  logging::debug(NULL, "instantiating SHT21...");
+  // Because we've got something pulling for temp and something pulling for humidity,
+  // the first one to pull will drain the read value.
+  // Cache it so it can be pulled constantly by either one.
+  // Jerk! You're a mean jerk! You're made of beef jerky! You're a beefy jerk!
+  // Some of us eat donuts, and some of us don't.
+  // Some of us switch to daylight savings time, and some of us just won't.
+  // All of these differences would tear us apart, if us strong bond weren't there.
+  // Fortunately, there is one thing all of us like to share.
+  // What do all Canadians do together? (We talk about the weather!)
+  // What do all Canadians do together? (We talk about the weather!)
+  // What do all Canadians do together? (We talk about the weather!)
   auto clock = fromClock<arduino_millis_clock>();
-  auto smoothTemp = exponentialMovingAverage<
-    TempC,
-    typename arduino_millis_clock::time_point,
-    typename arduino_millis_clock::duration,
-    float
-  >(
-    infallibleTemp,
-    clock,
-    arduino_millis_clock::duration(1400)
+  auto tempAndHum = arduino::sht21::sht21(&Wire);
+  auto infallibleTempAndHum = makeInfallibleAndLogErrors(
+    tempAndHum,
+    fp2sf(arduino::sht21::formatError),
+    "sht2x"
   );
+  auto tempAndHumSmooth = Pipe(arduino::sht21::sht21(&Wire))
+    .pipe(makeInfallibleAndLogErrors<arduino::sht21::Sht2xReading, arduino::sht21::Sht2xError>(fp2sf(arduino::sht21::formatError), "sht2x"))
+    .pipe(cache<arduino::sht21::Sht2xReading>())
+    .pipe(throttle<arduino::sht21::Sht2xReading>(clock, arduino_millis_clock::duration(250)))
+    .pipe(splitAndZip<arduino::sht21::Sht2xReading, arduino::sht21::Sht2xTemperature, arduino::sht21::Sht2xHumidity>(
+      [](arduino::sht21::Sht2xReading value) { return std::get<0>(value); },
+      exponentialMovingAverage<arduino::sht21::Sht2xTemperature, typename arduino_millis_clock::time_point, typename arduino_millis_clock::duration, float>(
+        clock,
+        arduino_millis_clock::duration(1000),
+        mapChronoToScalar<float, typename arduino_millis_clock::duration>
+      ),
+      [](arduino::sht21::Sht2xReading value) { return std::get<1>(value); },
+      exponentialMovingAverage<arduino::sht21::Sht2xHumidity, typename arduino_millis_clock::time_point, typename arduino_millis_clock::duration, float>(
+        clock,
+        arduino_millis_clock::duration(1000),
+        mapChronoToScalar<float, typename arduino_millis_clock::duration>
+      ),
+      [](arduino::sht21::Sht2xTemperature temp, arduino::sht21::Sht2xHumidity hum) { return arduino::sht21::Sht2xReading(temp, hum); }
+    ));
   auto setpoint = rheo::State<TempC>(au::celsius_pt(20.0f), false);
 
   auto emptyStyleSource = constant(std::vector<lvgl::StyleAndSelector>());
