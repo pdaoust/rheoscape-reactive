@@ -11,7 +11,7 @@
 #include <Wire.h>
 #include <SHT2x.h>
 
-namespace rheo::sources::arduino::sht21 {
+namespace rheo::sources::arduino::sht2x {
 
   using Sht2xTemperature = au::QuantityPoint<au::Celsius, float>;
   using Sht2xHumidity = au::Quantity<au::Percent, float>;
@@ -19,7 +19,7 @@ namespace rheo::sources::arduino::sht21 {
   using Sht2xError = Endable<int>;
   using Sht2xReadingFallible = Fallible<Sht2xReading, Sht2xError>;
 
-  source_fn<Sht2xReadingFallible> sht21(TwoWire* i2c, uint8_t resolution = 0) {
+  source_fn<Sht2xReadingFallible> sht2x(TwoWire* i2c, uint8_t resolution = 0) {
     auto sensor = new SHT2x(i2c);
     int sensorStartError = 0;
     if (!sensor->begin()) {

@@ -132,7 +132,7 @@ void setup() {
   // Set up the thermostat.
   logging::debug(NULL, "starting I2C...");
   Wire.begin(i2cSdaPin, i2cSclPin);
-  logging::debug(NULL, "instantiating SHT21...");
+  logging::debug(NULL, "instantiating SHT2x...");
   // Because we've got something pulling for temp and something pulling for humidity,
   // the first one to pull will drain the read value.
   // Cache it so it can be pulled constantly by either one.
@@ -145,30 +145,30 @@ void setup() {
   // What do all Canadians do together? (We talk about the weather!)
   // What do all Canadians do together? (We talk about the weather!)
   auto clock = fromClock<arduino_millis_clock>();
-  auto tempAndHum = arduino::sht21::sht21(&Wire);
+  auto tempAndHum = arduino::sht2x::sht2x(&Wire);
   auto infallibleTempAndHum = makeInfallibleAndLogErrors(
     tempAndHum,
-    fp2sf(arduino::sht21::formatError),
+    fp2sf(arduino::sht2x::formatError),
     "sht2x"
   );
-  auto tempAndHumSmooth = Pipe(arduino::sht21::sht21(&Wire))
-    .pipe(makeInfallibleAndLogErrors<arduino::sht21::Sht2xReading, arduino::sht21::Sht2xError>(fp2sf(arduino::sht21::formatError), "sht2x"))
-    .pipe(cache<arduino::sht21::Sht2xReading>())
-    .pipe(throttle<arduino::sht21::Sht2xReading>(clock, arduino_millis_clock::duration(250)))
-    .pipe(splitAndZip<arduino::sht21::Sht2xReading, arduino::sht21::Sht2xTemperature, arduino::sht21::Sht2xHumidity>(
-      [](arduino::sht21::Sht2xReading value) { return std::get<0>(value); },
-      exponentialMovingAverage<arduino::sht21::Sht2xTemperature, typename arduino_millis_clock::time_point, typename arduino_millis_clock::duration, float>(
+  auto tempAndHumSmooth = Pipe(arduino::sht2x::sht2x(&Wire))
+    .pipe(makeInfallibleAndLogErrors<arduino::sht2x::Sht2xReading, arduino::sht2x::Sht2xError>(fp2sf(arduino::sht2x::formatError), "sht2x"))
+    .pipe(cache<arduino::sht2x::Sht2xReading>())
+    .pipe(throttle<arduino::sht2x::Sht2xReading>(clock, arduino_millis_clock::duration(250)))
+    .pipe(splitAndZip<arduino::sht2x::Sht2xReading, arduino::sht2x::Sht2xTemperature, arduino::sht2x::Sht2xHumidity>(
+      [](arduino::sht2x::Sht2xReading value) { return std::get<0>(value); },
+      exponentialMovingAverage<arduino::sht2x::Sht2xTemperature, typename arduino_millis_clock::time_point, typename arduino_millis_clock::duration, float>(
         clock,
         arduino_millis_clock::duration(1000),
         mapChronoToScalar<float, typename arduino_millis_clock::duration>
       ),
-      [](arduino::sht21::Sht2xReading value) { return std::get<1>(value); },
-      exponentialMovingAverage<arduino::sht21::Sht2xHumidity, typename arduino_millis_clock::time_point, typename arduino_millis_clock::duration, float>(
+      [](arduino::sht2x::Sht2xReading value) { return std::get<1>(value); },
+      exponentialMovingAverage<arduino::sht2x::Sht2xHumidity, typename arduino_millis_clock::time_point, typename arduino_millis_clock::duration, float>(
         clock,
         arduino_millis_clock::duration(1000),
         mapChronoToScalar<float, typename arduino_millis_clock::duration>
       ),
-      [](arduino::sht21::Sht2xTemperature temp, arduino::sht21::Sht2xHumidity hum) { return arduino::sht21::Sht2xReading(temp, hum); }
+      [](arduino::sht2x::Sht2xTemperature temp, arduino::sht2x::Sht2xHumidity hum) { return arduino::sht2x::Sht2xReading(temp, hum); }
     ));
   auto setpoint = rheo::State<TempC>(au::celsius_pt(20.0f), false);
 
@@ -228,7 +228,7 @@ void setup() {
   lv_chart_series_t* tempSeries = lv_chart_add_series(chart, lv_palette_main(LV_PALETTE_AMBER), LV_CHART_AXIS_PRIMARY_Y);
   lv_chart_series_t* humSeries = lv_chart_add_series(chart, lv_palette_main(LV_PALETTE_BLUE), LV_CHART_AXIS_SECONDARY_Y);
   pullTempAndHum = tempAndHumSmooth.sink(
-    foreach<arduino::sht21::Sht2xReading>([chart, tempSeries, humSeries](arduino::sht21::Sht2xReading value) {
+    foreach<arduino::sht2x::Sht2xReading>([chart, tempSeries, humSeries](arduino::sht2x::Sht2xReading value) {
       lv_chart_set_next_value(chart, tempSeries, (int32_t)(std::get<0>(value).in(au::Celsius{}) * 10));
       lv_chart_set_next_value(chart, humSeries, (int32_t)(std::get<1>(value).in(au::Percent{})));
       lv_chart_refresh(chart);
