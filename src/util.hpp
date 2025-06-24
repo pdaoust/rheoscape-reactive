@@ -8,9 +8,16 @@
 
 namespace rheo {
 
+  // Convert a function pointer to a std::function.
   template <typename Func>
-  auto fnPtrToStdFn(Func ptr) {
+  auto fp2sf(Func ptr) {
     return std::function<std::remove_pointer_t<Func>>(ptr);
+  }
+
+  // Convert a lambda expression into a std::function.
+  template <typename Lambda>
+  auto le2sf(Lambda le) {
+    return (std::function<decltype(le)>)le;
   }
 
   // Taken from https://stackoverflow.com/questions/2342162/stdstring-formatting-like-sprintf/49812018#49812018
