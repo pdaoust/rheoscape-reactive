@@ -3,81 +3,143 @@
 #include <functional>
 #include <memory>
 #include <core_types.hpp>
+#include <Fallible.hpp>
+#include <Endable.hpp>
+#include <logging.hpp>
 #include <types/au_all_units_noio.hpp>
 #include <Arduino.h>
 #include <Wire.h>
 #include <SHT2x.h>
 
-namespace rheo::sources::arduino {
+namespace rheo::sources::arduino::sht21 {
 
-  source_fn<std::variant<std::optional<au::QuantityPoint<au::Celsius, float>>, std::optional<au::Quantity<au::Percent, float>>>> sht21(TwoWire* i2c, uint8_t resolution = 0) {
-    return [i2c, resolution](push_fn<std::variant<std::optional<au::QuantityPoint<au::Celsius, float>>, std::optional<au::Quantity<au::Percent, float>>>> push, end_fn end) {
-      SHT21 sensor(i2c);
-      return [resolution, sensor, push, end, lastRequestedType = 0]() mutable {
-        if (!lastRequestedType) {
-          if (!sensor.begin()) {
-            Serial.print("Couldn't start SHT21; error");
-            Serial.println(sensor.getError(), HEX);
-            return;
-          } else {
-            // Initial request.
-            // Unfortunately we can only request one type of reading at one time.
-            // Note that it might be out of date before the next pull.
-            Serial.println("Requesting first humidity reading");
-            if (sensor.getResolution() != resolution) {
-              sensor.setResolution(resolution);
-            }
-            if (!sensor.requestHumidity()) {
-              Serial.print("Coudn't send humidity request; error ");
-              Serial.println(sensor.getError(), HEX);
+  using Sht2xTemperature = au::QuantityPoint<au::Celsius, float>;
+  using Sht2xHumidity = au::Quantity<au::Percent, float>;
+  using Sht2xReading = std::tuple<Sht2xTemperature, Sht2xHumidity>;
+  using Sht2xError = Endable<int>;
+  using Sht2xReadingFallible = Fallible<Sht2xReading, Sht2xError>;
+
+  source_fn<Sht2xReadingFallible> sht21(TwoWire* i2c, uint8_t resolution = 0) {
+    auto sensor = new SHT2x(i2c);
+    int sensorStartError = 0;
+    if (!sensor->begin()) {
+      sensorStartError = sensor->getError();
+      logging::error("sht2x", "Couldn't start SHT2x; error 0x%02X", sensorStartError);
+    }
+    // Wait for sensor to enter ready/idle state before sending first command.
+    logging::info("sht2x", "Delaying 15ms to ensure sensor is ready...");
+    delay(15);
+    // Warning: this depends on there being no other consumers of the sensor.
+    sensor->setResolution(resolution);
+
+    return [resolution, sensor, sensorStartError](push_fn<Sht2xReadingFallible> push, end_fn end) {
+      return [
+        resolution, sensor, sensorStartError, push, end,
+        lastReadType = 0,
+        pushedSensorStartError = false,
+        lastTemp = std::optional<float>(std::nullopt),
+        lastHum = std::optional<float>(std::nullopt)
+      ]() mutable {
+        if (pushedSensorStartError) {
+          return;
+        }
+        if (sensorStartError) {
+          push(Sht2xReadingFallible(Sht2xError(sensorStartError, true)));
+          pushedSensorStartError = true;
+          return;
+          // TODO: make startup errors recoverable?
+          // If not, return a pull function that does nothing.
+        }
+
+        // Check if we've got a temp reading waiting for us.
+        if (lastReadType) {
+          if (sensor->reqTempReady()) {
+            if (sensor->readTemperature()) {
+              float temp = sensor->getTemperature();
+              lastTemp = temp;
+              if (lastHum.has_value()) {
+                // We've got both a temperature and a humidity; ready to return a value.
+                push(Sht2xReadingFallible(Sht2xReading(au::celsius_pt(temp), au::percent(lastHum.value()))));
+              }
+              // We're not done yet; we need to fall through to getting another reading.
             } else {
-              Serial.println("Requested!");
+              push(Sht2xReadingFallible(sensor->getError()));
+              logging::error("sht2x", "Temperature read failed; error 0x%02X", sensor->getError());
+              // Because we cast the null option to the correct variant,
+              // we can't just handle both temp and hum errors in one go.
+              return;
             }
-            // Keep track of whether we pulled humidity (1) or temperature (2) last.
-            lastRequestedType = 1;
+          } else if (sensor->reqHumReady()) {
+            if (sensor->readHumidity()) {
+              float hum = sensor->getHumidity();
+              lastHum = hum;
+              if (lastTemp.has_value()) {
+                // We've got both a temperature and a humidity; ready to return a value.
+                push(Sht2xReadingFallible(Sht2xReading(au::celsius_pt(lastTemp.value()), au::percent(hum))));
+              }
+              // We're not done yet; we need to fall through to getting another reading.
+            } else {
+              push(Sht2xReadingFallible(sensor->getError()));
+              logging::error("sht2x", "Temperature read failed; error 0x%02X", sensor->getError());
+              // Because we cast the null option to the correct variant,
+              // we can't just handle both temp and hum errors in one go.
+              return;
+            }
+          } else {
+            // No reading is ready yet.
             return;
           }
         }
 
-        if (sensor.getResolution() != resolution) {
-          sensor.setResolution(resolution);
+        // If we've gotten this far, it's because we need to request a reading.
+        uint8_t nextReadType;
+        if (!lastReadType) {
+          // On the first run, there was no last read type,
+          // so start with temperature (1).
+          nextReadType = 1;
+        } else {
+          // Switch to the other read type.
+          nextReadType = lastReadType == 1 ? 2 : 1;
         }
-        switch (lastRequestedType) {
-          case 1:
-            if (sensor.reqHumReady()) {
-              Serial.println("Humidity is ready");
-              if (sensor.readHumidity()) {
-                Serial.println("Read humidity");
-                push(au::percent(sensor.getHumidity()));                  
-                Serial.println("Pushed humidity");
-              } else {
-                // Something went wrong; push an empty value.
-                // TODO: Is this actually recoverable? Should it end instead?
-                Serial.print("Couldn't read humidity; error ");
-                Serial.println(sensor.getError(), HEX);
-                push((std::optional<au::Quantity<au::Percent, float>>)std::nullopt);
-              }
-            } // Don't push an empty value if it's just not ready to deliver a value yet.
 
-            // Switch to the next type of reading.
-            sensor.requestTemperature();
-            lastRequestedType = 2;
+        // Now take the reading and find out whether it errored.
+        bool reqResult;
+        switch (nextReadType) {
+          case 1:
+            reqResult = sensor->requestTemperature();
             break;
           case 2:
-            if (sensor.reqTempReady()) {
-              if (sensor.readTemperature()) {
-                push(au::celsius_pt(sensor.getTemperature()));                  
-              } else {
-                // TODO: See above re: the meaning of a false return value.
-                push((std::optional<au::QuantityPoint<au::Celsius, float>>)std::nullopt);
-              }
-            }
-            sensor.requestHumidity();
-            lastRequestedType = 1;
-            break;
+            reqResult = sensor->requestHumidity();
         }
+
+        // Fail if it errored.
+        if (!reqResult) {
+          push(Sht2xReadingFallible(sensor->getError()));
+          logging::error("sht2x", "Couldn't request data; error 0x%02X", sensor->getError());
+          return;
+        }
+
+        // Remember what we just measured,
+        // which is necessary after the first run and for alternating read types.
+        lastReadType = nextReadType;
       };
     };
+  }
+
+  const char* formatError(Endable<int> errorCode) {
+    switch (errorCode.value) {
+      case SHT2x_ERR_WRITECMD: return "SHT2x: 0x81 Couldn't send a command to the sensor";
+      case SHT2x_ERR_READBYTES: return "SHT2x: 0x82 Couldn't read data from the sensor";
+      case SHT2x_ERR_HEATER_OFF: return "SHT2x: 0x83 Couldn't switch off the internal heater";
+      case SHT2x_ERR_NOT_CONNECT: return "SHT2x: 0x84 Couldn't connect to the sensor";
+      case SHT2x_ERR_CRC_TEMP: return "SHT2x: 0x85 CRC failed for temperature reading";
+      case SHT2x_ERR_CRC_HUM: return "SHT2x: 0x86 CRC failed for humidity reading";
+      case SHT2x_ERR_CRC_STATUS: return "SHT2x: 0x87 CRC failed for status register";
+      case SHT2x_ERR_HEATER_COOLDOWN: return "SHT2x: 0x88 Heater is in cooldown and can't be reactivated yet";
+      case SHT2x_ERR_HEATER_ON: return "SHT2x: 0x89 Couldn't turn on the heater";
+      case SHT2x_ERR_RESOLUTION: return "SHT2x: 0x8A Tried to set an invalid resolution";
+      default: return NULL;
+    }
   }
 
 }
