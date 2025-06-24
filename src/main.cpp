@@ -13,6 +13,14 @@ using namespace rheo::operators;
 using namespace rheo::sources;
 using namespace rheo::ui;
 
+#ifndef LOG_LEVEL
+#define LOG_LEVEL logging::LOG_LEVEL_DEBUG
+#endif
+
+#ifndef LOG_LEVEL_LVGL
+#define LOG_LEVEL_LVGL logging::LOG_LEVEL_WARN
+#endif
+
 // OneWire bus(1);
 // DallasTemperature sensors(&bus);
 // const uint64_t tempAddress = 0x00000000;
@@ -55,10 +63,7 @@ void touchRead(lv_indev_t* indev, lv_indev_data_t* data) {
     data->point.x = t_x;
     data->point.y = 240 - t_y;
     data->state = LV_INDEV_STATE_PRESSED;
-    Serial.print("x: ");
-    Serial.print(t_x);
-    Serial.print(", y: ");
-    Serial.println(t_y);
+    logging::debug("touch", "x: %d, y: %d", &t_x, &t_y);
   } else {
     data->state = LV_INDEV_STATE_RELEASED;
   }
@@ -91,10 +96,25 @@ void encoderRead(lv_indev_t* indev, lv_indev_data_t* data) {
   }
 }
 
-void log_print(lv_log_level_t level, const char * buf) {
+void logLvglMessage(lv_log_level_t level, const char * buf) {
   LV_UNUSED(level);
-  Serial.println(buf);
-  Serial.flush();
+  uint8_t rheoLogLevel;
+  // LVGL's log messages are backwards; map them to our log levels.
+  switch (level) {
+    case LV_LOG_LEVEL_ERROR: rheoLogLevel = logging::LOG_LEVEL_ERROR; break;
+    case LV_LOG_LEVEL_WARN:  rheoLogLevel = logging::LOG_LEVEL_WARN;  break;
+    case LV_LOG_LEVEL_INFO:  rheoLogLevel = logging::LOG_LEVEL_INFO;  break;
+    case LV_LOG_LEVEL_TRACE: rheoLogLevel = logging::LOG_LEVEL_TRACE; break;
+    default:                 rheoLogLevel = logging::LOG_LEVEL_INFO;  break;
+  }
+  if (rheoLogLevel > LOG_LEVEL_LVGL) {
+    return;
+  }
+  // Trim the newline.
+  char trimmedBuf[strlen(buf)];
+  strcpy(trimmedBuf, buf);
+  trimmedBuf[strlen(buf) - 1] = '\0';
+  logging::log(rheoLogLevel, "lvgl", trimmedBuf);
 }
 
 lv_obj_t* smoothTempLabel;
@@ -141,9 +161,9 @@ void setup() {
 
   // Set up the display.
   lv_init();
-  Serial.println("LVGL initialised");
-  lv_log_register_print_cb(log_print);
-  Serial.println("Log callback setup");
+  logging::debug(NULL, "LVGL initialised");
+  lv_log_register_print_cb(logLvglMessage);
+  logging::debug(NULL, "Log callback setup");
   disp = lv_tft_espi_create(TFT_WIDTH, TFT_HEIGHT, &drawBuf, sizeof(drawBuf));
 
   // INPUT DEVICES
@@ -151,20 +171,20 @@ void setup() {
   // So instantiate another copy of the TFT_eSPI driver.
   tft.init();
   lv_indev_t* touch = lv_indev_create();
-  Serial.println("Touch created");
+  logging::debug(NULL, "Touch created");
   lv_indev_set_type(touch, LV_INDEV_TYPE_POINTER);
-  Serial.println("Touch type set");
+  logging::debug(NULL, "Touch type set");
   lv_indev_set_read_cb(touch, touchRead);
 
   // Set up the rotary encoder.
   lv_indev_t* encoder = lv_indev_create();
-  Serial.println("Encoder created");
+  logging::debug(NULL, "Encoder created");
   lv_indev_set_type(encoder, LV_INDEV_TYPE_ENCODER);
-  Serial.println("Encoder type set");
+  logging::debug(NULL, "Encoder type set");
   lv_indev_set_read_cb(encoder, encoderRead);
-  Serial.println("Encoder callback bound");
+  logging::debug(NULL, "Encoder callback bound");
   lastLvglRun = millis();
-  Serial.println("Display setup complete!");
+  logging::debug(NULL, "Display setup complete!");
 
   // // Create the UI.
   lv_obj_t* uiContainer = lv_obj_create(lv_screen_active());
@@ -235,8 +255,7 @@ void setup() {
   );
   setpoint.addSink(
     [](auto value) {
-      Serial.print("Setting setpoint to ");
-      Serial.println(au_to_string(value, 2).c_str());
+      logging::debug("setpoint", "Setting setpoint to %s", au_to_string(value, 2).c_str());
     },
     [](){}
   );
@@ -254,18 +273,14 @@ void setup() {
   // );
   lv_obj_t* setpointUnitsLabel = lv_label_create(setpointContainer);
   lv_label_set_text(setpointUnitsLabel, "°C");
-  Serial.println("Setup completed!");
+  logging::debug(NULL, "Setup completed!");
 }
 
 int16_t lastReadEncoderClicks = 0;
 
 void loop() {
-  //Serial.println("Pulling temps...");
-  pullActualTemp();
-  pullSmoothTemp();
-
-  uint16_t t_x, t_y;
-  static bool pressed = false;
+  logging::trace(NULL, "Pulling temp and hum...");
+  pullTempAndHum();
 
   unsigned long now = millis();
   if (lastLvglRun + timeTillNextLvglRun <= now) {
