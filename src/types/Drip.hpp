@@ -12,11 +12,8 @@ namespace rheo {
       pull_fn _pullFn;
     
     public:
-      Drip(source_fn<T> sourceFn, push_fn<T> pushFn, end_fn endFn)
-      : _pullFn(sourceFn(
-          pushFn,
-          endFn
-        ))
+      Drip(source_fn<T> sourceFn, push_fn<T> push)
+      : _pullFn(sourceFn(push))
       { }
 
       void drip() {

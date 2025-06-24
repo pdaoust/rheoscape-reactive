@@ -13,19 +13,16 @@ namespace rheo::operators {
   // use `filter<std::optional<T>>(source, notEmpty)`
   template <typename T>
   source_fn<T> latch(source_fn<std::optional<T>> source) {
-    return [source](push_fn<T> push, end_fn end) {
+    return [source](push_fn<T> push) {
       std::optional<T> lastSeenValue;
-      return source(
-        [push, lastSeenValue](std::optional<T> value) mutable {
-          if (value.has_value()) {
-            lastSeenValue = value;
-          }
-          if (lastSeenValue.has_value()) {
-            push(lastSeenValue.value());
-          }
-        },
-        end
-      );
+      return source([push, lastSeenValue](std::optional<T> value) mutable {
+        if (value.has_value()) {
+          lastSeenValue = value;
+        }
+        if (lastSeenValue.has_value()) {
+          push(lastSeenValue.value());
+        }
+      });
     };
   }
 

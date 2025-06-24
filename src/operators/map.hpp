@@ -7,11 +7,8 @@ namespace rheo::operators {
 
   template <typename TOut, typename TIn>
   source_fn<TOut> map(source_fn<TIn> source, map_fn<TOut, TIn> mapper) {
-    return [source, mapper](push_fn<TOut> push, end_fn end) {
-      return source(
-        [mapper, push](TIn value) { push(mapper(value)); },
-        end
-      );
+    return [source, mapper](push_fn<TOut> push) {
+      return source([mapper, push](TIn value) { push(mapper(value)); });
     };
   }
 

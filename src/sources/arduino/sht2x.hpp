@@ -17,6 +17,10 @@ namespace rheo::sources::arduino::sht2x {
   using Humidity = au::Quantity<au::Percent, float>;
   using Reading = std::tuple<Temperature, Humidity>;
   using Error = Endable<int>;
+  // Even though the reading stream itself is endable,
+  // I'm making the error endable only, because
+  // (a) otherwise it'd have to be two unwraps
+  // (b) if it ends, it's because of an error.
   using ReadingFallible = Fallible<Reading, Error>;
 
   source_fn<ReadingFallible> sht2x(TwoWire* i2c, uint8_t resolution = 0) {
@@ -32,9 +36,9 @@ namespace rheo::sources::arduino::sht2x {
     // Warning: this depends on there being no other consumers of the sensor.
     sensor->setResolution(resolution);
 
-    return [resolution, sensor, sensorStartError](push_fn<ReadingFallible> push, end_fn end) {
+    return [resolution, sensor, sensorStartError](push_fn<ReadingFallible> push) {
       return [
-        resolution, sensor, sensorStartError, push, end,
+        resolution, sensor, sensorStartError, push,
         lastReadType = 0,
         pushedSensorStartError = false,
         lastTemp = std::optional<float>(std::nullopt),
@@ -44,7 +48,8 @@ namespace rheo::sources::arduino::sht2x {
           return;
         }
         if (sensorStartError) {
-          push(ReadingFallible(Error(sensorStartError, true)));
+          push(ReadingFallible(Error(sensor->getError())));
+          push(ReadingFallible(Error()));
           pushedSensorStartError = true;
           return;
           // TODO: make startup errors recoverable?
@@ -127,7 +132,7 @@ namespace rheo::sources::arduino::sht2x {
   }
 
   const char* formatError(Endable<int> errorCode) {
-    switch (errorCode.value) {
+    switch (errorCode.value()) {
       case SHT2x_ERR_WRITECMD: return "SHT2x: 0x81 Couldn't send a command to the sensor";
       case SHT2x_ERR_READBYTES: return "SHT2x: 0x82 Couldn't read data from the sensor";
       case SHT2x_ERR_HEATER_OFF: return "SHT2x: 0x83 Couldn't switch off the internal heater";

@@ -69,37 +69,30 @@ namespace rheo::operators {
     // I don't even quite understand how it works;
     // all I know is that I found the magic formula that makes tests pass.
     return [innerPipeFn, liftFn, lowerFn](source_fn<TLiftedIn> outerSourceIn) {
-      return [innerPipeFn, liftFn, lowerFn, outerSourceIn](push_fn<TLiftedOut> pushOuterOut, end_fn endOuterOut) {
+      return [innerPipeFn, liftFn, lowerFn, outerSourceIn](push_fn<TLiftedOut> pushOuterOut) {
         auto lastLiftedIn = make_wrapper_shared<TLiftedIn>();
 
-        auto innerSourceOut = innerPipeFn(
-          [lowerFn, pushOuterOut, outerSourceIn, lastLiftedIn](push_fn<TIn> pushInnerIn, end_fn endInnerIn) {
-            // The pull function for the 'in' end of the inner pipe
-            // comes from the outer source.
-            return outerSourceIn(
-              [lowerFn, pushOuterOut, lastLiftedIn, pushInnerIn](TLiftedIn outerValueIn) {
-                lastLiftedIn->value = outerValueIn;
-                std::variant<TIn, TLiftedOut> loweredValue = lowerFn(outerValueIn);
-                if (loweredValue.index() == 0) {
-                  pushInnerIn(std::get<0>(loweredValue));
-                } else {
-                  pushOuterOut(std::get<1>(loweredValue));
-                }
-              },
-              // When the outer source ends, it propagates that end down through the inner pipe.
-              endInnerIn
-            );
+        auto innerSourceOut = innerPipeFn([lowerFn, pushOuterOut, outerSourceIn, lastLiftedIn](push_fn<TIn> pushInnerIn) {
+          // The pull function for the 'in' end of the inner pipe
+          // comes from the outer source.
+          return outerSourceIn(
+            [lowerFn, pushOuterOut, lastLiftedIn, pushInnerIn](TLiftedIn outerValueIn) {
+              lastLiftedIn->value = outerValueIn;
+              std::variant<TIn, TLiftedOut> loweredValue = lowerFn(outerValueIn);
+              if (loweredValue.index() == 0) {
+                pushInnerIn(std::get<0>(loweredValue));
+              } else {
+                pushOuterOut(std::get<1>(loweredValue));
+              }
+            });
           }
         );
 
         // The pull function that we return comes from the 'out' end of the inner pipe,
         // which is wired up all the way through to the outer source.
-        return innerSourceOut(
-          [liftFn, pushOuterOut, lastLiftedIn](TOut innerValueOut) {
-            pushOuterOut(liftFn(innerValueOut, lastLiftedIn->value));
-          },
-          endOuterOut
-        );
+        return innerSourceOut([liftFn, pushOuterOut, lastLiftedIn](TOut innerValueOut) {
+          pushOuterOut(liftFn(innerValueOut, lastLiftedIn->value));
+        });
       };
     };
   }

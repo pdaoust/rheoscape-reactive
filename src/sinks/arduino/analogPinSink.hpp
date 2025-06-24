@@ -8,14 +8,11 @@ namespace rheo::sinks::arduino {
 
   pullable_sink_fn<int> analogPinSink(int pin, uint8_t resolutionBits = 10) {
     return [pin, resolutionBits](source_fn<int> source) {
-      return source(
-        [pin, resolutionBits](int value) {
-          pinMode(pin, OUTPUT);
-          analogWriteResolution(resolutionBits);
-          digitalWrite(pin, value);
-        },
-        [](){}
-      );
+      return source([pin, resolutionBits](int value) {
+        pinMode(pin, OUTPUT);
+        analogWriteResolution(resolutionBits);
+        digitalWrite(pin, value);
+      });
     };
   }
 

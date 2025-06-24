@@ -18,7 +18,7 @@ namespace rheo::operators {
 
   template <typename T>
   source_fn<T> cache(source_fn<T> source) {
-    return [source](push_fn<T> push, end_fn _) {
+    return [source](push_fn<T> push) {
       auto lastSeenValue = std::make_shared<std::optional<T>>();
       auto isWithinPull = make_wrapper_shared(false);
       auto didPushWithinPull = make_wrapper_shared(false);
@@ -34,8 +34,7 @@ namespace rheo::operators {
             // so the pull function knows not to push the cached value.
             didPushWithinPull->value = true;
           }
-        },
-        [](){}
+        }
       );
 
       return [push, pull, lastSeenValue, isWithinPull, didPushWithinPull]() {

@@ -8,15 +8,12 @@ namespace rheo::operators {
   
   template <typename T>
   source_fn<T> unwrap(source_fn<std::optional<T>> source) {
-    return [source](push_fn<T> push, end_fn end) {
-      return source(
-        [push](std::optional<T> value) {
-          if (value.has_value()) {
-            push(value.value());
-          }
-        },
-        end
-      );
+    return [source](push_fn<T> push) {
+      return source([push](std::optional<T> value) {
+        if (value.has_value()) {
+          push(value.value());
+        }
+      });
     };
   }
 

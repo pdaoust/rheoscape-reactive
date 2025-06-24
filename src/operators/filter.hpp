@@ -7,11 +7,8 @@ namespace rheo::operators {
   
   template <typename T>
   source_fn<T> filter(source_fn<T> source, filter_fn<T> filterer) {
-    return [source, filterer](push_fn<T> push, end_fn end) {
-      return source(
-        [filterer, push](T value) { if (filterer(value)) push(value); },
-        end
-      );
+    return [source, filterer](push_fn<T> push) {
+      return source([filterer, push](T value) { if (filterer(value)) push(value); });
     };
   }
 

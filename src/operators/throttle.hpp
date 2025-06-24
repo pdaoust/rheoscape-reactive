@@ -12,20 +12,17 @@ namespace rheo::operators {
   source_fn<T> throttle(source_fn<T> source, source_fn<TTime> clockSource, TInterval interval) {
     auto timestamped = timestamp(source, clockSource);
 
-    return [interval, timestamped](push_fn<T> push, end_fn end) {
-      return timestamped(
-        [interval, push, intervalStart = std::optional<TTime>()](TaggedValue<T, TTime> value) mutable {
-          if (intervalStart.has_value() && value.tag - intervalStart.value() > interval) {
-            intervalStart = std::nullopt;
-          }
+    return [interval, timestamped](push_fn<T> push) {
+      return timestamped([interval, push, intervalStart = std::optional<TTime>()](TaggedValue<T, TTime> value) mutable {
+        if (intervalStart.has_value() && value.tag - intervalStart.value() > interval) {
+          intervalStart = std::nullopt;
+        }
 
-          if (!intervalStart.has_value()) {
-            intervalStart = value.tag;
-            push(value.value);
-          }
-        },
-        end
-      );
+        if (!intervalStart.has_value()) {
+          intervalStart = value.tag;
+          push(value.value);
+        }
+      });
     };
   }
 

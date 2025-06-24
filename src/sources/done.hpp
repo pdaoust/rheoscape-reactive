@@ -5,10 +5,14 @@
 namespace rheo::sources {
 
   // A source function that ends immediately.
-
   template <typename T>
-  pull_fn done(push_fn<T> _, end_fn end) {
-    end();
-    return [end]() { end(); };
+  source_fn<Endable<T>> done() {
+    return [isDone = false](push_fn<Endable<T>> push) mutable{
+      if (!isDone) {
+        push(Endable<T>());
+        isDone = true;
+      }
+    };
   }
+
 }

@@ -16,30 +16,21 @@ namespace rheo::operators {
 
   template <typename T, typename TTapReturn>
   source_fn<T> tap(source_fn<T> source, sink_fn<TTapReturn, T> sink) {
-    return [source, sink](push_fn<T> pushPrimary, end_fn endPrimary) {
+    return [source, sink](push_fn<T> pushPrimary) {
       push_fn<T> pushToTap;
-      end_fn endTap;
 
-      sink((source_fn<T>)[&pushToTap, &endTap](push_fn<T> push, end_fn end) {
+      sink((source_fn<T>)[&pushToTap](push_fn<T> push) {
         pushToTap = push;
-        endTap = end;
+        // The tap isn't allowed to pull.
         return [](){};
       });
 
-      return source(
-        [pushPrimary, pushToTap](T value) {
-          pushPrimary(value);
-          if (pushToTap) {
-            pushToTap(value);
-          }
-        },
-        [endPrimary, endTap]() {
-          endPrimary();
-          if (endTap) {
-            endTap();
-          }
+      return source([pushPrimary, pushToTap](T value) {
+        pushPrimary(value);
+        if (pushToTap) {
+          pushToTap(value);
         }
-      );
+      });
     };
   }
 

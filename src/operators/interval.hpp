@@ -29,54 +29,40 @@ namespace rheo::operators {
 
   template <typename TTimePoint, typename TInterval>
   source_fn<TTimePoint> interval(source_fn<TTimePoint> timeSource, source_fn<TInterval> intervalSource) {
-    return [timeSource, intervalSource](push_fn<TTimePoint> push, end_fn end) {
+    return [timeSource, intervalSource](push_fn<TTimePoint> push) {
       auto lastInterval = std::make_shared<std::optional<TInterval>>();
       auto lastIntervalTimestamp = std::make_shared<std::optional<TTimePoint>>();
-      auto endAny = std::make_shared<EndAny>(end);
 
-      pull_fn pullNextInterval = intervalSource(
-        [lastInterval, endAny](TInterval interval) {
-          if (endAny->ended) {
-            return;
-          }
-          lastInterval->emplace(interval);
-        },
-        endAny->upstream_end_fn
-      );
+      pull_fn pullNextInterval = intervalSource([lastInterval](TInterval interval) {
+        lastInterval->emplace(interval);
+      });
 
-      return timeSource(
-        [lastInterval, lastIntervalTimestamp, pullNextInterval, push, endAny](TTimePoint timestamp) {
-          if (endAny->ended) {
-            return;
-          }
-
+      return timeSource([lastInterval, lastIntervalTimestamp, pullNextInterval, push](TTimePoint timestamp) {
+        if (!lastInterval->has_value()) {
+          pullNextInterval();
           if (!lastInterval->has_value()) {
-            pullNextInterval();
-            if (!lastInterval->has_value()) {
-              // Can't start yet; we have no interval.
-              return;
-            }
+            // Can't start yet; we have no interval.
+            return;
           }
+        }
 
-          // This comes after we pull the first interval.
-          // That's because we don't want to start counting
-          // until we know what we're counting from/to.          
-          if (!lastIntervalTimestamp->has_value()) {
-            // First pull or push of a timestamp; start the thing!
-            lastIntervalTimestamp->emplace(timestamp);
-          }
+        // This comes after we pull the first interval.
+        // That's because we don't want to start counting
+        // until we know what we're counting from/to.          
+        if (!lastIntervalTimestamp->has_value()) {
+          // First pull or push of a timestamp; start the thing!
+          lastIntervalTimestamp->emplace(timestamp);
+        }
 
-          if (timestamp - lastIntervalTimestamp->value() >= lastInterval->value()) {
-            // An interval has passed. Push the timestamp and get the next interval.
-            // Don't use the current timestamp; that'll result in uneven interval spacing!
-            // Better to have unevenly emitted timestamps than unevenly calculated intervals.
-            lastIntervalTimestamp->emplace(lastIntervalTimestamp->value() + lastInterval->value());
-            push(lastIntervalTimestamp->value());
-            pullNextInterval();
-          }
-        },
-        endAny->upstream_end_fn
-      );
+        if (timestamp - lastIntervalTimestamp->value() >= lastInterval->value()) {
+          // An interval has passed. Push the timestamp and get the next interval.
+          // Don't use the current timestamp; that'll result in uneven interval spacing!
+          // Better to have unevenly emitted timestamps than unevenly calculated intervals.
+          lastIntervalTimestamp->emplace(lastIntervalTimestamp->value() + lastInterval->value());
+          push(lastIntervalTimestamp->value());
+          pullNextInterval();
+        }
+      });
     };
   }
 

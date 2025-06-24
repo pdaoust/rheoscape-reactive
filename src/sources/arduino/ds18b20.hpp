@@ -36,7 +36,7 @@ namespace rheo::sources::arduino::ds18b20 {
   // then it'll request a new temperature.
   // If the sensor is disconnected, it'll return an empty optional value.
   source_fn<std::optional<au::QuantityPoint<au::Celsius, float>>> ds18b20(DeviceAddress address, DallasTemperature* sensor, int resolution) {
-    return [address, sensor, resolution](push_fn<std::optional<au::QuantityPoint<au::Celsius, float>>> push, end_fn _) {
+    return [address, sensor, resolution](push_fn<std::optional<au::QuantityPoint<au::Celsius, float>>> push) {
       sensor->setResolution(address, resolution);
       sensor->setWaitForConversion(false);
       sensor->requestTemperaturesByAddress(address);

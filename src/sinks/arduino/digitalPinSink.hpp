@@ -8,13 +8,10 @@ namespace rheo::sinks::arduino {
 
   pullable_sink_fn<bool> digitalPinSink(int pin) {
     return [pin](source_fn<bool> source) {
-      return source(
-        [pin](bool value) {
-          pinMode(pin, OUTPUT);
-          digitalWrite(pin, value);
-        },
-        [](){}
-      );
+      return source([pin](bool value) {
+        pinMode(pin, OUTPUT);
+        digitalWrite(pin, value);
+      });
     };
   }
 

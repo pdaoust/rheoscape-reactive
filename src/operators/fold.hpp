@@ -7,14 +7,11 @@ namespace rheo::operators {
 
   template <typename TAcc, typename TIn>
   source_fn<TAcc> fold(source_fn<TIn> source, TAcc initialAcc, fold_fn<TAcc, TIn> folder) {
-    return [source, initialAcc, folder](push_fn<TAcc> push, end_fn end) {
-      return source(
-        [folder, acc = initialAcc, push](TIn value) mutable {
-          acc = folder(acc, value);
-          push(acc);
-        },
-        end
-      );
+    return [source, initialAcc, folder](push_fn<TAcc> push) {
+      return source([folder, acc = initialAcc, push](TIn value) mutable {
+        acc = folder(acc, value);
+        push(acc);
+      });
     };
   }
 

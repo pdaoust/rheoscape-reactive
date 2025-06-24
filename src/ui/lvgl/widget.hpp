@@ -28,7 +28,7 @@ namespace rheo::ui::lvgl {
     );
 
     // Eternal gratitude to the author of https://deplinenoise.wordpress.com/2014/02/23/using-c11-capturing-lambdas-w-vanilla-c-api-functions/
-    source_fn<lv_event_code_t> eventSource = [widget](push_fn<lv_event_code_t> push, end_fn end) {
+    source_fn<lv_event_code_t> eventSource = [widget](push_fn<lv_event_code_t> push) {
       lv_obj_add_event_cb(
         widget,
         [](lv_event_t* event) {
@@ -53,16 +53,13 @@ namespace rheo::ui::lvgl {
     lv_obj_t* widget,
     source_fn<std::vector<StyleAndSelector>> styleSource
   ) {
-    pull_fn pullStyle = styleSource(
-      [widget](std::vector<StyleAndSelector> styles) {
-        for (const StyleAndSelector& style : styles) {
-          lv_obj_add_style(widget, &style.style, style.selector);
-        }
-      },
-      [](){}
-    );
+    pull_fn pullStyle = styleSource([widget](std::vector<StyleAndSelector> styles) {
+      for (const StyleAndSelector& style : styles) {
+        lv_obj_add_style(widget, &style.style, style.selector);
+      }
+    });
 
-    source_fn<lv_event_code_t> eventSource = [widget](push_fn<lv_event_code_t> push, end_fn end) {
+    source_fn<lv_event_code_t> eventSource = [widget](push_fn<lv_event_code_t> push) {
       lv_obj_add_event_cb(
         widget,
         [](lv_event_t* event) {

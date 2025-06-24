@@ -2,14 +2,40 @@
 
 namespace rheo {
 
-  template <typename T>
-  struct Endable {
-    const T value;
-    const bool isLast;
+  class endable_bad_get_value_access : std::exception {
+    public:
+      const char* what() {
+        return "Tried to get a value from an Endable that's already ended";
+      }
+  };
 
-    Endable(const T value, bool isLast = false)
-    : value(value), isLast(isLast)
-    { }
+  struct Ended {};
+
+  template <typename T>
+  class Endable {
+    private:
+      T _value;
+      const bool _isEnded;
+
+    public:
+      Endable(const T value)
+      : _value(value), _isEnded(false)
+      { }
+
+      Endable()
+      : _isEnded(true)
+      { }
+
+      bool hasValue() const {
+        return !_isEnded;
+      }
+
+      T value() {
+        if (!_isEnded) {
+          throw endable_bad_get_value_access();
+        }
+        return _value;
+      }
   };
 
 }

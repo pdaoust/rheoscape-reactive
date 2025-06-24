@@ -9,23 +9,18 @@ namespace rheo::operators {
   // then end the source.
 
   template <typename T>
-  source_fn<T> takeWhile(source_fn<T> source, filter_fn<T> condition) {
-    return [source, condition](push_fn<T> push, end_fn end) {
-      return source(
-        [condition, push, end, running = true](T value) mutable {
-          if (running) {
-            if (!condition(value)) {
-              running = false;
-              end();
-            } else {
-              push(value);
-            }
+  source_fn<Endable<T>> takeWhile(source_fn<T> source, filter_fn<T> condition) {
+    return [source, condition](push_fn<T> push) {
+      return source([condition, push, running = true](T value) mutable {
+        if (running) {
+          if (!condition(value)) {
+            running = false;
+            push(Endable<T>());
           } else {
-            end();
+            push(Endable<T>(value));
           }
-        },
-        end
-      );
+        }
+      });
     };
   }
 

@@ -94,7 +94,7 @@ namespace rheo {
   //
   //   (params) => (push_fn) => (pull_fn)
   template <typename T>
-  using source_fn = std::function<pull_fn(push_fn<T>, end_fn)>;
+  using source_fn = std::function<pull_fn(push_fn<T>)>;
 
   // A function that receives a source function,
   // binds itself to the source
@@ -104,11 +104,6 @@ namespace rheo {
   // This type is mostly useful for method chaining.
   template <typename TReturn, typename T>
   using sink_fn = std::function<TReturn(source_fn<T>)>;
-
-  // A pair of functions that together constitute a sink
-  // to be passed to a source function.
-  template <typename T>
-  using sink = std::tuple<push_fn<T>, end_fn>;
 
   // A sink function that doesn't return a value.
   template <typename T>

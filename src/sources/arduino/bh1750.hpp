@@ -11,7 +11,7 @@
 namespace rheo::sources::arduino {
 
   source_fn<au::Quantity<au::Lux, float>> bh1750(uint8_t address, TwoWire* i2c, BH1750::Mode mode = BH1750::Mode::CONTINUOUS_HIGH_RES_MODE) {
-    return [address, i2c, mode](push_fn<au::Quantity<au::Lux, float>> push, end_fn _) {
+    return [address, i2c, mode](push_fn<au::Quantity<au::Lux, float>> push) {
       auto sensor = std::make_shared<BH1750>();
       sensor->begin(mode, address, i2c);
       return [sensor, push]() {

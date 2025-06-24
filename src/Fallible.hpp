@@ -4,14 +4,14 @@
 
 namespace rheo {
 
-  class bad_get_value_access : std::exception {
+  class fallible_bad_get_value_access : std::exception {
     public:
       const char* what() {
         return "Tried to get a value from a Fallible that contains an error";
       }
   };
 
-  class bad_get_error_access : std::exception {
+  class fallible_bad_get_error_access : std::exception {
     public:
       const char* what() {
         return "Tried to get an error from a Fallible that contains a value";
@@ -46,14 +46,14 @@ namespace rheo {
 
       T value() {
         if (!_hasValue) {
-          throw bad_get_value_access();
+          throw fallible_bad_get_value_access();
         }
         return _value;
       }
 
       TErr error() {
         if (_hasValue) {
-          throw bad_get_error_access();
+          throw fallible_bad_get_error_access();
         }
         return _error;
       }

@@ -16,14 +16,11 @@ namespace rheo::operators {
     const char* topic = NULL
   ) {
     return tap<Fallible<T, TErr>, void>(source, [topic, formatError](source_fn<Fallible<T, TErr>> source) {
-      source(
-        [topic, formatError](Fallible<T, TErr> value) {
-          if (value.isError()) {
-            logging::error(topic, formatError(value.error()));
-          }
-        },
-        [](){}
-      );
+      source([topic, formatError](Fallible<T, TErr> value) {
+        if (value.isError()) {
+          logging::error(topic, formatError(value.error()));
+        }
+      });
     });
   }
 

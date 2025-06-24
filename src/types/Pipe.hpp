@@ -16,8 +16,8 @@ namespace rheo {
       : _sourceFn(sourceFn)
       { }
 
-      pull_fn sink(push_fn<T> pushFn, end_fn endFn) {
-        return _sourceFn(pushFn, endFn);
+      pull_fn sink(push_fn<T> push) {
+        return _sourceFn(push);
       }
 
       pull_fn sink(pullable_sink_fn<T> sink) {
