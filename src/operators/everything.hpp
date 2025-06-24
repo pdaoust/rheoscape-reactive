@@ -22,6 +22,7 @@
 #include <operators/pid.hpp>
 #include <operators/reduce.hpp>
 #include <operators/sample.hpp>
+#include <operators/splitAndZip.hpp>
 #include <operators/startWhen.hpp>
 #include <operators/stopwatch.hpp>
 #include <operators/take.hpp>
