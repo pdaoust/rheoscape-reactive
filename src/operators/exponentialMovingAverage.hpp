@@ -2,6 +2,7 @@
 
 #include <functional>
 #include <core_types.hpp>
+#include <util.hpp>
 #include <types/TaggedValue.hpp>
 #include <operators/map.hpp>
 #include <operators/reduce.hpp>
@@ -16,15 +17,20 @@ namespace rheo::operators {
   // Any movements slower than this will get integrated;
   // any movements faster than this will get filtered out.
   template <typename TVal, typename TTime, typename TInterval, typename TRep>
-  source_fn<TVal> exponentialMovingAverage(source_fn<TVal> source, source_fn<TTime> clockSource, TInterval timeConstant) {
+  source_fn<TVal> exponentialMovingAverage(
+    source_fn<TVal> source,
+    source_fn<TTime> clockSource,
+    TInterval timeConstant,
+    map_fn<TRep, TInterval> mapIntervalToRep
+  ) {
     auto timestamped = timestamp(source, clockSource);
 
     source_fn<TaggedValue<TVal, TTime>> calculated = reduce<TaggedValue<TVal, TTime>>(
       timestamped,
-      (reduce_fn<TaggedValue<TVal, TTime>>)[timeConstant](TaggedValue<TVal, TTime> prev, TaggedValue<TVal, TTime> next) {
+      (reduce_fn<TaggedValue<TVal, TTime>>)[timeConstant, mapIntervalToRep](TaggedValue<TVal, TTime> prev, TaggedValue<TVal, TTime> next) {
         TInterval timeDelta = next.tag - prev.tag;
-        TRep alpha = 1 - pow(M_E, -timeDelta / timeConstant);
-        TVal integrated = prev.value + alpha * (next.value - prev.value);
+        TRep alpha = (TRep)1.0 - pow((TRep)M_E, -mapIntervalToRep(timeDelta) / mapIntervalToRep(timeConstant));
+        TVal integrated = prev.value + (next.value - prev.value) * alpha;
         return TaggedValue<TVal, TTime> { integrated, next.tag };
       }
     );
@@ -33,10 +39,20 @@ namespace rheo::operators {
   }
 
   template <typename TVal, typename TTime, typename TInterval, typename TRep>
-  pipe_fn<TVal, TVal> exponentialMovingAverage(source_fn<TTime> clockSource, TInterval timeConstant) {
-    return [clockSource, timeConstant](source_fn<TVal> source) {
-      return exponentialMovingAverage<TVal, TTime, TInterval, TRep>(source, clockSource, timeConstant);
+  pipe_fn<TVal, TVal> exponentialMovingAverage(source_fn<TTime> clockSource, TInterval timeConstant, map_fn<TRep, TInterval> mapIntervalToRep) {
+    return [clockSource, timeConstant, mapIntervalToRep](source_fn<TVal> source) {
+      return exponentialMovingAverage<TVal, TTime, TInterval, TRep>(source, clockSource, timeConstant, mapIntervalToRep);
     };
+  }
+
+  template <typename TRep, typename TInterval>
+  TRep mapChronoToScalar(TInterval interval) {
+    return (TRep)interval.count();
+  }
+
+  template <typename TRep>
+  TRep mapIntervalIsRep(TRep interval) {
+    return interval;
   }
 
 }
