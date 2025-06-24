@@ -15,6 +15,7 @@
 #include <operators/latch.hpp>
 #include <operators/lift.hpp>
 #include <operators/logErrors.hpp>
+#include <operators/makeInfallible.hpp>
 #include <operators/map.hpp>
 #include <operators/merge.hpp>
 #include <operators/normalize.hpp>
