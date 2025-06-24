@@ -35,7 +35,7 @@ namespace rheo::operators {
       return splitAndZip(
         source,
         mapper1,
-        pipe1
+        pipe1,
         mapper2,
         pipe2,
         combiner
