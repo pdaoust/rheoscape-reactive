@@ -215,28 +215,48 @@ void setup() {
   lv_obj_set_layout(uiContainer, LV_LAYOUT_FLEX);
   lv_obj_set_flex_flow(uiContainer, LV_FLEX_FLOW_COLUMN);
 
-  lv_obj_t* actualTempLabel = lv_label_create(uiContainer);
-  lv_label_set_text(actualTempLabel, "Starting...");
-  lv_obj_align(actualTempLabel, LV_ALIGN_TOP_LEFT, 0, 0);
-  auto mapActualTempToLabel = map<std::string, TempC>(infallibleTemp, [](TempC v) {
-    return string_format("Actual: %s", au_to_string(v, 2).c_str());
-  });
-  //mapActualTempToLabel = tap(mapActualTempToLabel, rheo::sinks::arduino::serialStringLineSink());
-  auto pullAndSourceActualTempLabel = lvgl::label(actualTempLabel, mapActualTempToLabel, emptyStyleSource);
-  pullActualTemp = std::get<0>(pullAndSourceActualTempLabel);
+  // Temp/humidity chart.
+  lv_obj_t* chart = lv_chart_create(uiContainer);
+  lv_obj_set_size(chart, 300, 100);
+  lv_obj_center(chart);
+  lv_chart_set_type(chart, LV_CHART_TYPE_LINE);
+  lv_chart_set_update_mode(chart, LV_CHART_UPDATE_MODE_SHIFT);
+  lv_chart_set_axis_range(chart, LV_CHART_AXIS_PRIMARY_Y, -100, 500);
+  lv_chart_set_axis_range(chart, LV_CHART_AXIS_SECONDARY_Y, 0, 100);
+  lv_chart_set_point_count(chart, 80);
+  lv_obj_set_style_size(chart, 0, 0, LV_PART_INDICATOR);
+  lv_chart_series_t* tempSeries = lv_chart_add_series(chart, lv_palette_main(LV_PALETTE_AMBER), LV_CHART_AXIS_PRIMARY_Y);
+  lv_chart_series_t* humSeries = lv_chart_add_series(chart, lv_palette_main(LV_PALETTE_BLUE), LV_CHART_AXIS_SECONDARY_Y);
+  pullTempAndHum = tempAndHumSmooth.sink(
+    foreach<arduino::sht21::Sht2xReading>([chart, tempSeries, humSeries](arduino::sht21::Sht2xReading value) {
+      lv_chart_set_next_value(chart, tempSeries, (int32_t)(std::get<0>(value).in(au::Celsius{}) * 10));
+      lv_chart_set_next_value(chart, humSeries, (int32_t)(std::get<1>(value).in(au::Percent{})));
+      lv_chart_refresh(chart);
+    })
+  );
 
-  smoothTempLabel = lv_label_create(uiContainer);
-  lv_label_set_text(smoothTempLabel, "Starting...");
-  lv_obj_align(smoothTempLabel, LV_ALIGN_LEFT_MID, 0, 0);
-  auto mapSmoothTempToLabel = map<std::string, TempC>(smoothTemp, [](TempC v) {
-    return string_format("Smooth: %s", au_to_string(v, 2).c_str());
-  });
-  //mapSmoothTempToLabel = tap(mapSmoothTempToLabel, rheo::sinks::arduino::serialStringLineSink());
-  auto pullAndSourceSmoothTempLabel = lvgl::label(smoothTempLabel, mapSmoothTempToLabel, emptyStyleSource);
-  pullSmoothTemp = std::get<0>(pullAndSourceSmoothTempLabel);
+  // lv_obj_t* humLabel = lv_label_create(uiContainer);
+  // lv_label_set_text(humLabel, "Starting...");
+  // lv_obj_align(humLabel, LV_ALIGN_TOP_LEFT, 0, 0);
+  // auto mapHumToLabel = map<std::string, Percent>(infallibleHum, [](Percent v) {
+  //   return string_format("Humidity: %s", au_to_string(v, 2).c_str());
+  // });
+  // //mapHumToLabel = tap(mapHumToLabel, rheo::sinks::arduino::serialStringLineSink());
+  // auto pullAndSourceHumLabel = lvgl::label(humLabel, mapHumToLabel, emptyStyleSource);
+  // pullHum = std::get<0>(pullAndSourceHumLabel);
 
-  // Setpoint editor
-  Serial.println("Setting up setpoint editor...");
+  // smoothTempLabel = lv_label_create(uiContainer);
+  // lv_label_set_text(smoothTempLabel, "Starting...");
+  // lv_obj_align(smoothTempLabel, LV_ALIGN_LEFT_MID, 0, 0);
+  // auto mapSmoothTempToLabel = map<std::string, TempC>(smoothTemp, [](TempC v) {
+  //   return string_format("Temperature: %s", au_to_string(v, 2).c_str());
+  // });
+  // //mapSmoothTempToLabel = tap(mapSmoothTempToLabel, rheo::sinks::arduino::serialStringLineSink());
+  // auto pullAndSourceSmoothTempLabel = lvgl::label(smoothTempLabel, mapSmoothTempToLabel, emptyStyleSource);
+  // pullSmoothTemp = std::get<0>(pullAndSourceSmoothTempLabel);
+  // Now to step on a skinned cat who wears a stupid green hat.
+  // That's Japanese for :(
+  logging::debug(NULL, "Setting up setpoint editor...");
   lv_obj_t* setpointContainer = lv_obj_create(uiContainer);
   lv_obj_set_size(setpointContainer, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
   lv_obj_set_style_pad_all(setpointContainer, 0, 0);
