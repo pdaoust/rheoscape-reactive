@@ -16,21 +16,21 @@ namespace rheo {
       : _sourceFn(sourceFn)
       { }
 
-      pull_fn _(push_fn<T> pushFn, end_fn endFn) {
+      pull_fn sink(push_fn<T> pushFn, end_fn endFn) {
         return _sourceFn(pushFn, endFn);
       }
 
-      pull_fn _(pullable_sink_fn<T> sink) {
+      pull_fn sink(pullable_sink_fn<T> sink) {
         return sink(_sourceFn);
       }
 
       template <typename TReturn>
-      void _(cap_fn<T> cap) {
+      void cap(cap_fn<T> cap) {
         cap(_sourceFn);
       }
 
       template <typename TOut>
-      Pipe<TOut> _(pipe_fn<T, TOut> pipe) {
+      Pipe<TOut> pipe(pipe_fn<TOut, T> pipe) {
         return Pipe<TOut>(pipe(_sourceFn));
       }
   };
