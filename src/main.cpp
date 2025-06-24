@@ -40,14 +40,6 @@ unsigned long lastLvglRun;
 unsigned long timeTillNextLvglRun;
 
 const uint8_t encoderBtnPin = 1;
-
-struct EncoderPinState {
-  uint8_t pin;
-  bool state;
-  bool testingDebounce;
-  unsigned long debounceStartTime;
-};
-
 const uint8_t encoderAPin = 2;
 const uint8_t encoderBPin = 42;
 
