@@ -13,13 +13,13 @@
 
 namespace rheo::sources::arduino::sht2x {
 
-  using Sht2xTemperature = au::QuantityPoint<au::Celsius, float>;
-  using Sht2xHumidity = au::Quantity<au::Percent, float>;
-  using Sht2xReading = std::tuple<Sht2xTemperature, Sht2xHumidity>;
-  using Sht2xError = Endable<int>;
-  using Sht2xReadingFallible = Fallible<Sht2xReading, Sht2xError>;
+  using Temperature = au::QuantityPoint<au::Celsius, float>;
+  using Humidity = au::Quantity<au::Percent, float>;
+  using Reading = std::tuple<Temperature, Humidity>;
+  using Error = Endable<int>;
+  using ReadingFallible = Fallible<Reading, Error>;
 
-  source_fn<Sht2xReadingFallible> sht2x(TwoWire* i2c, uint8_t resolution = 0) {
+  source_fn<ReadingFallible> sht2x(TwoWire* i2c, uint8_t resolution = 0) {
     auto sensor = new SHT2x(i2c);
     int sensorStartError = 0;
     if (!sensor->begin()) {
@@ -32,7 +32,7 @@ namespace rheo::sources::arduino::sht2x {
     // Warning: this depends on there being no other consumers of the sensor.
     sensor->setResolution(resolution);
 
-    return [resolution, sensor, sensorStartError](push_fn<Sht2xReadingFallible> push, end_fn end) {
+    return [resolution, sensor, sensorStartError](push_fn<ReadingFallible> push, end_fn end) {
       return [
         resolution, sensor, sensorStartError, push, end,
         lastReadType = 0,
@@ -44,7 +44,7 @@ namespace rheo::sources::arduino::sht2x {
           return;
         }
         if (sensorStartError) {
-          push(Sht2xReadingFallible(Sht2xError(sensorStartError, true)));
+          push(ReadingFallible(Error(sensorStartError, true)));
           pushedSensorStartError = true;
           return;
           // TODO: make startup errors recoverable?
@@ -59,11 +59,11 @@ namespace rheo::sources::arduino::sht2x {
               lastTemp = temp;
               if (lastHum.has_value()) {
                 // We've got both a temperature and a humidity; ready to return a value.
-                push(Sht2xReadingFallible(Sht2xReading(au::celsius_pt(temp), au::percent(lastHum.value()))));
+                push(ReadingFallible(Reading(au::celsius_pt(temp), au::percent(lastHum.value()))));
               }
               // We're not done yet; we need to fall through to getting another reading.
             } else {
-              push(Sht2xReadingFallible(sensor->getError()));
+              push(ReadingFallible(sensor->getError()));
               logging::error("sht2x", "Temperature read failed; error 0x%02X", sensor->getError());
               // Because we cast the null option to the correct variant,
               // we can't just handle both temp and hum errors in one go.
@@ -75,11 +75,11 @@ namespace rheo::sources::arduino::sht2x {
               lastHum = hum;
               if (lastTemp.has_value()) {
                 // We've got both a temperature and a humidity; ready to return a value.
-                push(Sht2xReadingFallible(Sht2xReading(au::celsius_pt(lastTemp.value()), au::percent(hum))));
+                push(ReadingFallible(Reading(au::celsius_pt(lastTemp.value()), au::percent(hum))));
               }
               // We're not done yet; we need to fall through to getting another reading.
             } else {
-              push(Sht2xReadingFallible(sensor->getError()));
+              push(ReadingFallible(sensor->getError()));
               logging::error("sht2x", "Temperature read failed; error 0x%02X", sensor->getError());
               // Because we cast the null option to the correct variant,
               // we can't just handle both temp and hum errors in one go.
@@ -114,7 +114,7 @@ namespace rheo::sources::arduino::sht2x {
 
         // Fail if it errored.
         if (!reqResult) {
-          push(Sht2xReadingFallible(sensor->getError()));
+          push(ReadingFallible(sensor->getError()));
           logging::error("sht2x", "Couldn't request data; error 0x%02X", sensor->getError());
           return;
         }

@@ -152,23 +152,23 @@ void setup() {
     "sht2x"
   );
   auto tempAndHumSmooth = Pipe(arduino::sht2x::sht2x(&Wire))
-    .pipe(makeInfallibleAndLogErrors<arduino::sht2x::Sht2xReading, arduino::sht2x::Sht2xError>(fp2sf(arduino::sht2x::formatError), "sht2x"))
-    .pipe(cache<arduino::sht2x::Sht2xReading>())
-    .pipe(throttle<arduino::sht2x::Sht2xReading>(clock, arduino_millis_clock::duration(250)))
-    .pipe(splitAndZip<arduino::sht2x::Sht2xReading, arduino::sht2x::Sht2xTemperature, arduino::sht2x::Sht2xHumidity>(
-      [](arduino::sht2x::Sht2xReading value) { return std::get<0>(value); },
-      exponentialMovingAverage<arduino::sht2x::Sht2xTemperature, typename arduino_millis_clock::time_point, typename arduino_millis_clock::duration, float>(
+    .pipe(makeInfallibleAndLogErrors<arduino::sht2x::Reading, arduino::sht2x::Error>(fp2sf(arduino::sht2x::formatError), "sht2x"))
+    .pipe(cache<arduino::sht2x::Reading>())
+    .pipe(throttle<arduino::sht2x::Reading>(clock, arduino_millis_clock::duration(250)))
+    .pipe(splitAndZip<arduino::sht2x::Reading, arduino::sht2x::Temperature, arduino::sht2x::Humidity>(
+      [](arduino::sht2x::Reading value) { return std::get<0>(value); },
+      exponentialMovingAverage<arduino::sht2x::Temperature, typename arduino_millis_clock::time_point, typename arduino_millis_clock::duration, float>(
         clock,
         arduino_millis_clock::duration(1000),
         mapChronoToScalar<float, typename arduino_millis_clock::duration>
       ),
-      [](arduino::sht2x::Sht2xReading value) { return std::get<1>(value); },
-      exponentialMovingAverage<arduino::sht2x::Sht2xHumidity, typename arduino_millis_clock::time_point, typename arduino_millis_clock::duration, float>(
+      [](arduino::sht2x::Reading value) { return std::get<1>(value); },
+      exponentialMovingAverage<arduino::sht2x::Humidity, typename arduino_millis_clock::time_point, typename arduino_millis_clock::duration, float>(
         clock,
         arduino_millis_clock::duration(1000),
         mapChronoToScalar<float, typename arduino_millis_clock::duration>
       ),
-      [](arduino::sht2x::Sht2xTemperature temp, arduino::sht2x::Sht2xHumidity hum) { return arduino::sht2x::Sht2xReading(temp, hum); }
+      [](arduino::sht2x::Temperature temp, arduino::sht2x::Humidity hum) { return arduino::sht2x::Reading(temp, hum); }
     ));
   auto setpoint = rheo::State<TempC>(au::celsius_pt(20.0f), false);
 
@@ -228,7 +228,7 @@ void setup() {
   lv_chart_series_t* tempSeries = lv_chart_add_series(chart, lv_palette_main(LV_PALETTE_AMBER), LV_CHART_AXIS_PRIMARY_Y);
   lv_chart_series_t* humSeries = lv_chart_add_series(chart, lv_palette_main(LV_PALETTE_BLUE), LV_CHART_AXIS_SECONDARY_Y);
   pullTempAndHum = tempAndHumSmooth.sink(
-    foreach<arduino::sht2x::Sht2xReading>([chart, tempSeries, humSeries](arduino::sht2x::Sht2xReading value) {
+    foreach<arduino::sht2x::Reading>([chart, tempSeries, humSeries](arduino::sht2x::Reading value) {
       lv_chart_set_next_value(chart, tempSeries, (int32_t)(std::get<0>(value).in(au::Celsius{}) * 10));
       lv_chart_set_next_value(chart, humSeries, (int32_t)(std::get<1>(value).in(au::Percent{})));
       lv_chart_refresh(chart);
