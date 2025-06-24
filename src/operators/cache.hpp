@@ -63,4 +63,11 @@ namespace rheo::operators {
     };
   }
 
+  template <typename T>
+  pipe_fn<T, T> cache() {
+    return [](source_fn<T> source) {
+      return cache(source);
+    };
+  }
+
 }
