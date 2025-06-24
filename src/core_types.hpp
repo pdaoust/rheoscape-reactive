@@ -79,9 +79,13 @@ namespace rheo {
   // to allow the sink to request a new value from the source.
   using pull_fn = signal_fn;
 
+  const pull_fn empty_pull_fn = [](){};
+
   // A function that a sink provides to a source
   // to allow the source to signal that there won't be any more values.
   using end_fn = signal_fn;
+
+  const end_fn empty_end_fn = [](){};
 
   // A function that produces values and pushes them to a sink.
   // It needs to receive a push function and an end function from the sink,
@@ -126,6 +130,9 @@ namespace rheo {
   // Some types for common functional operators.
   template <typename TOut, typename TIn>
   using map_fn = std::function<TOut(TIn)>;
+
+  template <typename TOut, typename TIn>
+  using filter_map_fn = std::function<std::optional<TOut>(TIn)>;
 
   // Does what it says on the tin.
   // Some mapping functions need context.
