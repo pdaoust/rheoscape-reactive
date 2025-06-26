@@ -2,7 +2,7 @@
 
 #include <functional>
 #include <core_types.hpp>
-#include <operators/zip.hpp>
+#include <operators/combine.hpp>
 #include <sinks/arduino/gfx/types.hpp>
 #include <sinks/arduino/gfx/gfxSink.hpp>
 
@@ -13,7 +13,7 @@ namespace rheo::sinks::arduino::gfx {
     source_fn<TextHints> hintsSource,
     source_fn<Coords> coordsSource
   ) {
-    return zip3(
+    return combine3(
       textSource,
       hintsSource,
       coordsSource,

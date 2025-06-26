@@ -1,7 +1,7 @@
 #include <math.h>
 #include <functional>
 #include <operators/map.hpp>
-#include <operators/zip.hpp>
+#include <operators/combine.hpp>
 
 namespace rheo::operators {
 
@@ -19,7 +19,7 @@ namespace rheo::operators {
   template <typename TFloat, typename TInput>
   source_fn<TFloat> wave(source_fn<TInput> inputSource, source_fn<TInput> periodSource, source_fn<TInput> phaseShiftSource, map_fn<TFloat, TFloat> waveFunction) {
     return map(
-      zip3Tuple(inputSource, periodSource, phaseShiftSource),
+      combine3Tuple(inputSource, periodSource, phaseShiftSource),
       (map_fn<TFloat, std::tuple<TInput, TInput, TInput>>)[waveFunction](std::tuple<TInput, TInput, TInput> value) {
         TInput input = std::get<0>(value);
         TInput period = std::get<1>(value);
@@ -67,7 +67,7 @@ namespace rheo::operators {
   template <typename TFloat, typename TInput>
   source_fn<TFloat> pwmWave(source_fn<TInput> inputSource, source_fn<TInput> periodSource, source_fn<TInput> phaseShiftSource, source_fn<TFloat> dutySource) {
     return map<TFloat, std::tuple<TFloat, TFloat>>(
-      zipTuple(wave<TFloat, TInput>(inputSource, periodSource, phaseShiftSource, [](TFloat v) { return v; }), dutySource),
+      combineTuple(wave<TFloat, TInput>(inputSource, periodSource, phaseShiftSource, [](TFloat v) { return v; }), dutySource),
       (map_fn<TFloat, std::tuple<TFloat, TFloat>>)[](std::tuple<TFloat, TFloat> value) {
         return std::get<0>(value) < std::get<1>(value)
           ? (TFloat)1

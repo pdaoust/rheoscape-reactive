@@ -6,7 +6,7 @@
 #include <types/Range.hpp>
 #include <operators/fold.hpp>
 #include <operators/map.hpp>
-#include <operators/zip.hpp>
+#include <operators/combine.hpp>
 
 namespace rheo::operators {
 
@@ -78,7 +78,7 @@ namespace rheo::operators {
     source_fn<PidWeights<TKp, TKi, TKd>> weightsSource,
     std::optional<Range<TCtl>> clampRange = std::nullopt
   ) {
-    source_fn<PidData<TProc, TTime, TKp, TKi, TKd>> zippedSource = zip(
+    source_fn<PidData<TProc, TTime, TKp, TKi, TKd>> combinedSource = combine(
       processVariableSource,
       setpointSource,
       clockSource,
@@ -89,7 +89,7 @@ namespace rheo::operators {
     );
 
     source_fn<PidState<TP, TI, TCtl, TTime>> calculatedSource = fold(
-      zippedSource,
+      combinedSource,
       PidState<TP, TI, TCtl, TTime> { },
       (fold_fn<PidState<TP, TI, TCtl, TTime>, PidData<TProc, TTime, TKp, TKi, TKd>>)[clampRange](PidState<TP, TI, TCtl, TTime> prevState, PidData<TProc, TTime, TKp, TKi, TKd> values) {
         // Error is delta between desired value and measured value.

@@ -3,8 +3,8 @@
 #include <functional>
 #include <core_types.hpp>
 #include <types/Range.hpp>
+#include <operators/combine.hpp>
 #include <operators/fold.hpp>
-#include <operators/zip.hpp>
 
 namespace rheo::operators {
 
@@ -25,13 +25,13 @@ namespace rheo::operators {
   // just like a thermostat.
   template <typename T>
   source_fn<ProcessCommand> bangBang(source_fn<T> processVariableSource, source_fn<SetpointAndHysteresis<T>> boundsSource) {
-    auto zipped = zipTuple(
+    auto combined = combineTuple(
       processVariableSource,
       boundsSource
     );
 
     return fold<ProcessCommand, std::tuple<T, SetpointAndHysteresis<T>>>(
-      zipped,
+      combined,
       ProcessCommand::neutral,
       [](ProcessCommand acc, std::tuple<T, SetpointAndHysteresis<T>> value) {
         if (std::get<0>(value) < std::get<1>(value).min()) {

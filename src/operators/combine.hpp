@@ -14,9 +14,9 @@ namespace rheo::operators {
   // combine streams together into one stream using a combining function.
   // If you're using this in a push stream, it won't start emitting values
   // until both sources have emitted a value.
-  // Thereafter, it'll emit a combineped value every time _either_ source emits a value,
-  // updating the respective portion of the combineped value.
-  // Make sure all the streams being combinepped
+  // Thereafter, it'll emit a combined value every time _either_ source emits a value,
+  // updating the respective portion of the combined value.
+  // Make sure all the streams being combined
   // will push a value every time they're pulled,
   // because it will only push a value once both streams have pushed.
   // If you're using it in a pull stream, it'll pull both sources and combine them.

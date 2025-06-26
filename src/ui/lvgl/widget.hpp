@@ -3,7 +3,7 @@
 #include <functional>
 #include <core_types.hpp>
 #include <operators/foreach.hpp>
-#include <operators/zip.hpp>
+#include <operators/combine.hpp>
 #include <lvgl.h>
 #include <ui/lvgl/types.hpp>
 
@@ -16,9 +16,9 @@ namespace rheo::ui::lvgl {
     source_fn<TData> dataSource,
     source_fn<std::vector<StyleAndSelector>> styleSource
   ) {
-    // FIXME: Is it more performant _and_ equivalent to just do them separately w/o zipping?
+    // FIXME: Is it more performant _and_ equivalent to just do them separately w/o combineing?
     pull_fn pullDataAndStyle = rheo::operators::foreach<std::tuple<TData, std::vector<StyleAndSelector>>>(
-      rheo::operators::zipTuple<TData, std::vector<StyleAndSelector>>(dataSource, styleSource),
+      rheo::operators::combineTuple<TData, std::vector<StyleAndSelector>>(dataSource, styleSource),
       [widget, applyDataFn](std::tuple<TData, std::vector<StyleAndSelector>> value) {
         applyDataFn(std::get<0>(value), widget);
         for (const StyleAndSelector& style : std::get<1>(value)) {

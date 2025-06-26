@@ -3,7 +3,7 @@
 #include <functional>
 #include <core_types.hpp>
 #include <types/TaggedValue.hpp>
-#include <operators/zip.hpp>
+#include <operators/combine.hpp>
 
 namespace rheo::operators {
 
@@ -15,10 +15,10 @@ namespace rheo::operators {
 
   template <typename TDuration, typename T, typename TTimePoint>
   source_fn<TaggedValue<T, TDuration>> stopwatch(source_fn<T> source, source_fn<TTimePoint> clockSource, filter_fn<T> lapCondition) {
-    return zip(
+    return combine(
       source,
       clockSource,
-      // This is kinda sneaky. We're turning `zip` into a reducer here,
+      // This is kinda sneaky. We're turning `combine` into a reducer here,
       // because the combining callback has state.
       (combine2_fn<TaggedValue<T, TDuration>, T, TTimePoint>)[lapCondition, lapStart = std::optional<TTimePoint>(), lastValueMatched = false](T value, TTimePoint ts) mutable {
         bool thisValueMatches = lapCondition(value);

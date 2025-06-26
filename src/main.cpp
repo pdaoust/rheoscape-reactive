@@ -158,7 +158,7 @@ void setup() {
     .pipe(makeInfallibleAndLogErrors<arduino::sht2x::Reading, arduino::sht2x::Error>(fp2sf(arduino::sht2x::formatError), "sht2x"))
     .pipe(cache<arduino::sht2x::Reading>())
     .pipe(throttle<arduino::sht2x::Reading>(clock, arduino_millis_clock::duration(250)))
-    .pipe(splitAndZip<arduino::sht2x::Reading, arduino::sht2x::Temperature, arduino::sht2x::Humidity>(
+    .pipe(splitAndCombine<arduino::sht2x::Reading, arduino::sht2x::Temperature, arduino::sht2x::Humidity>(
       [](arduino::sht2x::Reading value) { return std::get<0>(value); },
       exponentialMovingAverage<arduino::sht2x::Temperature, typename arduino_millis_clock::time_point, typename arduino_millis_clock::duration, float>(
         clock,
