@@ -89,7 +89,6 @@ void encoderRead(lv_indev_t* indev, lv_indev_data_t* data) {
 }
 
 void logLvglMessage(lv_log_level_t level, const char * buf) {
-  LV_UNUSED(level);
   uint8_t rheoLogLevel;
   // LVGL's log messages are backwards; map them to our log levels.
   switch (level) {
@@ -116,6 +115,9 @@ lv_obj_t* setpointEditor;
 void setup() {
   Serial.begin(115200);
   logging::registerSubscriber([](uint8_t logLevel, const char* topic, const char* message) {
+    // if (topic == "sht2x") {
+    //   return;
+    // }
     if (logLevel <= LOG_LEVEL) {
       Serial.print("[");
       Serial.print(LOG_LEVEL_LABEL(logLevel));
