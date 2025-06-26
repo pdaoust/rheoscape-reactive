@@ -1,7 +1,6 @@
 #pragma once
 
 #include <functional>
-#include <cstdarg>
 #include <util.hpp>
 #include <Arduino.h>
 
@@ -23,23 +22,13 @@ namespace rheo::logging {
     _logSubscribers.push_back(subscriber);
   }
 
-  void log(uint8_t level, const char* const topic, const char* const message, ...) {
-    va_list vaArgs;
-    va_start(vaArgs, message);
-    va_end(vaArgs);
-    va_list vaArgsCopy;
-    va_copy(vaArgsCopy, vaArgs);
-    const int iLen = std::vsnprintf(NULL, 0, message, vaArgsCopy);
-    va_end(vaArgsCopy);
-    std::vector<char> zc(iLen + 1);
-    std::vsnprintf(zc.data(), zc.size(), message, vaArgs);
-    va_end(vaArgs);
+  void log(uint8_t level, const char* const topic, const char* const message) {
     for (auto subscriber: _logSubscribers) {
-      subscriber(level, topic, zc.data());
+      subscriber(level, topic, message);
     }
   }
 
-  #define RHEO_LOGGING_LOG_LEVEL(label, level) void label(const char* const topic, const char* const message, ...) { va_list vaArgs; va_start(vaArgs, message); log(level, topic, message, vaArgs); va_end(vaArgs); }
+  #define RHEO_LOGGING_LOG_LEVEL(label, level) void label(const char* const topic, const char* const message) { log(level, topic, message); }
 
   RHEO_LOGGING_LOG_LEVEL(error, rheo::logging::LOG_LEVEL_ERROR)
   RHEO_LOGGING_LOG_LEVEL(warn, rheo::logging::LOG_LEVEL_WARN)
@@ -47,26 +36,4 @@ namespace rheo::logging {
   RHEO_LOGGING_LOG_LEVEL(debug, rheo::logging::LOG_LEVEL_DEBUG)
   RHEO_LOGGING_LOG_LEVEL(trace, rheo::logging::LOG_LEVEL_TRACE)
 
-  // void error(const char* const topic, const char* const message, ...) {
-  //   va_list vaArgs;
-  //   // Serial.println("Got this far 0000");
-  //   va_start(vaArgs, message);
-  //   log(LOG_LEVEL_ERROR, topic, message);
-  // }
-
-  // void warn(const char* const topic, const char* const message, ...) {
-  //   log(LOG_LEVEL_WARN, topic, message);
-  // }
-
-  // void info(const char* const topic, const char* const message, ...) {
-  //   log(LOG_LEVEL_INFO, topic, message);
-  // }
-
-  // void debug(const char* const topic, const char* const message, ...) {
-  //   log(LOG_LEVEL_DEBUG, topic, message);
-  // }
-
-  // void trace(const char* const topic, const char* const message, ...) {
-  //   log(LOG_LEVEL_TRACE, topic, message);
-  // }
 }

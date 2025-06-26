@@ -1,5 +1,6 @@
 #pragma once
 
+#include <fmt/format.h>
 #include <functional>
 #include <memory>
 #include <core_types.hpp>
@@ -28,7 +29,7 @@ namespace rheo::sources::arduino::sht2x {
     int sensorStartError = 0;
     if (!sensor->begin()) {
       sensorStartError = sensor->getError();
-      logging::error("sht2x", "Couldn't start SHT2x; error 0x%02X", sensorStartError);
+      logging::error("sht2x", fmt::format("Couldn't start SHT2x; error 0x{:02X}", sensorStartError).c_str());
     }
     // Wait for sensor to enter ready/idle state before sending first command.
     logging::info("sht2x", "Delaying 15ms to ensure sensor is ready...");
@@ -69,7 +70,7 @@ namespace rheo::sources::arduino::sht2x {
               // We're not done yet; we need to fall through to getting another reading.
             } else {
               push(ReadingFallible(sensor->getError()));
-              logging::error("sht2x", "Temperature read failed; error 0x%02X", sensor->getError());
+
               // Because we cast the null option to the correct variant,
               // we can't just handle both temp and hum errors in one go.
               return;
@@ -85,7 +86,6 @@ namespace rheo::sources::arduino::sht2x {
               // We're not done yet; we need to fall through to getting another reading.
             } else {
               push(ReadingFallible(sensor->getError()));
-              logging::error("sht2x", "Temperature read failed; error 0x%02X", sensor->getError());
               // Because we cast the null option to the correct variant,
               // we can't just handle both temp and hum errors in one go.
               return;
@@ -119,8 +119,9 @@ namespace rheo::sources::arduino::sht2x {
 
         // Fail if it errored.
         if (!reqResult) {
-          push(ReadingFallible(sensor->getError()));
-          logging::error("sht2x", "Couldn't request data; error 0x%02X", sensor->getError());
+          auto errorCode = sensor->getError();
+          push(ReadingFallible(errorCode));
+          logging::error("sht2x", fmt::format("Couldn't request data; error 0x{:02X}", errorCode).c_str());
           return;
         }
 
@@ -131,19 +132,23 @@ namespace rheo::sources::arduino::sht2x {
     };
   }
 
-  const char* formatError(Endable<int> errorCode) {
-    switch (errorCode.value()) {
-      case SHT2x_ERR_WRITECMD: return "SHT2x: 0x81 Couldn't send a command to the sensor";
-      case SHT2x_ERR_READBYTES: return "SHT2x: 0x82 Couldn't read data from the sensor";
-      case SHT2x_ERR_HEATER_OFF: return "SHT2x: 0x83 Couldn't switch off the internal heater";
-      case SHT2x_ERR_NOT_CONNECT: return "SHT2x: 0x84 Couldn't connect to the sensor";
-      case SHT2x_ERR_CRC_TEMP: return "SHT2x: 0x85 CRC failed for temperature reading";
-      case SHT2x_ERR_CRC_HUM: return "SHT2x: 0x86 CRC failed for humidity reading";
-      case SHT2x_ERR_CRC_STATUS: return "SHT2x: 0x87 CRC failed for status register";
-      case SHT2x_ERR_HEATER_COOLDOWN: return "SHT2x: 0x88 Heater is in cooldown and can't be reactivated yet";
-      case SHT2x_ERR_HEATER_ON: return "SHT2x: 0x89 Couldn't turn on the heater";
-      case SHT2x_ERR_RESOLUTION: return "SHT2x: 0x8A Tried to set an invalid resolution";
-      default: return NULL;
+  const char* formatError(Error error) {
+    if (error.hasValue()) {
+      switch (error.value()) {
+        case SHT2x_ERR_WRITECMD: return "SHT2x: 0x81 Couldn't send a command to the sensor";
+        case SHT2x_ERR_READBYTES: return "SHT2x: 0x82 Couldn't read data from the sensor";
+        case SHT2x_ERR_HEATER_OFF: return "SHT2x: 0x83 Couldn't switch off the internal heater";
+        case SHT2x_ERR_NOT_CONNECT: return "SHT2x: 0x84 Couldn't connect to the sensor";
+        case SHT2x_ERR_CRC_TEMP: return "SHT2x: 0x85 CRC failed for temperature reading";
+        case SHT2x_ERR_CRC_HUM: return "SHT2x: 0x86 CRC failed for humidity reading";
+        case SHT2x_ERR_CRC_STATUS: return "SHT2x: 0x87 CRC failed for status register";
+        case SHT2x_ERR_HEATER_COOLDOWN: return "SHT2x: 0x88 Heater is in cooldown and can't be reactivated yet";
+        case SHT2x_ERR_HEATER_ON: return "SHT2x: 0x89 Couldn't turn on the heater";
+        case SHT2x_ERR_RESOLUTION: return "SHT2x: 0x8A Tried to set an invalid resolution";
+        default: return NULL;
+      }
+    } else {
+      return "SHT2x: Stream has ended";
     }
   }
 

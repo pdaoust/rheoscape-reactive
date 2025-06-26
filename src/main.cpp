@@ -1,3 +1,4 @@
+#include <fmt/format.h>
 #include <rheoscape_everything.hpp>
 #include <types/au_all_units_noio.hpp>
 #include <Arduino.h>
@@ -54,7 +55,7 @@ void touchRead(lv_indev_t* indev, lv_indev_data_t* data) {
     data->point.x = t_x;
     data->point.y = 240 - t_y;
     data->state = LV_INDEV_STATE_PRESSED;
-    logging::debug("touch", "x: %d, y: %d", &t_x, &t_y);
+    logging::debug("touch", fmt::format("x: {}, y: {}", t_x, 240 - t_y).c_str());
   } else {
     data->state = LV_INDEV_STATE_RELEASED;
   }
@@ -297,7 +298,7 @@ void setup() {
   );
   setpoint.addSink(
     [](auto value) {
-      logging::debug("setpoint", "Setting setpoint to %s", au_to_string(value, 2).c_str());
+      logging::debug("setpoint", fmt::format("Setting setpoint to {}", au_to_string(value, 2)).c_str());
     },
     [](){}
   );

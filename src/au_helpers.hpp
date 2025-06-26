@@ -87,5 +87,18 @@ namespace rheo {
   std::string au_to_string(au::QuantityPoint<TUnit, TRep> qty, uint8_t precision = 0) {
     return string_format("%.*f%s", precision, qty.in(TUnit{}), unit_label(TUnit{}));
   }
-
 }
+
+template <typename TUnit, typename TRep>
+struct fmt::formatter<au::Quantity<TUnit, TRep>> : fmt::formatter<std::string> {
+  auto format(const au::Quantity<TUnit, TRep>& qty, format_context& ctx) const {
+    return fmt::formatter<std::string>::format(rheo::au_to_string(qty), ctx);
+  }
+};
+
+template <typename TUnit, typename TRep>
+struct fmt::formatter<au::QuantityPoint<TUnit, TRep>> : fmt::formatter<std::string> {
+  auto format(const au::QuantityPoint<TUnit, TRep>& qty, format_context& ctx) const {
+    return fmt::formatter<std::string>::format(rheo::au_to_string(qty), ctx);
+  }
+};
