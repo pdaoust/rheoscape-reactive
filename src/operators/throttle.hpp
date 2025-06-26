@@ -8,6 +8,7 @@ namespace rheo::operators {
   
   // Only allow at most one value per interval,
   // dropping everything in between.
+  // Not guaranteed to be precisely spaced by the interval.
   template <typename T, typename TTime, typename TInterval>
   source_fn<T> throttle(source_fn<T> source, source_fn<TTime> clockSource, TInterval interval) {
     auto timestamped = timestamp(source, clockSource);
