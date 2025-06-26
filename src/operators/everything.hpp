@@ -2,6 +2,7 @@
 #include <operators/cache.hpp>
 #include <operators/choose.hpp>
 #include <operators/chrono_helpers.hpp>
+#include <operators/combine.hpp>
 #include <operators/concat.hpp>
 #include <operators/count.hpp>
 #include <operators/debounce.hpp>
@@ -34,4 +35,3 @@
 #include <operators/toggle.hpp>
 #include <operators/unwrap.hpp>
 #include <operators/waves.hpp>
-#include <operators/zip.hpp>
