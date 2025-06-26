@@ -31,7 +31,7 @@ namespace rheo {
       }
 
       T value() {
-        if (!_isEnded) {
+        if (!hasValue()) {
           throw endable_bad_get_value_access();
         }
         return _value;

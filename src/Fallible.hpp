@@ -45,14 +45,14 @@ namespace rheo {
       }
 
       T value() {
-        if (!_hasValue) {
+        if (!isOk()) {
           throw fallible_bad_get_value_access();
         }
         return _value;
       }
 
       TErr error() {
-        if (_hasValue) {
+        if (!isError()) {
           throw fallible_bad_get_error_access();
         }
         return _error;
