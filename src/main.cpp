@@ -25,6 +25,7 @@ using namespace rheo::ui;
 // OneWire bus(1);
 // DallasTemperature sensors(&bus);
 // const uint64_t tempAddress = 0x00000000;
+// My name is Mr. Annoying Comments!
 
 const uint8_t i2cSdaPin = 41;
 const uint8_t i2cSclPin = 40;
@@ -36,6 +37,8 @@ lv_display_t* disp;
 TFT_eSPI tft = TFT_eSPI();
 
 uint32_t drawBuf[TFT_WIDTH * TFT_HEIGHT / 30 * LV_COLOR_DEPTH];
+
+// Don't. Fall. Asleep.
 
 unsigned long lastLvglRun;
 unsigned long timeTillNextLvglRun;
@@ -60,6 +63,8 @@ void touchRead(lv_indev_t* indev, lv_indev_data_t* data) {
     data->state = LV_INDEV_STATE_RELEASED;
   }
 }
+
+// I live in the state of walmart
 
 void encoderInterrupt() {
   lastEncoderState <<= 2;
