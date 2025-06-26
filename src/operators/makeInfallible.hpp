@@ -25,23 +25,4 @@ namespace rheo::operators {
     };
   }
 
-  template <typename T, typename TErr>
-  source_fn<T> makeInfallibleAndLogErrors(
-    source_fn<Fallible<T, TErr>> source,
-    map_fn<const char*, TErr> formatError = [](TErr value) { return string_format("%s", value); },
-    const char* topic = NULL
-  ) {
-    return makeInfallible(logErrors(source, formatError, topic));
-  };
-
-  template <typename T, typename TErr>
-  pipe_fn<T, Fallible<T, TErr>> makeInfallibleAndLogErrors(
-    map_fn<const char*, TErr> formatError = [](TErr value) { return string_format("%s", value); },
-    const char* topic = NULL
-  ) {
-    return [formatError, topic](source_fn<Fallible<T, TErr>> source) {
-      return makeInfallibleAndLogErrors(source, formatError, topic);
-    };
-  }
-
 }
