@@ -251,13 +251,14 @@ void setup() {
   lv_chart_set_type(chart, LV_CHART_TYPE_LINE);
   lv_chart_set_update_mode(chart, LV_CHART_UPDATE_MODE_SHIFT);
   lv_chart_set_axis_range(chart, LV_CHART_AXIS_PRIMARY_Y, -100, 500);
-  lv_chart_set_axis_range(chart, LV_CHART_AXIS_SECONDARY_Y, 0, 100);
+  lv_chart_set_axis_range(chart, LV_CHART_AXIS_SECONDARY_Y, 30, 70);
   lv_chart_set_point_count(chart, 80);
   lv_obj_set_style_size(chart, 0, 0, LV_PART_INDICATOR);
   lv_chart_series_t* tempSeries = lv_chart_add_series(chart, lv_palette_main(LV_PALETTE_AMBER), LV_CHART_AXIS_PRIMARY_Y);
   lv_chart_series_t* humSeries = lv_chart_add_series(chart, lv_palette_main(LV_PALETTE_BLUE), LV_CHART_AXIS_SECONDARY_Y);
   pullTempAndHum = tempAndHumSmooth.sink(
     foreach<arduino::sht2x::Reading>([chart, tempSeries, humSeries](arduino::sht2x::Reading value) {
+      logging::debug("chart", fmt::format("writing temp {} and hum {}", std::get<0>(value).in(au::Celsius{}), std::get<1>(value).in(au::Percent{})).c_str());
       lv_chart_set_next_value(chart, tempSeries, (int32_t)(std::get<0>(value).in(au::Celsius{}) * 10));
       lv_chart_set_next_value(chart, humSeries, (int32_t)(std::get<1>(value).in(au::Percent{})));
       lv_chart_refresh(chart);
