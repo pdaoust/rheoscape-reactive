@@ -36,19 +36,22 @@ namespace rheo::sources::arduino::sht2x {
     delay(15);
     // Warning: this depends on there being no other consumers of the sensor.
     sensor->setResolution(resolution);
+    unsigned long lastCommandTimestamp = millis();
 
-    return [resolution, sensor, sensorStartError](push_fn<ReadingFallible> push) {
+    return [resolution, sensor, sensorStartError, &lastCommandTimestamp](push_fn<ReadingFallible> push) {
       return [
-        resolution, sensor, sensorStartError, push,
+        resolution, sensor, sensorStartError, push, &lastCommandTimestamp,
         lastReadType = 0,
         pushedSensorStartError = false,
         lastTemp = std::optional<float>(std::nullopt),
-        lastHum = std::optional<float>(std::nullopt)
+        lastHum = std::optional<float>(std::nullopt),
       ]() mutable {
         if (pushedSensorStartError) {
+          logging::trace("sht2x", "Already pushed sensor start error; not pushing again.");
           return;
         }
         if (sensorStartError) {
+          logging::trace("sht2x", "There was a startup error; pushing it now.");
           push(ReadingFallible(Error(sensor->getError())));
           push(ReadingFallible(Error()));
           pushedSensorStartError = true;
@@ -59,16 +62,21 @@ namespace rheo::sources::arduino::sht2x {
 
         // Check if we've got a temp reading waiting for us.
         if (lastReadType) {
+          logging::trace("sht2x", fmt::format("Last read type is {}; checking if reading is ready...", lastReadType).c_str());
           if (sensor->reqTempReady()) {
+            logging::trace("sht2x", "Temperature reading is ready; reading it now.");
             if (sensor->readTemperature()) {
+              logging::trace("sht2x", "Temperature read successfully.");
               float temp = sensor->getTemperature();
               lastTemp = temp;
               if (lastHum.has_value()) {
+                logging::trace("sht2x", "Both temperature and humidity readings are ready; pushing them now.");
                 // We've got both a temperature and a humidity; ready to return a value.
                 push(ReadingFallible(Reading(au::celsius_pt(temp), au::percent(lastHum.value()))));
               }
               // We're not done yet; we need to fall through to getting another reading.
             } else {
+              logging::error("sht2x", fmt::format("Temperature read failed; error 0x{:02X}", sensor->getError()).c_str());
               push(ReadingFallible(sensor->getError()));
 
               // Because we cast the null option to the correct variant,
@@ -76,15 +84,19 @@ namespace rheo::sources::arduino::sht2x {
               return;
             }
           } else if (sensor->reqHumReady()) {
+            logging::trace("sht2x", "Humidity reading is ready; reading it now.");
             if (sensor->readHumidity()) {
+              logging::trace("sht2x", "Humidity read successfully.");
               float hum = sensor->getHumidity();
               lastHum = hum;
               if (lastTemp.has_value()) {
+                logging::trace("sht2x", "Both temperature and humidity readings are ready; pushing them now.");
                 // We've got both a temperature and a humidity; ready to return a value.
                 push(ReadingFallible(Reading(au::celsius_pt(lastTemp.value()), au::percent(hum))));
               }
               // We're not done yet; we need to fall through to getting another reading.
             } else {
+              logging::error("sht2x", fmt::format("Humidity read failed; error 0x{:02X}", sensor->getError()).c_str());
               push(ReadingFallible(sensor->getError()));
               // Because we cast the null option to the correct variant,
               // we can't just handle both temp and hum errors in one go.
@@ -92,23 +104,26 @@ namespace rheo::sources::arduino::sht2x {
             }
           } else {
             // No reading is ready yet.
+            logging::trace("sht2x", "No reading is ready yet; not pushing anything.");
             return;
           }
         }
 
         // If we've gotten this far, it's because we need to request a reading.
-        uint8_t nextReadType;
-        if (!lastReadType) {
-          // On the first run, there was no last read type,
-          // so start with temperature (1).
-          nextReadType = 1;
-        } else {
-          // Switch to the other read type.
-          nextReadType = lastReadType == 1 ? 2 : 1;
+        // Switch to the other read type --
+        // or, on the first run, to temperature.
+        uint8_t nextReadType = (lastReadType == 1) ? 2 : 1;
+        logging::trace("sht2x", fmt::format("Last read type was {}; switching to {}.", lastReadType, nextReadType).c_str());
+
+        // Sometimes seems to need a bit of a delay before the next reading.
+        if (millis() - lastCommandTimestamp < 15) {
+          return;
         }
+        logging::trace("sht2x", "Delayed 15ms to ensure sensor is ready for the next reading.");
+        bool reqResult;
 
         // Now take the reading and find out whether it errored.
-        bool reqResult;
+        logging::trace("sht2x", fmt::format("Requesting {} reading...", nextReadType == 1 ? "temperature" : "humidity").c_str());
         switch (nextReadType) {
           case 1:
             reqResult = sensor->requestTemperature();
@@ -116,17 +131,17 @@ namespace rheo::sources::arduino::sht2x {
           case 2:
             reqResult = sensor->requestHumidity();
         }
+        lastCommandTimestamp = millis();
 
         // Fail if it errored.
         if (!reqResult) {
           auto errorCode = sensor->getError();
-          push(ReadingFallible(errorCode));
+          push(ReadingFallible(Error(errorCode)));
           logging::error("sht2x", fmt::format("Couldn't request data; error 0x{:02X}", errorCode).c_str());
           return;
         }
 
-        // Remember what we just measured,
-        // which is necessary after the first run and for alternating read types.
+        // Remember what we just measured, so we can alternate.
         lastReadType = nextReadType;
       };
     };
