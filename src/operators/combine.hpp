@@ -34,18 +34,18 @@ namespace rheo::operators {
     source_fn<T2> source2,
     combine2_fn<TCombined, T1, T2> combiner
   ) {
-    return [source1, source2, combiner, log](push_fn<TCombined> push) {
+    return [source1, source2, combiner](push_fn<TCombined> push) {
       auto currentValue1 = std::make_shared<std::optional<T1>>();
       auto currentValue2 = std::make_shared<std::optional<T2>>();
 
-      auto pullSource1 = source1([combiner, log, push, currentValue1, currentValue2](T1 value) {
+      auto pullSource1 = source1([combiner, push, currentValue1, currentValue2](T1 value) {
         currentValue1->emplace(value);
         if (currentValue2->has_value()) {
-          push(combiner(value, currentValue2->value()))
+          push(combiner(value, currentValue2->value()));
         }
       });
 
-      auto pullSource2 = source2([combiner, log, push, currentValue1, currentValue2](T2 value) {
+      auto pullSource2 = source2([combiner, push, currentValue1, currentValue2](T2 value) {
         currentValue2->emplace(value);
         if (currentValue1->has_value()) {
           push(combiner(currentValue1->value(), value));
