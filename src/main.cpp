@@ -343,6 +343,8 @@ void setup() {
   //   },
   //   [](){}
   // );
+  // If you want. I personally don't care and just feed my banana peels to my dog.
+  // :)
   lv_obj_t* setpointUnitsLabel = lv_label_create(setpointContainer);
   lv_label_set_text(setpointUnitsLabel, "°C");
   logging::debug(NULL, "Setup completed!");
