@@ -115,10 +115,11 @@ lv_obj_t* setpointEditor;
 void setup() {
   Serial.begin(115200);
   logging::registerSubscriber([](uint8_t logLevel, const char* topic, const char* message) {
-    // if (topic == "sht2x") {
-    //   return;
-    // }
-    if (logLevel <= LOG_LEVEL) {
+    uint8_t desiredLogLevel = LOG_LEVEL;
+    if (topic == "sht2x") {
+      desiredLogLevel = logging::LOG_LEVEL_TRACE;
+    }
+    if (logLevel <= desiredLogLevel) {
       Serial.print("[");
       Serial.print(LOG_LEVEL_LABEL(logLevel));
       if (topic != NULL) {
