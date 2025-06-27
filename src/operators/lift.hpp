@@ -97,6 +97,19 @@ namespace rheo::operators {
     };
   }
 
+  template <typename TLifted, typename TLowered>
+  pipe_fn<TLifted, TLifted> lift(
+    pipe_fn<TLowered, TLowered> innerPipeFn,
+    map_with_context_fn<TLifted, TLowered, TLifted> liftFn,
+    map_fn<std::variant<TLowered, TLifted>, TLifted> lowerFn
+  ) {
+    return lift<TLifted, TLowered, TLifted, TLowered>(
+      innerPipeFn,
+      liftFn,
+      lowerFn
+    );
+  }
+
   template <typename TOut, typename TIn>
   pipe_fn<std::optional<TOut>, std::optional<TIn>> liftToOptional(pipe_fn<TOut, TIn> innerPipeFn) {
     return lift<std::optional<TOut>, TOut, std::optional<TIn>, TIn>(
