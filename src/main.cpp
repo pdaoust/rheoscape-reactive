@@ -154,30 +154,51 @@ void setup() {
   // What do all Canadians do together? (We talk about the weather!)
   auto clock = fromClock<arduino_millis_clock>();
   auto tempAndHum = arduino::sht2x::sht2x(&Wire);
-  auto infallibleTempAndHum = makeInfallibleAndLogErrors(
-    tempAndHum,
-    fp2sf(arduino::sht2x::formatError),
-    "sht2x"
-  );
-  auto tempAndHumSmooth = Pipe(arduino::sht2x::sht2x(&Wire))
-    .pipe(makeInfallibleAndLogErrors<arduino::sht2x::Reading, arduino::sht2x::Error>(fp2sf(arduino::sht2x::formatError), "sht2x"))
+  auto tempAndHumSmooth = Pipe(tempAndHum)
+    .pipe(logErrors<arduino::sht2x::Reading, arduino::sht2x::Error>([](arduino::sht2x::Error error) {
+      return arduino::sht2x::formatError(error);
+    }, "sht2x"))
+    .pipe(makeInfallible<arduino::sht2x::Reading, arduino::sht2x::Error>())
     .pipe(cache<arduino::sht2x::Reading>())
     .pipe(throttle<arduino::sht2x::Reading>(clock, arduino_millis_clock::duration(250)))
-    .pipe(splitAndCombine<arduino::sht2x::Reading, arduino::sht2x::Temperature, arduino::sht2x::Humidity>(
-      [](arduino::sht2x::Reading value) { return std::get<0>(value); },
+    // We've gotta do the averaging in two parts.
+    // First the temperature...
+    .pipe(lift<arduino::sht2x::Reading, arduino::sht2x::Temperature>(
       exponentialMovingAverage<arduino::sht2x::Temperature, typename arduino_millis_clock::time_point, typename arduino_millis_clock::duration, float>(
         clock,
         arduino_millis_clock::duration(1000),
         mapChronoToScalar<float, typename arduino_millis_clock::duration>
       ),
-      [](arduino::sht2x::Reading value) { return std::get<1>(value); },
+      [](arduino::sht2x::Temperature value, arduino::sht2x::Reading original) { return arduino::sht2x::Reading(value, std::get<1>(original)); },
+      [](arduino::sht2x::Reading value) { return std::get<0>(value); }
+    ))
+    /// ... Then the humidity.
+    .pipe(lift<arduino::sht2x::Reading, arduino::sht2x::Humidity>(
       exponentialMovingAverage<arduino::sht2x::Humidity, typename arduino_millis_clock::time_point, typename arduino_millis_clock::duration, float>(
         clock,
         arduino_millis_clock::duration(1000),
         mapChronoToScalar<float, typename arduino_millis_clock::duration>
       ),
-      [](arduino::sht2x::Temperature temp, arduino::sht2x::Humidity hum) { return arduino::sht2x::Reading(temp, hum); }
+      [](arduino::sht2x::Humidity value, arduino::sht2x::Reading original) { return arduino::sht2x::Reading(std::get<0>(original), value); },
+      [](arduino::sht2x::Reading value) { return std::get<1>(value); }
     ));
+    // .pipe(splitAndCombine<arduino::sht2x::Reading, arduino::sht2x::Temperature, arduino::sht2x::Humidity>(
+    //   [](arduino::sht2x::Reading value) { return std::get<0>(value); },
+    //   exponentialMovingAverage<arduino::sht2x::Temperature, typename arduino_millis_clock::time_point, typename arduino_millis_clock::duration, float>(
+    //     clock,
+    //     arduino_millis_clock::duration(1000),
+    //     mapChronoToScalar<float, typename arduino_millis_clock::duration>
+    //   ),
+    //   [](arduino::sht2x::Reading value) { return std::get<1>(value); },
+    //   exponentialMovingAverage<arduino::sht2x::Humidity, typename arduino_millis_clock::time_point, typename arduino_millis_clock::duration, float>(
+    //     clock,
+    //     arduino_millis_clock::duration(1000),
+    //     mapChronoToScalar<float, typename arduino_millis_clock::duration>
+    //   ),
+    //   [](arduino::sht2x::Temperature temp, arduino::sht2x::Humidity hum) {
+    //     return arduino::sht2x::Reading(temp, hum);
+    //   }
+    // ));
   auto setpoint = rheo::State<TempC>(au::celsius_pt(20.0f), false);
 
   auto emptyStyleSource = constant(std::vector<lvgl::StyleAndSelector>());
