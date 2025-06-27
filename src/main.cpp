@@ -25,7 +25,6 @@ using namespace rheo::ui;
 // OneWire bus(1);
 // DallasTemperature sensors(&bus);
 // const uint64_t tempAddress = 0x00000000;
-// My name is Mr. Annoying Comments!
 
 const uint8_t i2cSdaPin = 41;
 const uint8_t i2cSclPin = 40;
@@ -37,8 +36,6 @@ lv_display_t* disp;
 TFT_eSPI tft = TFT_eSPI();
 
 uint32_t drawBuf[TFT_WIDTH * TFT_HEIGHT / 30 * LV_COLOR_DEPTH];
-
-// Don't. Fall. Asleep.
 
 unsigned long lastLvglRun;
 unsigned long timeTillNextLvglRun;
@@ -63,8 +60,6 @@ void touchRead(lv_indev_t* indev, lv_indev_data_t* data) {
     data->state = LV_INDEV_STATE_RELEASED;
   }
 }
-
-// I live in the state of walmart
 
 void encoderInterrupt() {
   lastEncoderState <<= 2;
@@ -141,17 +136,6 @@ void setup() {
   logging::debug(NULL, "starting I2C...");
   Wire.begin(i2cSdaPin, i2cSclPin);
   logging::debug(NULL, "instantiating SHT2x...");
-  // Because we've got something pulling for temp and something pulling for humidity,
-  // the first one to pull will drain the read value.
-  // Cache it so it can be pulled constantly by either one.
-  // Jerk! You're a mean jerk! You're made of beef jerky! You're a beefy jerk!
-  // Some of us eat donuts, and some of us don't.
-  // Some of us switch to daylight savings time, and some of us just won't.
-  // All of these differences would tear us apart, if us strong bond weren't there.
-  // Fortunately, there is one thing all of us like to share.
-  // What do all Canadians do together? (We talk about the weather!)
-  // What do all Canadians do together? (We talk about the weather!)
-  // What do all Canadians do together? (We talk about the weather!)
   auto clock = fromClock<arduino_millis_clock>();
   auto tempAndHum = arduino::sht2x::sht2x(&Wire);
   auto tempAndHumSmooth = Pipe(tempAndHum)
@@ -182,23 +166,6 @@ void setup() {
       [](arduino::sht2x::Humidity value, arduino::sht2x::Reading original) { return arduino::sht2x::Reading(std::get<0>(original), value); },
       [](arduino::sht2x::Reading value) { return std::get<1>(value); }
     ));
-    // .pipe(splitAndCombine<arduino::sht2x::Reading, arduino::sht2x::Temperature, arduino::sht2x::Humidity>(
-    //   [](arduino::sht2x::Reading value) { return std::get<0>(value); },
-    //   exponentialMovingAverage<arduino::sht2x::Temperature, typename arduino_millis_clock::time_point, typename arduino_millis_clock::duration, float>(
-    //     clock,
-    //     arduino_millis_clock::duration(1000),
-    //     mapChronoToScalar<float, typename arduino_millis_clock::duration>
-    //   ),
-    //   [](arduino::sht2x::Reading value) { return std::get<1>(value); },
-    //   exponentialMovingAverage<arduino::sht2x::Humidity, typename arduino_millis_clock::time_point, typename arduino_millis_clock::duration, float>(
-    //     clock,
-    //     arduino_millis_clock::duration(1000),
-    //     mapChronoToScalar<float, typename arduino_millis_clock::duration>
-    //   ),
-    //   [](arduino::sht2x::Temperature temp, arduino::sht2x::Humidity hum) {
-    //     return arduino::sht2x::Reading(temp, hum);
-    //   }
-    // ));
   auto setpoint = rheo::State<TempC>(au::celsius_pt(20.0f), false);
 
   auto emptyStyleSource = constant(std::vector<lvgl::StyleAndSelector>());
@@ -343,8 +310,6 @@ void setup() {
   //   },
   //   [](){}
   // );
-  // If you want. I personally don't care and just feed my banana peels to my dog.
-  // :)
   lv_obj_t* setpointUnitsLabel = lv_label_create(setpointContainer);
   lv_label_set_text(setpointUnitsLabel, "°C");
   logging::debug(NULL, "Setup completed!");
