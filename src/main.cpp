@@ -115,11 +115,7 @@ lv_obj_t* setpointEditor;
 void setup() {
   Serial.begin(115200);
   logging::registerSubscriber([](uint8_t logLevel, const char* topic, const char* message) {
-    uint8_t desiredLogLevel = LOG_LEVEL;
-    if (topic == "sht2x") {
-      desiredLogLevel = logging::LOG_LEVEL_TRACE;
-    }
-    if (logLevel <= desiredLogLevel) {
+    if (logLevel <= LOG_LEVEL) {
       Serial.print("[");
       Serial.print(LOG_LEVEL_LABEL(logLevel));
       if (topic != NULL) {
@@ -214,24 +210,48 @@ void setup() {
 
   // Temp/humidity chart.
   lv_obj_t* chart = lv_chart_create(uiContainer);
-  lv_obj_set_size(chart, 300, 100);
+  lv_obj_set_size(chart, LV_PCT(100), 100);
   lv_obj_center(chart);
   lv_chart_set_type(chart, LV_CHART_TYPE_LINE);
   lv_chart_set_update_mode(chart, LV_CHART_UPDATE_MODE_SHIFT);
   lv_chart_set_axis_range(chart, LV_CHART_AXIS_PRIMARY_Y, -100, 500);
-  lv_chart_set_axis_range(chart, LV_CHART_AXIS_SECONDARY_Y, 30, 70);
+  lv_chart_set_axis_range(chart, LV_CHART_AXIS_SECONDARY_Y, 0, 100);
   lv_chart_set_point_count(chart, 80);
   lv_obj_set_style_size(chart, 0, 0, LV_PART_INDICATOR);
-  lv_chart_series_t* tempSeries = lv_chart_add_series(chart, lv_palette_main(LV_PALETTE_AMBER), LV_CHART_AXIS_PRIMARY_Y);
+  lv_chart_series_t* tempSeries = lv_chart_add_series(chart, lv_palette_main(LV_PALETTE_ORANGE), LV_CHART_AXIS_PRIMARY_Y);
   lv_chart_series_t* humSeries = lv_chart_add_series(chart, lv_palette_main(LV_PALETTE_BLUE), LV_CHART_AXIS_SECONDARY_Y);
+
+  // Current temp/humidity.
+  lv_obj_t* tempHumWrapper = lv_obj_create(uiContainer);
+  lv_obj_remove_style_all(tempHumWrapper);
+  lv_obj_set_size(tempHumWrapper, LV_PCT(100), LV_SIZE_CONTENT);
+  lv_obj_set_layout(tempHumWrapper, LV_LAYOUT_FLEX);
+  lv_obj_set_flex_flow(tempHumWrapper, LV_FLEX_FLOW_ROW);
+  lv_obj_t* tempLabel = lv_label_create(tempHumWrapper);
+  lv_obj_set_flex_grow(tempLabel, 1);
+  lv_obj_set_style_text_color(tempLabel, lv_palette_main(LV_PALETTE_ORANGE), 0);
+  lv_obj_set_style_text_align(tempLabel, LV_TEXT_ALIGN_RIGHT, 0);
+  lv_obj_t* tempHumDivider = lv_label_create(tempHumWrapper);
+  lv_obj_set_width(tempHumDivider, LV_SIZE_CONTENT);
+  lv_obj_set_flex_grow(tempHumDivider, 0);
+  lv_label_set_text(tempHumDivider, " | ");
+  lv_obj_t* humLabel = lv_label_create(tempHumWrapper);
+  lv_obj_set_flex_grow(humLabel, 1);
+  lv_obj_set_style_text_color(humLabel, lv_palette_main(LV_PALETTE_BLUE), 0);
+  lv_obj_set_style_text_align(humLabel, LV_TEXT_ALIGN_LEFT, 0);
+
   pullTempAndHum = tempAndHumSmooth.sink(
-    foreach<arduino::sht2x::Reading>([chart, tempSeries, humSeries](arduino::sht2x::Reading value) {
+    foreach<arduino::sht2x::Reading>([chart, tempSeries, humSeries, tempLabel, humLabel](arduino::sht2x::Reading value) {
       logging::debug("chart", fmt::format("writing temp {} and hum {}", std::get<0>(value).in(au::Celsius{}), std::get<1>(value).in(au::Percent{})).c_str());
       lv_chart_set_next_value(chart, tempSeries, (int32_t)(std::get<0>(value).in(au::Celsius{}) * 10));
-      lv_chart_set_next_value(chart, humSeries, (int32_t)(std::get<1>(value).in(au::Percent{})));
+      lv_chart_set_next_value(chart, humSeries, (int32_t)(round(std::get<1>(value).in(au::Percent{}))));
       lv_chart_refresh(chart);
+      lv_label_set_text(tempLabel, au_to_string(std::get<0>(value), 1).c_str());
+      lv_label_set_text(humLabel, fmt::format("{} RH", au_to_string(std::get<1>(value), 0).c_str()).c_str());
     })
   );
+
+  
 
   // lv_obj_t* humLabel = lv_label_create(uiContainer);
   // lv_label_set_text(humLabel, "Starting...");
@@ -256,6 +276,7 @@ void setup() {
   // That's Japanese for :(
   logging::debug(NULL, "Setting up setpoint editor...");
   lv_obj_t* setpointContainer = lv_obj_create(uiContainer);
+  lv_obj_remove_style_all(setpointContainer);
   lv_obj_set_size(setpointContainer, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
   lv_obj_set_style_pad_all(setpointContainer, 0, 0);
   lv_obj_set_style_border_width(setpointContainer, 0, 0);
@@ -300,16 +321,15 @@ void setup() {
     [](){}
   );
   auto setpointC = map<float, TempC>(setpoint.sourceFn(false), [](TempC value) { return value.in(au::Celsius{}); });
-  // auto pullAndSourceSetpointEditor = lvgl::spinbox(setpointEditor, setpointC, emptyStyleSource);
+  auto pullAndSourceSetpointEditor = lvgl::spinbox(setpointEditor, setpointC, emptyStyleSource);
   // auto setpointEditorSourceFn = std::get<1>(pullAndSourceSetpointEditor);
   // setpointEditorSourceFn(
-  //   [&setpoint, setpointEditor](lv_event_code_t event) {
+  //   [&setpoint](lv_event_code_t event) {
   //     if (event == LV_EVENT_VALUE_CHANGED) {
   //       Serial.println("Handling setpoint editing event");
   //       setpoint.set(au::celsius_pt((float)lv_spinbox_get_value(setpointEditor)), false);
   //     }
-  //   },
-  //   [](){}
+  //   }
   // );
   lv_obj_t* setpointUnitsLabel = lv_label_create(setpointContainer);
   lv_label_set_text(setpointUnitsLabel, "°C");
