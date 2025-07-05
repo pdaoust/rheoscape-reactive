@@ -44,7 +44,7 @@ namespace rheo::sources::arduino::sht2x {
         lastReadType = 0,
         pushedSensorStartError = false,
         lastTemp = std::optional<float>(std::nullopt),
-        lastHum = std::optional<float>(std::nullopt),
+        lastHum = std::optional<float>(std::nullopt)
       ]() mutable {
         if (pushedSensorStartError) {
           logging::trace("sht2x", "Already pushed sensor start error; not pushing again.");
