@@ -23,6 +23,7 @@
 #include <operators/pid.hpp>
 #include <operators/reduce.hpp>
 #include <operators/sample.hpp>
+#include <operators/scan.hpp>
 #include <operators/share.hpp>
 #include <operators/splitAndCombine.hpp>
 #include <operators/startWhen.hpp>
