@@ -1,3 +1,4 @@
+#pragma once
 #include <functional>
 #include <core_types.hpp>
 
@@ -15,8 +16,8 @@ namespace rheo::operators {
 
   template <typename T>
   source_fn<T> scan(source_fn<T> source, fold_fn<T, T> scanner) {
-    return [source, scanner, acc = std::optional<T>()](push_fn<T> push) {
-      return source([scanner, &acc, push](T value) mutable {
+    return [source, scanner](push_fn<T> push) mutable {
+      return source([scanner, acc = std::optional<T>(), push](T value) mutable {
         if (!acc.has_value()) {
           acc.emplace(value);
         } else {
