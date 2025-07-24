@@ -134,6 +134,18 @@ namespace rheo {
   template <typename TOut, typename TIn>
   using pipe_fn = sink_fn<source_fn<TOut>, TIn>;
 
+  // Ergonomic chaining of pipe functions using the `|` operator.
+  // This lets you go:
+  //
+  //   let stringifiedSquaredStream = constant(3)
+  //     | map([](int v) { return v * v; })
+  //     | filter([](int v) { return v > 5; }); // always true for a stream of nines
+  //     | map([](int v) { return fmt::format("{}", v); });
+  template<typename TOut, typename TIn>
+  source_fn<TOut> operator|(source_fn<TIn> left, pipe_fn<TOut, TIn> right) {
+    return right(left);
+  }
+
   // Some types for common functional operators.
   template <typename TOut, typename TIn>
   using map_fn = std::function<TOut(TIn)>;
