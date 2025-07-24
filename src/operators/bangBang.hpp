@@ -4,7 +4,7 @@
 #include <core_types.hpp>
 #include <types/Range.hpp>
 #include <operators/combine.hpp>
-#include <operators/fold.hpp>
+#include <operators/scan.hpp>
 
 namespace rheo::operators {
 
@@ -30,7 +30,7 @@ namespace rheo::operators {
       boundsSource
     );
 
-    return fold<ProcessCommand, std::tuple<T, SetpointAndHysteresis<T>>>(
+    return scan<ProcessCommand, std::tuple<T, SetpointAndHysteresis<T>>>(
       combined,
       ProcessCommand::neutral,
       [](ProcessCommand acc, std::tuple<T, SetpointAndHysteresis<T>> value) {

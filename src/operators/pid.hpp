@@ -4,7 +4,7 @@
 #include <core_types.hpp>
 #include <types/au_all_units_noio.hpp>
 #include <types/Range.hpp>
-#include <operators/fold.hpp>
+#include <operators/scan.hpp>
 #include <operators/map.hpp>
 #include <operators/combine.hpp>
 
@@ -88,7 +88,7 @@ namespace rheo::operators {
       }
     );
 
-    source_fn<PidState<TP, TI, TCtl, TTime>> calculatedSource = fold(
+    source_fn<PidState<TP, TI, TCtl, TTime>> calculatedSource = scan(
       combinedSource,
       PidState<TP, TI, TCtl, TTime> { },
       (fold_fn<PidState<TP, TI, TCtl, TTime>, PidData<TProc, TTime, TKp, TKi, TKd>>)[clampRange](PidState<TP, TI, TCtl, TTime> prevState, PidData<TProc, TTime, TKp, TKi, TKd> values) {

@@ -5,7 +5,7 @@
 #include <util.hpp>
 #include <types/TaggedValue.hpp>
 #include <operators/map.hpp>
-#include <operators/reduce.hpp>
+#include <operators/scan.hpp>
 #include <operators/timestamp.hpp>
 
 namespace rheo::operators {
@@ -25,7 +25,7 @@ namespace rheo::operators {
   ) {
     auto timestamped = timestamp(source, clockSource);
 
-    source_fn<TaggedValue<TVal, TTime>> calculated = reduce<TaggedValue<TVal, TTime>>(
+    source_fn<TaggedValue<TVal, TTime>> calculated = scan<TaggedValue<TVal, TTime>>(
       timestamped,
       (reduce_fn<TaggedValue<TVal, TTime>>)[timeConstant, mapIntervalToRep](TaggedValue<TVal, TTime> prev, TaggedValue<TVal, TTime> next) {
         TInterval timeDelta = next.tag - prev.tag;
