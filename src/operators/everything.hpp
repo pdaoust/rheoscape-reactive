@@ -10,7 +10,6 @@
 #include <operators/exponentialMovingAverage.hpp>
 #include <operators/filter.hpp>
 #include <operators/filterMap.hpp>
-#include <operators/fold.hpp>
 #include <operators/foreach.hpp>
 #include <operators/interval.hpp>
 #include <operators/latch.hpp>
@@ -21,7 +20,6 @@
 #include <operators/merge.hpp>
 #include <operators/normalize.hpp>
 #include <operators/pid.hpp>
-#include <operators/reduce.hpp>
 #include <operators/sample.hpp>
 #include <operators/scan.hpp>
 #include <operators/share.hpp>
