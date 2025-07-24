@@ -38,9 +38,9 @@ namespace rheo::sources::arduino::sht2x {
     sensor->setResolution(resolution);
     unsigned long lastCommandTimestamp = millis();
 
-    return [resolution, sensor, sensorStartError, &lastCommandTimestamp](push_fn<ReadingFallible> push) {
+    return [resolution, sensor, sensorStartError, &lastCommandTimestamp](push_fn<ReadingFallible>&& push) {
       return [
-        resolution, sensor, sensorStartError, push, &lastCommandTimestamp,
+        resolution, sensor, sensorStartError, push = std::forward<push_fn<ReadingFallible>>(push), &lastCommandTimestamp,
         lastReadType = 0,
         pushedSensorStartError = false,
         lastTemp = std::optional<float>(std::nullopt),

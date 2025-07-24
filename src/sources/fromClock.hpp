@@ -8,7 +8,7 @@ namespace rheo::sources {
   template <typename TClock>
   source_fn<typename TClock::time_point> fromClock() {
     return [](push_fn<typename TClock::time_point> push) {
-      return [push]() {
+      return [push = std::forward<push_fn<typename TClock::time_point>>(push)]() {
         push(std::move(TClock::now()));
       };
     };
