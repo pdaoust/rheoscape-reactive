@@ -96,6 +96,18 @@ namespace rheo {
   template <typename T>
   using source_fn = std::function<pull_fn(push_fn<T>)>;
 
+  // Helper trait to extract the value type from a source_fn.
+  template<typename T>
+  struct source_value_type;
+
+  template<typename T>
+  struct source_value_type<source_fn<T>> {
+      using type = T;
+  };
+
+  template<typename T>
+  using source_value_type_t = typename source_value_type<T>::type;
+
   // A function that receives a source function,
   // binds itself to the source
   // (that is, passes it a push function that handles values pushed to it
