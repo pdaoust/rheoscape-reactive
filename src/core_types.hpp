@@ -65,6 +65,12 @@ namespace rheo {
   // * A source that models a stream of events SHOULD NOT push the last the last event
   //   to its sink at bind time.
 
+  // Helper function to convert any callable to std::function for analysis.
+  template<typename F>
+  auto to_std_function(F&& f) {
+    return std::function{std::forward<F>(f)};  // C++17 deduction guides work magic here.
+  }
+
   // A function that a sink provides to a source
   // to allow the source to push a value to the sink.
   template <typename T>
@@ -98,7 +104,9 @@ namespace rheo {
 
   // Helper trait to extract the value type from a source_fn.
   template<typename T>
-  struct source_value_type;
+  struct source_value_type {
+    static_assert(std::is_same_v<T, void>, "type must be a source function");
+  };
 
   template<typename T>
   struct source_value_type<source_fn<T>> {
@@ -116,6 +124,38 @@ namespace rheo {
   // This type is mostly useful for method chaining.
   template <typename TReturn, typename T>
   using sink_fn = std::function<TReturn(source_fn<T>)>;
+
+  template <typename T>
+  struct sink_value_types {
+    static_assert(std::is_same_v<T, void>, "type must be a sink function");
+  };
+
+  template <typename T, typename R>
+  struct sink_value_types<sink_fn<R, T>> {
+    using source_type = T;
+    using return_type = R;
+  };
+
+  template <typename T, typename R>
+  struct sink_value_types<R(*)(source_fn<T>)> {
+    using source_type = T;
+    using return_type = R;
+  };
+
+  template <typename T, typename R>
+  struct sink_value_types<R(source_fn<T>)> {
+    using source_type = T;
+    using return_type = R;
+  };
+
+  template <typename F>
+  using sink_value_types_from_callable = sink_value_types<decltype(to_std_function(std::declval<F>()))>;
+
+  template <typename T>
+  using sink_source_type_t = typename sink_value_types_from_callable<T>::source_type;
+
+  template <typename T>
+  using sink_return_type_t = typename sink_value_types_from_callable<T>::return_type;
 
   // A sink function that doesn't return a value.
   template <typename T>
@@ -159,13 +199,16 @@ namespace rheo {
   using map_with_context_fn = std::function<TOut(TIn, TContext)>;
 
   template <typename T>
-  using reduce_fn = map_with_context_fn<T, T, T>;
+  using reduce_fn = std::function<T(T, T)>;
 
   template <typename TAcc, typename TIn>
-  using fold_fn = map_with_context_fn<TAcc, TAcc, TIn>;
+  using fold_fn = std::function<TAcc(TAcc, TIn)>;
 
   template <typename T>
   using filter_fn = std::function<bool(T)>;
+
+  template <typename TOut, typename TIn>
+  using filter_map_fn = std::function<std::optional<TOut>(TIn)>;
 
   template <typename T>
   using exec_fn = std::function<void(T)>;
@@ -208,4 +251,187 @@ namespace rheo {
     stop,
   };
 
+  // Type deduction helper traits for functions of various sizes.
+
+  // One parameter and void return value.
+  template <typename T>
+  struct visitor_1_in_value_type {
+    static_assert(std::is_same_v<T, void>, "type must be a 1-parameter visitor function");
+  };
+
+  template <typename TIn>
+  struct visitor_1_in_value_type<std::function<void(TIn)>> {
+    using in_type = TIn;
+  };
+
+  template <typename TIn>
+  struct visitor_1_in_value_type<void(*)(TIn)> {
+    using in_type = TIn;
+  };
+
+  template <typename TIn>
+  struct visitor_1_in_value_type<void(TIn)> {
+    using in_type = TIn;
+  };
+
+  template<typename F>
+  using visitor_1_in_value_type_from_callable = visitor_1_in_value_type<decltype(to_std_function(std::declval<F>()))>;
+
+  template <typename F>
+  using visitor_1_in_in_type_t = typename visitor_1_in_value_type_from_callable<F>::in_type;
+
+  // One parameter and non-void return value.
+  template <typename T>
+  struct transformer_1_in_value_types {
+    static_assert(std::is_same_v<T, void>, "type must be a 1-parameter transformer function");
+  };
+
+  template <typename TOut, typename TIn>
+  struct transformer_1_in_value_types<std::function<TOut(TIn)>> {
+    using out_type = TOut;
+    using in_type = TIn;
+  };
+
+  template<typename TOut, typename TIn>
+  struct transformer_1_in_value_types<TOut(*)(TIn)> {
+    using out_type = TOut;
+    using in_type = TIn;
+  };
+
+  template<typename F>
+  using transformer_1_in_value_types_from_callable = transformer_1_in_value_types<decltype(to_std_function(std::declval<F>()))>;
+
+  template <typename F>
+  using transformer_1_in_out_type_t = typename transformer_1_in_value_types_from_callable<F>::out_type;
+
+  template <typename F>
+  using transformer_1_in_in_type_t = typename transformer_1_in_value_types_from_callable<F>::in_type;
+
+  // Two parameters and non-void return value.
+  template <typename T>
+  struct transformer_2_in_value_types {
+    static_assert(std::is_same_v<T, void>, "type must be a 2-parameter transformer function");
+  };
+
+  template <typename TOut, typename TIn1, typename TIn2>
+  struct transformer_2_in_value_types<std::function<TOut(TIn1, TIn2)>> {
+    using out_type = TOut;
+    using in_1_type = TIn1;
+    using in_2_type = TIn2;
+  };
+
+  template<typename TOut, typename TIn1, typename TIn2>
+  struct transformer_2_in_value_types<TOut(*)(TIn1, TIn2)> {
+    using out_type = TOut;
+    using in_1_type = TIn1;
+    using in_2_type = TIn2;
+  };
+
+  template<typename F>
+  using transformer_2_in_value_types_from_callable = transformer_2_in_value_types<decltype(to_std_function(std::declval<F>()))>;
+
+  template <typename F>
+  using transformer_2_in_out_type_t = typename transformer_2_in_value_types_from_callable<F>::out_type;
+
+  template <typename F>
+  using transformer_2_in_in_1_type_t = typename transformer_2_in_value_types_from_callable<F>::in_1_type;
+
+  template <typename F>
+  using transformer_2_in_in_2_type_t = typename transformer_2_in_value_types_from_callable<F>::in_2_type;
+
+  // Three parameters and non-void return value.
+  template <typename T>
+  struct transformer_3_in_value_types {
+    static_assert(std::is_same_v<T, void>, "type must be a 3-parameter transformer function");
+  };
+
+  template <typename TOut, typename TIn1, typename TIn2, typename TIn3>
+  struct transformer_3_in_value_types<std::function<TOut(TIn1, TIn2, TIn3)>> {
+    using out_type = TOut;
+    using in_1_type = TIn1;
+    using in_2_type = TIn2;
+    using in_3_type = TIn3;
+  };
+
+  template<typename TOut, typename TIn1, typename TIn2, typename TIn3>
+  struct transformer_3_in_value_types<TOut(*)(TIn1, TIn2, TIn3)> {
+    using out_type = TOut;
+    using in_1_type = TIn1;
+    using in_2_type = TIn2;
+    using in_3_type = TIn3;
+  };
+
+  template<typename F>
+  using transformer_3_in_value_types_from_callable = transformer_3_in_value_types<decltype(to_std_function(std::declval<F>()))>;
+
+  template <typename F>
+  using transformer_3_in_out_type_t = typename transformer_3_in_value_types_from_callable<F>::out_type;
+
+  template <typename F>
+  using transformer_3_in_in_1_type_t = typename transformer_3_in_value_types_from_callable<F>::in_1_type;
+
+  template <typename F>
+  using transformer_3_in_in_2_type_t = typename transformer_3_in_value_types_from_callable<F>::in_2_type;
+
+  template <typename F>
+  using transformer_3_in_in_3_type_t = typename transformer_3_in_value_types_from_callable<F>::in_3_type;
+
+  // Four parameters and non-void return value.
+  template <typename T>
+  struct transformer_4_in_value_types {
+    static_assert(std::is_same_v<T, void>, "type must be a 4-parameter transformer function");
+  };
+
+  template <typename TOut, typename TIn1, typename TIn2, typename TIn3, typename TIn4>
+  struct transformer_4_in_value_types<std::function<TOut(TIn1, TIn2, TIn3, TIn4)>> {
+    using out_type = TOut;
+    using in_1_type = TIn1;
+    using in_2_type = TIn2;
+    using in_3_type = TIn3;
+    using in_4_type = TIn4;
+  };
+
+  template<typename TOut, typename TIn1, typename TIn2, typename TIn3, typename TIn4>
+  struct transformer_4_in_value_types<TOut(*)(TIn1, TIn2, TIn3, TIn4)> {
+    using out_type = TOut;
+    using in_1_type = TIn1;
+    using in_2_type = TIn2;
+    using in_3_type = TIn3;
+    using in_4_type = TIn4;
+  };
+
+  template<typename F>
+  using transformer_4_in_value_types_from_callable = transformer_4_in_value_types<decltype(to_std_function(std::declval<F>()))>;
+
+  template <typename F>
+  using transformer_4_in_out_type_t = typename transformer_4_in_value_types_from_callable<F>::out_type;
+
+  template <typename F>
+  using transformer_4_in_in_1_type_t = typename transformer_4_in_value_types_from_callable<F>::in_1_type;
+
+  template <typename F>
+  using transformer_4_in_in_2_type_t = typename transformer_4_in_value_types_from_callable<F>::in_2_type;
+
+  template <typename F>
+  using transformer_4_in_in_3_type_t = typename transformer_4_in_value_types_from_callable<F>::in_3_type;
+
+  template <typename F>
+  using transformer_4_in_in_4_type_t = typename transformer_4_in_value_types_from_callable<F>::in_4_type;
+
+  // And a way of getting the wrapped type out of a filter mapper function.
+  template <typename T>
+  struct filter_mapper_value_type {
+    static_assert(std::is_same_v<T, void>, "type must be a filter mapper function");
+  };
+
+  template <typename TOut, typename TIn>
+  struct filter_mapper_value_type<std::function<std::optional<TOut>(TIn)>> {
+    using wrapped_out_type = TOut;
+  };
+
+  template<typename F>
+  using filter_mapper_value_type_from_callable = filter_mapper_value_type<decltype(to_std_function(std::declval<F>()))>;
+
+  template <typename F>
+  using filter_mapper_wrapped_out_type_t = typename filter_mapper_value_type_from_callable<F>::wrapped_out_type;
 }
