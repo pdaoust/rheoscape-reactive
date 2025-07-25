@@ -28,172 +28,172 @@ namespace rheo::operators {
   // WORD OF CAUTION: If the first source is a source that pushes its first value on bind,
   // that first value will get missed because this operator needs to do some setup.
 
-  template <typename TCombined, typename T1, typename T2>
-  source_fn<TCombined> combine(
+  template <typename CombineFn, typename T1, typename T2>
+  auto combine(
     source_fn<T1> source1,
     source_fn<T2> source2,
-    combine2_fn<TCombined, T1, T2> combiner
-  ) {
-    return [source1, source2, combiner](push_fn<TCombined> push) {
+    CombineFn&& combiner
+  ) -> source_fn<transformer_2_in_out_type_t<CombineFn>> {
+    using TOut = transformer_2_in_out_type_t<CombineFn>;
+
+    return [&source1, &source2, combiner = std::forward<CombineFn>(combiner)](push_fn<TOut> push) {
       auto currentValue1 = std::make_shared<std::optional<T1>>();
       auto currentValue2 = std::make_shared<std::optional<T2>>();
 
-      auto pullSource1 = source1([combiner, push, currentValue1, currentValue2](T1 value) {
-        currentValue1->emplace(value);
+      pull_fn pullSource1 = source1([combiner, &push, currentValue1, currentValue2](T1&& value) {
+        currentValue1->emplace(std::forward<T1>(value));
         if (currentValue2->has_value()) {
-          push(combiner(value, currentValue2->value()));
+          push(combiner(std::forward<T1>(currentValue1->value()), std::forward<T2>(currentValue2->value())));
         }
       });
 
-      auto pullSource2 = source2([combiner, push, currentValue1, currentValue2](T2 value) {
-        currentValue2->emplace(value);
+      pull_fn pullSource2 = source2([&combiner, &push, currentValue1, currentValue2](T2&& value) {
+        currentValue2->emplace(std::forward<T2>(value));
         if (currentValue1->has_value()) {
-          push(combiner(currentValue1->value(), value));
+          push(combiner(std::forward<T1>(currentValue1->value()), std::forward<T2>(currentValue2->value())));
         }
       });
 
-      return [pullSource1, pullSource2]() {
+      return [pullSource1 = std::move(pullSource1), pullSource2 = std::move(pullSource2)]() {
+        // FIXME: Should it pull both sources? Maybe all we want is to pull the first one?
+        // This is necessary first time round, but after that it'll cause the combined value to be pushed twice.
+        // On the other hand, if we don't pull both sources,
+        // the second source will stay stale forevermore.
         pullSource1();
         pullSource2();
       };
     };
   }
 
-  template <typename T1, typename T2>
-  source_fn<std::tuple<T1, T2>> combineTuple(source_fn<T1> source1, source_fn<T2> source2) {
-    return combine<std::tuple<T1, T2>, T1, T2>(source1, source2, [](T1 v1, T2 v2) { return std::tuple(v1, v2); });
-  }
-
-  template <typename TCombined, typename T1, typename T2>
-  pipe_fn<TCombined, T1> combine(
+  template <typename CombineFn, typename T1, typename T2>
+  auto combine(
     source_fn<T2> source2,
-    combine2_fn<TCombined, T1, T2> combiner
-  ) {
-    return [source2, combiner](source_fn<T1> source1) {
+    CombineFn&& combiner
+  ) -> pipe_fn<transformer_2_in_out_type_t<CombineFn>, T1> {
+    using TOut = transformer_2_in_out_type_t<CombineFn>;
+    return [source2, combiner = std::forward<CombineFn>(combiner)](source_fn<T1> source1) {
       return combine(source1, source2, combiner);
     };
   }
 
-  template <typename T1, typename T2>
-  pipe_fn<std::tuple<T1, T2>, T1> combineTuple(
-    source_fn<T2> source2
-  ) {
-    return [source2](source_fn<T1> source1) {
-      return combineTuple(source1, source2);
-    };
-  }
-
-  template <typename TCombined, typename T1, typename T2, typename T3>
-  source_fn<TCombined> combine3(
+  template <typename CombineFn, typename T1, typename T2, typename T3>
+  auto combine(
     source_fn<T1> source1,
     source_fn<T2> source2,
     source_fn<T3> source3,
-    combine3_fn<TCombined, T1, T2, T3> combiner
-  ) {
-    return map<TCombined, std::tuple<std::tuple<T1, T2>, T3>>(
-      combineTuple(combineTuple(source1, source2), source3),
-      (map_fn<TCombined, std::tuple<std::tuple<T1, T2>, T3>>)[combiner](std::tuple<std::tuple<T1, T2>, T3> value) {
-        return combiner(
-          std::get<0>(std::get<0>(value)),
-          std::get<1>(std::get<0>(value)),
-          std::get<1>(value)
-        );
-      }
-    );
+    CombineFn&& combiner
+  ) -> source_fn<transformer_3_in_out_type_t<CombineFn>> {
+    using TOut = transformer_3_in_out_type_t<CombineFn>;
+
+    return [source1, source2, source3, combiner = std::forward<CombineFn>(combiner)](push_fn<TOut> push) {
+      auto currentValue1 = std::make_shared<std::optional<T1>>();
+      auto currentValue2 = std::make_shared<std::optional<T2>>();
+      auto currentValue3 = std::make_shared<std::optional<T3>>();
+
+      pull_fn pullSource1 = source1([&combiner, &push, currentValue1, currentValue2, currentValue3](T1 value) {
+        currentValue1->emplace(value);
+        if (currentValue2->has_value() && currentValue3->has_value()) {
+          push(combiner(value, currentValue2->value(), currentValue3->value()));
+        }
+      });
+
+      pull_fn pullSource2 = source2([&combiner, &push, currentValue1, currentValue2, currentValue3](T2 value) {
+        currentValue2->emplace(value);
+        if (currentValue1->has_value() && currentValue3->has_value()) {
+          push(combiner(currentValue1->value(), value, currentValue3->value()));
+        }
+      });
+
+      pull_fn pullSource3 = source3([&combiner, &push, currentValue1, currentValue2, currentValue3](T3 value) {
+        currentValue3->emplace(value);
+        if (currentValue1->has_value() && currentValue2->has_value()) {
+          push(combiner(currentValue1->value(), currentValue2->value(), value));
+        }
+      });
+
+      return [pullSource1 = std::move(pullSource1), pullSource2 = std::move(pullSource2), pullSource3 = std::move(pullSource3)]() {
+        pullSource1();
+        pullSource2();
+        pullSource3();
+      };
+    };
   }
 
-  template <typename T1, typename T2, typename T3>
-  source_fn<std::tuple<T1, T2, T3>> combine3Tuple(
-    source_fn<T1> source1,
-    source_fn<T2> source2,
-    source_fn<T3> source3
-  ) {
-    return combine3<std::tuple<T1, T2, T3>, T1, T2, T3>(
-      source1,
-      source2,
-      source3,
-      [](T1 v1, T2 v2, T3 v3) { return std::tuple(v1, v2, v3); }
-    );
-  }
-
-  template <typename TCombined, typename T1, typename T2, typename T3>
-  pipe_fn<TCombined, T1> combine3(
+  template <typename CombineFn, typename T1, typename T2, typename T3>
+  auto combine(
     source_fn<T2> source2,
     source_fn<T3> source3,
-    combine3_fn<TCombined, T1, T2, T3> combiner = [](T1 v1, T2 v2, T3 v3) { return std::tuple(v1, v2, v3); }
-  ) {
-    return [source2, source3, combiner](source_fn<T1> source1) {
-      return combine3(source1, source2, source3, combiner);
+    CombineFn&& combiner
+  ) -> pipe_fn<transformer_3_in_out_type_t<CombineFn>, T1> {
+    using TOut = transformer_3_in_out_type_t<CombineFn>;
+    return [source2, source3, combiner = std::forward<CombineFn>(combiner)](source_fn<T1> source1) {
+      return combine(std::forward<source_fn<T1>>(source1), std::forward<source_fn<T2>>(source2), std::forward<source_fn<T3>>(source3), std::forward<CombineFn>(combiner));
     };
   }
 
-  template <typename T1, typename T2, typename T3>
-  pipe_fn<std::tuple<T1, T2, T3>, T1> combine3Tuple(
-    source_fn<T2> source2,
-    source_fn<T3> source3
-  ) {
-    return [source2, source3](source_fn<T1> source1) {
-      return combineTuple(source1, source2, source3);
-    };
-  }
-
-  template <typename TCombined, typename T1, typename T2, typename T3, typename T4>
-  source_fn<TCombined> combine4(
+  template <typename CombineFn, typename T1, typename T2, typename T3, typename T4>
+  auto combine(
     source_fn<T1> source1,
     source_fn<T2> source2,
     source_fn<T3> source3,
     source_fn<T4> source4,
-    combine4_fn<TCombined, T1, T2, T3, T4> combiner
-  ) {
-    return map<TCombined, std::tuple<std::tuple<std::tuple<T1, T2>, T3>, T4>>(
-      combineTuple(combineTuple(combineTuple(source1, source2), source3), source4),
-      (map_fn<TCombined, std::tuple<std::tuple<std::tuple<T1, T2>, T3>, T4>>)[combiner](std::tuple<std::tuple<std::tuple<T1, T2>, T3>, T4> value) {
-        return combiner(
-          std::get<0>(std::get<0>(std::get<0>(value))),
-          std::get<1>(std::get<0>(std::get<0>(value))),
-          std::get<1>(std::get<0>(value)),
-          std::get<1>(value)
-        );
-      }
-    );
-  }
+    CombineFn&& combiner
+  ) -> source_fn<transformer_4_in_out_type_t<CombineFn>> {
+    using TOut = transformer_4_in_out_type_t<CombineFn>;
 
-  template <typename T1, typename T2, typename T3, typename T4>
-  source_fn<std::tuple<T1, T2, T3, T4>> combine4Tuple(
-    source_fn<T1> source1,
-    source_fn<T2> source2,
-    source_fn<T3> source3,
-    source_fn<T4> source4
-  ) {
-    return combine4<std::tuple<T1, T2, T3, T4>, T1, T2, T3, T4>(
-      source1,
-      source2,
-      source3,
-      source4,
-      [](T1 v1, T2 v2, T3 v3, T4 v4) { return std::tuple(v1, v2, v3, v4); }
-    );
-  }
+    return [source1, source2, source3, source4, combiner = std::forward<CombineFn>(combiner)](push_fn<TOut> push) {
+      auto currentValue1 = std::make_shared<std::optional<T1>>();
+      auto currentValue2 = std::make_shared<std::optional<T2>>();
+      auto currentValue3 = std::make_shared<std::optional<T3>>();
+      auto currentValue4 = std::make_shared<std::optional<T4>>();
 
-  template <typename TCombined, typename T1, typename T2, typename T3, typename T4>
-  pipe_fn<TCombined, T1> combine4(
-    source_fn<T2> source2,
-    source_fn<T3> source3,
-    source_fn<T4> source4,
-    combine4_fn<TCombined, T1, T2, T3, T4> combiner = [](T1 v1, T2 v2, T3 v3, T4 v4) { return std::tuple(v1, v2, v3, v4); }
-  ) {
-    return [source2, source3, source4, combiner](source_fn<T1> source1) {
-      return combine4(source1, source2, source3, source4, combiner);
+      pull_fn pullSource1 = source1([&combiner, &push, currentValue1, currentValue2, currentValue3, currentValue4](T1 value) {
+        currentValue1->emplace(value);
+        if (currentValue2->has_value() && currentValue3->has_value()) {
+          push(combiner(value, currentValue2->value(), currentValue3->value(), currentValue4->value()));
+        }
+      });
+
+      pull_fn pullSource2 = source2([&combiner, &push, currentValue1, currentValue2, currentValue3, currentValue4](T2 value) {
+        currentValue2->emplace(value);
+        if (currentValue1->has_value() && currentValue3->has_value()) {
+          push(combiner(currentValue1->value(), value, currentValue3->value(), currentValue4->value()));
+        }
+      });
+
+      pull_fn pullSource3 = source3([&combiner, &push, currentValue1, currentValue2, currentValue3, currentValue4](T3 value) {
+        currentValue3->emplace(value);
+        if (currentValue1->has_value() && currentValue2->has_value()) {
+          push(combiner(currentValue1->value(), currentValue2->value(), value, currentValue4->value()));
+        }
+      });
+
+      pull_fn pullSource4 = source4([&combiner, &push, currentValue1, currentValue2, currentValue3, currentValue4](T4 value) {
+        currentValue4->emplace(value);
+        if (currentValue1->has_value() && currentValue2->has_value() && currentValue3->has_value()) {
+          push(combiner(currentValue1->value(), currentValue2->value(), currentValue3->value(), value));
+        }
+      });
+
+      return [pullSource1 = std::move(pullSource1), pullSource2 = std::move(pullSource2), pullSource3 = std::move(pullSource3), pullSource4 = std::move(pullSource4)]() {
+        pullSource1();
+        pullSource2();
+        pullSource3();
+        pullSource4();
+      };
     };
   }
 
-  template <typename T1, typename T2, typename T3, typename T4>
-  pipe_fn<std::tuple<T1, T2, T3, T4>, T1> combine4Tuple(
+  template <typename CombineFn, typename T1, typename T2, typename T3, typename T4>
+  auto combine(
     source_fn<T2> source2,
     source_fn<T3> source3,
-    source_fn<T4> source4
-  ) {
-    return [source2, source3, source4](source_fn<T1> source1) {
-      return combine4Tuple(source1, source2, source3, source4);
+    source_fn<T4> source4,
+    CombineFn&& combiner
+  ) -> pipe_fn<transformer_4_in_out_type_t<CombineFn>, T1> {
+    using TOut = transformer_4_in_out_type_t<CombineFn>;
+    return [source2, source3, source4, combiner = std::forward<CombineFn>(combiner)](source_fn<T1> source1) {
+      return combine(std::forward<source_fn<T1>>(source1), std::forward<source_fn<T2>>(source2), std::forward<source_fn<T3>>(source3), std::forward<source_fn<T4>>(source4), std::forward<CombineFn>(combiner));
     };
   }
 

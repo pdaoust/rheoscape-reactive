@@ -24,14 +24,14 @@ namespace rheo::operators {
   // After that, it'll keep pushing in a direction until it passes the other bound,
   // just like a thermostat.
   template <typename T>
-  source_fn<ProcessCommand> bangBang(source_fn<T> processVariableSource, source_fn<SetpointAndHysteresis<T>> boundsSource) {
-    auto combined = combineTuple(
-      processVariableSource,
-      boundsSource
-    );
+  source_fn<ProcessCommand> bangBang(
+    source_fn<T> processVariableSource,
+    source_fn<SetpointAndHysteresis<T>> boundsSource
+  ) {
+    auto combined = combine(processVariableSource, boundsSource, std::make_tuple<T, SetpointAndHysteresis<T>>);
 
-    return scan<ProcessCommand, std::tuple<T, SetpointAndHysteresis<T>>>(
-      combined,
+    return scan(
+      std::move(combined),
       ProcessCommand::neutral,
       [](ProcessCommand acc, std::tuple<T, SetpointAndHysteresis<T>> value) {
         if (std::get<0>(value) < std::get<1>(value).min()) {
@@ -50,8 +50,8 @@ namespace rheo::operators {
 
   template <typename T>
   pipe_fn<T, T> bangBang(source_fn<SetpointAndHysteresis<T>> boundsSource) {
-    return [boundsSource](source_fn<T> processVariableSource) {
-      return bangBang(processVariableSource, boundsSource);
+    return [boundsSource = std::move<source_fn<SetpointAndHysteresis<T>>>(boundsSource)](source_fn<T> processVariableSource) {
+      return bangBang(std::move<source_fn<T>>(processVariableSource), std::move<source_fn<SetpointAndHysteresis<T>>>(boundsSource));
     };
   }
 

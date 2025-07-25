@@ -4,9 +4,9 @@
 
 namespace rheo::operators {
   
-  template <typename TAcc, typename TIn>
-  source_fn<TAcc> scan(source_fn<TIn> source, TAcc initial, fold_fn<TAcc, TIn> scanner) {
-    return [source, scanner, acc = initial](push_fn<TAcc> push) {
+  template <typename TAcc, typename TIn, typename ScanFn>
+  source_fn<TAcc> scan(source_fn<TIn> source, TAcc initial, ScanFn&& scanner) {
+    return [source, scanner = std::forward<ScanFn>(scanner), acc = initial](push_fn<TAcc> push) {
       return source([scanner, &acc, push](TIn value) mutable {
         acc = scanner(acc, value);
         push(acc);
@@ -14,9 +14,9 @@ namespace rheo::operators {
     };
   }
 
-  template <typename T>
-  source_fn<T> scan(source_fn<T> source, fold_fn<T, T> scanner) {
-    return [source, scanner](push_fn<T> push) mutable {
+  template <typename T, typename ScanFn>
+  source_fn<T> scan(source_fn<T> source, ScanFn&& scanner) {
+    return [source, scanner = std::forward<ScanFn>(scanner)](push_fn<T> push) mutable {
       return source([scanner, acc = std::optional<T>(), push](T value) mutable {
         if (!acc.has_value()) {
           acc.emplace(value);
@@ -28,16 +28,18 @@ namespace rheo::operators {
     };
   }
 
-  template <typename TAcc, typename TIn>
-  pipe_fn<TAcc, TIn> scan(TAcc initial, fold_fn<TAcc, TIn> scanner) {
-    return [scanner, initial](source_fn<TIn> source) {
-      return scan(source, scanner, initial);
+  template <typename TAcc, typename TIn, typename ScanFn>
+  pipe_fn<TAcc, TIn> scan(TAcc initial, ScanFn&& scanner) {
+    return [scanner = std::forward<ScanFn>(scanner), initial](source_fn<TIn> source) {
+      return scan(source, std::forward<ScanFn>(scanner), initial);
     };
   }
 
-  template <typename T>
-  pipe_fn<T, T> scan(fold_fn<T, T> scanner) {
-    return [scanner](source_fn<T> source) {
+  template <typename ScanFn>
+  auto scan(ScanFn&& scanner)
+  -> pipe_fn<transformer_2_in_out_type_t<ScanFn>, transformer_2_in_in_1_type_t<ScanFn>> {
+    using T = transformer_2_in_in_1_type_t<ScanFn>;
+    return [scanner = std::forward<ScanFn>(scanner)](source_fn<T> source) {
       return scan(source, scanner);
     };
   }

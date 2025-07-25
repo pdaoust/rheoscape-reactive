@@ -9,13 +9,13 @@
 
 namespace rheo::operators {
 
-  template <typename T, typename TErr>
+  template <typename T, typename TErr, typename MapFn>
   source_fn<Fallible<T, TErr>> logErrors(
     source_fn<Fallible<T, TErr>> source,
-    map_fn<const char*, TErr> formatError = [](TErr value) { return string_format("%s", value); },
+    MapFn&& formatError = [](TErr value) { return string_format("%s", value); },
     const char* topic = NULL
   ) {
-    return tap<void, Fallible<T, TErr>>(source, [topic, formatError](source_fn<Fallible<T, TErr>> source) {
+    return tap(source, [topic, formatError = std::forward<MapFn>(formatError)](source_fn<Fallible<T, TErr>> source) {
       source([topic, formatError](Fallible<T, TErr> value) {
         if (value.isError()) {
           logging::error(topic, formatError(value.error()));
@@ -24,9 +24,9 @@ namespace rheo::operators {
     });
   }
 
-  template <typename T, typename TErr>
+  template <typename T, typename TErr, typename MapFn>
   pipe_fn<Fallible<T, TErr>, Fallible<T, TErr>> logErrors(
-    map_fn<const char*, TErr> formatError = [](TErr value) { return string_format("%s", value); },
+    MapFn&& formatError = [](TErr value) { return string_format("%s", value); },
     const char* topic = NULL
   ) {
     return [formatError, topic](source_fn<Fallible<T, TErr>> source) {

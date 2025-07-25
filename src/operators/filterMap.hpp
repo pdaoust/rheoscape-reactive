@@ -5,9 +5,12 @@
 
 namespace rheo::operators {
   
-  template <typename TOut, typename TIn>
-  source_fn<TOut> filterMap(source_fn<TIn> source, filter_map_fn<TOut, TIn> filterMapper) {
-    return [source, filterMapper](push_fn<TOut> push) {
+  template <typename TIn, typename FilterMapFn>
+  auto filterMap(source_fn<TIn> source, FilterMapFn&& filterMapper)
+  -> source_fn<filter_mapper_wrapped_out_type_t<std::decay_t<FilterMapFn>>> {
+    using TOut = filter_mapper_wrapped_out_type_t<std::decay_t<FilterMapFn>>;
+
+    return [source, filterMapper = std::forward<FilterMapFn>(filterMapper)](push_fn<TOut> push) {
       return source(
         [filterMapper, push](TIn value) {
           std::optional<TOut> maybeMapped = filterMapper(value);
@@ -19,9 +22,12 @@ namespace rheo::operators {
     };
   }
 
-  template <typename TOut, typename TIn>
-  pipe_fn<TOut, TIn> filterMap(filter_map_fn<TOut, TIn> filterMapper) {
-    return [filterMapper](source_fn<TIn> source) {
+  template <typename FilterMapFn>
+  auto filterMap(FilterMapFn&& filterMapper)
+  -> pipe_fn<transformer_1_in_out_type_t<std::decay_t<FilterMapFn>>, transformer_1_in_in_type_t<std::decay_t<FilterMapFn>>> {
+    using TIn = transformer_1_in_in_type_t<std::decay_t<FilterMapFn>>;
+
+    return [filterMapper = std::forward<FilterMapFn>(filterMapper)](source_fn<TIn> source) {
       return filterMap(source, filterMapper);
     };
   }

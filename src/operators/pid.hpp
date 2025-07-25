@@ -83,7 +83,7 @@ namespace rheo::operators {
       setpointSource,
       clockSource,
       weightsSource,
-      (combine4_fn<PidData<TProc, TTime, TKp, TKi, TKd>, TProc, TProc, TTime, PidWeights<TKp, TKi, TKd>>)[](TProc processVariable, TProc setpoint, TTime timestamp, PidWeights<TKp, TKi, TKd> weights) {
+      [](TProc processVariable, TProc setpoint, TTime timestamp, PidWeights<TKp, TKi, TKd> weights) {
         return PidData<TProc, TTime, TKp, TKi, TKd> { processVariable, setpoint, timestamp, weights };
       }
     );
@@ -91,7 +91,7 @@ namespace rheo::operators {
     source_fn<PidState<TP, TI, TCtl, TTime>> calculatedSource = scan(
       combinedSource,
       PidState<TP, TI, TCtl, TTime> { },
-      (fold_fn<PidState<TP, TI, TCtl, TTime>, PidData<TProc, TTime, TKp, TKi, TKd>>)[clampRange](PidState<TP, TI, TCtl, TTime> prevState, PidData<TProc, TTime, TKp, TKi, TKd> values) {
+      [clampRange](PidState<TP, TI, TCtl, TTime> prevState, PidData<TProc, TTime, TKp, TKi, TKd> values) {
         // Error is delta between desired value and measured value.
         // Error = proportional term
         TP error = values.setpoint - values.processVariable;
@@ -116,7 +116,7 @@ namespace rheo::operators {
       }
     );
 
-    return map(calculatedSource, (map_fn<TCtl, PidState<TP, TI, TCtl, TTime>>)[](PidState<TP, TI, TCtl, TTime> value) { return value.control; });
+    return map(calculatedSource, [](PidState<TP, TI, TCtl, TTime> value) { return value.control; });
   }
 
   template <

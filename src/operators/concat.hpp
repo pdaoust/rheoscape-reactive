@@ -13,7 +13,7 @@ namespace rheo::operators {
   source_fn<T> concat(source_fn<Endable<T>> source1, source_fn<T> source2) {
     return [source1, source2](push_fn<T> push) {
       auto source1HasEnded = make_wrapper_shared<bool>(false);
-      pull_fn pullSource1 = source1([push, source1HasEnded](Endable<T> value) {
+      pull_fn pullSource1 = source1([&push, source1HasEnded](Endable<T> value) {
         if (value.hasValue()) {
           push(value.value);
         } else {
@@ -21,13 +21,13 @@ namespace rheo::operators {
         }
       });
 
-      pull_fn pullSource2 = source2([push, source1HasEnded](T value) {
+      pull_fn pullSource2 = source2([&push, source1HasEnded](T value) {
         if (source1HasEnded->value) {
           push(value);
         }
       });
 
-      return [source1HasEnded, pullSource1, pullSource2]() {
+      return [source1HasEnded, pullSource1 = std::move(pullSource1), pullSource2 = std::move(pullSource2)]() {
         if (!source1HasEnded->value) {
           pullSource1();
         } else {

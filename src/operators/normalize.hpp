@@ -9,7 +9,7 @@ namespace rheo::operators {
 
   template <typename TIn, typename TOut>
   source_fn<TOut> normalize(source_fn<TIn> source, source_fn<Range<TIn>> fromSource, source_fn<Range<TOut>> toSource) {
-    return combine3(
+    return combine(
       source,
       fromSource,
       toSource,
@@ -23,6 +23,13 @@ namespace rheo::operators {
         }
       }
     );
+  }
+
+  template <typename TIn, typename TOut>
+  pipe_fn<TIn, TOut> normalize(source_fn<Range<TIn>> fromSource, source_fn<Range<TOut>> toSource) {
+    return [fromSource, toSource](source_fn<TIn> source) {
+      return normalize(source, fromSource, toSource);
+    };
   }
 
 }

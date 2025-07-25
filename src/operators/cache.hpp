@@ -24,7 +24,7 @@ namespace rheo::operators {
       auto didPushWithinPull = make_wrapper_shared(false);
 
       pull_fn pull = source(
-        [push, lastSeenValue, isWithinPull, didPushWithinPull](T value) {
+        [&push, lastSeenValue, isWithinPull, didPushWithinPull](T value) {
           lastSeenValue->emplace(value);
           push(value);
 
@@ -37,7 +37,7 @@ namespace rheo::operators {
         }
       );
 
-      return [push, pull, lastSeenValue, isWithinPull, didPushWithinPull]() {
+      return [&push, pull = std::move(pull), lastSeenValue, isWithinPull, didPushWithinPull]() {
         // Set the flag that tells the upstream push callback
         // that it is being pushed because of a pull.
         isWithinPull->value = true;
@@ -64,9 +64,9 @@ namespace rheo::operators {
 
   template <typename T>
   pipe_fn<T, T> cache() {
-    return [](source_fn<T> source) {
+    return pipe_fn<T, T>([](source_fn<T> source) {
       return cache(source);
-    };
+    });
   }
 
 }

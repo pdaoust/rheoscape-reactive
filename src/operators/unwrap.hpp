@@ -18,7 +18,7 @@ namespace rheo::operators {
   }
 
   template <typename T>
-  pipe_fn<T, T> unwrap() {
+  pipe_fn<T, std::optional<T>> unwrap() {
     return [](source_fn<T> source) {
       return unwrap(source);
     };

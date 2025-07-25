@@ -16,16 +16,14 @@ namespace rheo::ui::lvgl {
     source_fn<TData> dataSource,
     source_fn<std::vector<StyleAndSelector>> styleSource
   ) {
-    // FIXME: Is it more performant _and_ equivalent to just do them separately w/o combineing?
-    pull_fn pullDataAndStyle = rheo::operators::foreach<std::tuple<TData, std::vector<StyleAndSelector>>>(
-      rheo::operators::combineTuple<TData, std::vector<StyleAndSelector>>(dataSource, styleSource),
-      [widget, applyDataFn](std::tuple<TData, std::vector<StyleAndSelector>> value) {
+    // FIXME: Is it more performant _and_ equivalent to just do them separately w/o combining?
+    pull_fn pullDataAndStyle = rheo::operators::combine(dataSource, styleSource, std::make_tuple<TData, std::vector<StyleAndSelector>>)
+      | rheo::operators::foreach([widget, applyDataFn](std::tuple<TData, std::vector<StyleAndSelector>> value) {
         applyDataFn(std::get<0>(value), widget);
         for (const StyleAndSelector& style : std::get<1>(value)) {
           lv_obj_add_style(widget, &style.style, style.selector);
         }
-      }
-    );
+      });
 
     // Eternal gratitude to the author of https://deplinenoise.wordpress.com/2014/02/23/using-c11-capturing-lambdas-w-vanilla-c-api-functions/
     source_fn<lv_event_code_t> eventSource = [widget](push_fn<lv_event_code_t> push) {

@@ -12,8 +12,15 @@ namespace rheo::operators {
     return combine(
       source,
       clockSource,
-      (combine2_fn<TaggedValue<T, TTime>, T, TTime>)[](T value, TTime timestamp) { return TaggedValue<T, TTime> { value, timestamp }; }
+      [](T value, TTime timestamp) { return TaggedValue<T, TTime> { value, timestamp }; }
     );
+  }
+
+  template <typename T, typename TTime>
+  pipe_fn<TaggedValue<T, TTime>, T> timestamp(source_fn<TTime> clockSource) {
+    return [clockSource](source_fn<T> source) {
+      return timestamp(source, clockSource);
+    };
   }
 
 }

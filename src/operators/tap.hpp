@@ -14,9 +14,9 @@ namespace rheo::operators {
   // pulling on it will do nothing.
   // This function is useful for logging.
 
-  template <typename TTapReturn, typename T>
-  source_fn<T> tap(source_fn<T> source, sink_fn<TTapReturn, T> sink) {
-    return [source, sink](push_fn<T> pushPrimary) {
+  template <typename T, typename SinkFn>
+  source_fn<T> tap(source_fn<T> source, SinkFn&& sink) {
+    return [source, sink = std::forward<SinkFn>(sink)](push_fn<T> pushPrimary) {
       push_fn<T> pushToTap;
 
       sink((source_fn<T>)[&pushToTap](push_fn<T> push) {
@@ -34,10 +34,15 @@ namespace rheo::operators {
     };
   }
 
-  template <typename TTapReturn, typename T>
-  pipe_fn<T, T> tap(sink_fn<TTapReturn, T> sink) {
-    return [sink](source_fn<T> source) {
-      return tap<TTapReturn, T>(source, sink);
+  template <typename SinkFn>
+  auto tap(SinkFn&& sink)
+  -> pipe_fn<
+    sink_source_type_t<SinkFn>,
+    sink_source_type_t<SinkFn>
+  > {
+    using T = sink_source_type_t<SinkFn>;
+    return [sink = std::forward<SinkFn>(sink)](source_fn<T> source) {
+      return tap(source, sink);
     };
   }
 

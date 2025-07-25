@@ -10,13 +10,15 @@ namespace rheo::operators {
   // A combiner function can optionally be passed; the default just returns the sampled value.
   // This source ends if either stream ends.
 
-  template <typename TOut, typename TEvent, typename TSample>
-  source_fn<TOut> sampleAndMap(
+  template <typename TEvent, typename TSample, typename CombineFn>
+  auto sampleAndMap(
     source_fn<TEvent> eventSource,
     source_fn<TSample> sampleSource,
-    combine2_fn<TOut, TEvent, TSample> combiner
-  ) {
-    return [eventSource, sampleSource, combiner](push_fn<TOut> push) {
+    CombineFn&& combiner
+  ) -> source_fn<transformer_2_in_out_type_t<CombineFn>> {
+    using TOut = transformer_2_in_out_type_t<CombineFn>;
+
+    return [eventSource, sampleSource, combiner = std::forward<CombineFn>(combiner)](push_fn<TOut> push) {
       auto lastEventValue = std::make_shared<std::optional<TEvent>>(std::nullopt);
       
       pull_fn pullSample = sampleSource([combiner, push, lastEventValue](TSample sampleValue) {
@@ -35,12 +37,12 @@ namespace rheo::operators {
     };
   }
 
-  template <typename TOut, typename TEvent, typename TSample>
-  pipe_fn<TOut, TEvent> sampleAndMap(
+  template <typename TEvent, typename TSample, typename CombineFn>
+  auto sampleAndMap(
     source_fn<TSample> sampleSource,
-    combine2_fn<TOut, TEvent, TSample> combiner = [](TEvent event, TSample sample) { return sample; }
-  ) {
-    return [sampleSource, combiner](source_fn<TEvent> eventSource) {
+    CombineFn&& combiner
+  ) -> pipe_fn<transformer_2_in_out_type_t<CombineFn>, TEvent> {
+    return [sampleSource, combiner = std::forward<CombineFn>(combiner)](source_fn<TEvent> eventSource) {
       return sampleAndMap(eventSource, sampleSource, combiner);
     };
   }
@@ -60,7 +62,7 @@ namespace rheo::operators {
     source_fn<TEvent> eventSource,
     source_fn<TSample> sampleSource
   ) {
-    return sampleAndMap<TSample, TEvent, TSample>(
+    return sampleAndMap(
       eventSource,
       sampleSource,
       [](TEvent event, TSample sample) { return sample; }

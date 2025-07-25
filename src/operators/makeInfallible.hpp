@@ -10,11 +10,10 @@ namespace rheo::operators {
   
   template <typename T, typename TErr>
   source_fn<T> makeInfallible(source_fn<Fallible<T, TErr>> source) {
-    return filterMap<T, Fallible<T, TErr>>(source, (map_fn<std::optional<T>, Fallible<T, TErr>>)[](Fallible<T, TErr> value) {
+    return filterMap(source, [](Fallible<T, TErr> value) {
       return value.isOk()
         ? (std::optional<T>)value.value()
-        : std::nullopt
-      ;
+        : (std::optional<T>)std::nullopt;
     });
   }
 

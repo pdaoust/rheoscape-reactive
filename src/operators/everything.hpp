@@ -17,6 +17,7 @@
 #include <operators/logErrors.hpp>
 #include <operators/makeInfallible.hpp>
 #include <operators/map.hpp>
+#include <operators/map.hpp>
 #include <operators/merge.hpp>
 #include <operators/normalize.hpp>
 #include <operators/pid.hpp>
