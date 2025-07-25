@@ -135,34 +135,30 @@ void setup() {
   logging::debug(NULL, "instantiating SHT2x...");
   auto clock = fromClock<arduino_millis_clock>();
   auto tempAndHum = arduino::sht2x::sht2x(&Wire);
-  auto tempAndHumSmooth = Pipe(tempAndHum)
-    .pipe(logErrors<arduino::sht2x::Reading, arduino::sht2x::Error>([](arduino::sht2x::Error error) {
+  auto tempAndHumSmooth = tempAndHum
+    | logErrors<arduino::sht2x::Reading, arduino::sht2x::Error>([](arduino::sht2x::Error error) {
       return arduino::sht2x::formatError(error);
-    }, "sht2x"))
-    .pipe(makeInfallible<arduino::sht2x::Reading, arduino::sht2x::Error>())
-    .pipe(cache<arduino::sht2x::Reading>())
-    .pipe(throttle<arduino::sht2x::Reading>(clock, arduino_millis_clock::duration(250)))
+    }, "sht2x")
+    | makeInfallible<arduino::sht2x::Reading, arduino::sht2x::Error>()
+    | cache<arduino::sht2x::Reading>()
+    | throttle<arduino::sht2x::Reading>(clock, arduino_millis_clock::duration(250))
     // We've gotta do the averaging in two parts.
     // First the temperature...
-    .pipe(lift<arduino::sht2x::Reading, arduino::sht2x::Temperature>(
-      exponentialMovingAverage<arduino::sht2x::Temperature, typename arduino_millis_clock::time_point, typename arduino_millis_clock::duration, float>(
+    | liftToTupleLeft<arduino::sht2x::Humidity>(
+      exponentialMovingAverage<arduino::sht2x::Temperature>(
         clock,
         arduino_millis_clock::duration(1000),
-        mapChronoToScalar<float, typename arduino_millis_clock::duration>
-      ),
-      [](arduino::sht2x::Temperature value, arduino::sht2x::Reading original) { return arduino::sht2x::Reading(value, std::get<1>(original)); },
-      [](arduino::sht2x::Reading value) { return std::get<0>(value); }
-    ))
+        mapChronoToScalar<unsigned long, typename arduino_millis_clock::duration>
+      )
+    )
     /// ... Then the humidity.
-    .pipe(lift<arduino::sht2x::Reading, arduino::sht2x::Humidity>(
-      exponentialMovingAverage<arduino::sht2x::Humidity, typename arduino_millis_clock::time_point, typename arduino_millis_clock::duration, float>(
+    | liftToTupleRight<arduino::sht2x::Temperature>(
+      exponentialMovingAverage<arduino::sht2x::Humidity>(
         clock,
         arduino_millis_clock::duration(1000),
-        mapChronoToScalar<float, typename arduino_millis_clock::duration>
-      ),
-      [](arduino::sht2x::Humidity value, arduino::sht2x::Reading original) { return arduino::sht2x::Reading(std::get<0>(original), value); },
-      [](arduino::sht2x::Reading value) { return std::get<1>(value); }
-    ));
+        mapChronoToScalar<unsigned long, typename arduino_millis_clock::duration>
+      )
+    );
   auto setpoint = rheo::State<TempC>(au::celsius_pt(20.0f), false);
 
   auto emptyStyleSource = constant(std::vector<lvgl::StyleAndSelector>());
@@ -240,18 +236,15 @@ void setup() {
   lv_obj_set_style_text_color(humLabel, lv_palette_main(LV_PALETTE_BLUE), 0);
   lv_obj_set_style_text_align(humLabel, LV_TEXT_ALIGN_LEFT, 0);
 
-  pullTempAndHum = tempAndHumSmooth.sink(
-    foreach<arduino::sht2x::Reading>([chart, tempSeries, humSeries, tempLabel, humLabel](arduino::sht2x::Reading value) {
+  pullTempAndHum = tempAndHumSmooth
+    | foreach([chart, tempSeries, humSeries, tempLabel, humLabel](arduino::sht2x::Reading value) {
       logging::debug("chart", fmt::format("writing temp {} and hum {}", std::get<0>(value).in(au::Celsius{}), std::get<1>(value).in(au::Percent{})).c_str());
       lv_chart_set_next_value(chart, tempSeries, (int32_t)(std::get<0>(value).in(au::Celsius{}) * 10));
       lv_chart_set_next_value(chart, humSeries, (int32_t)(round(std::get<1>(value).in(au::Percent{}))));
       lv_chart_refresh(chart);
       lv_label_set_text(tempLabel, au_to_string(std::get<0>(value), 1).c_str());
       lv_label_set_text(humLabel, fmt::format("{} RH", au_to_string(std::get<1>(value), 0).c_str()).c_str());
-    })
-  );
-
-  
+    });
 
   // lv_obj_t* humLabel = lv_label_create(uiContainer);
   // lv_label_set_text(humLabel, "Starting...");
@@ -320,7 +313,7 @@ void setup() {
     },
     [](){}
   );
-  auto setpointC = map<float, TempC>(setpoint.sourceFn(false), [](TempC value) { return value.in(au::Celsius{}); });
+  auto setpointC = map(setpoint.sourceFn(false), [](TempC value) { return value.in(au::Celsius{}); });
   auto pullAndSourceSetpointEditor = lvgl::spinbox(setpointEditor, setpointC, emptyStyleSource);
   // auto setpointEditorSourceFn = std::get<1>(pullAndSourceSetpointEditor);
   // setpointEditorSourceFn(
