@@ -1,10 +1,12 @@
 #include <unity.h>
 #include <sources/constant.hpp>
 
+using namespace rheo::sources;
+
 void test_constant_produces_constant_value() {
-  auto eleven = rheo::constant(11);
+  auto eleven = constant(11);
   int pushedValue = 0;
-  auto pull = eleven([&pushedValue](int v) { pushedValue = v; }, [](){});
+  auto pull = eleven([&pushedValue](int v) { pushedValue = v; });
   pull();
   TEST_ASSERT_EQUAL_MESSAGE(11, pushedValue, "after pulling, should've been pushed a value of 11");
   pull();

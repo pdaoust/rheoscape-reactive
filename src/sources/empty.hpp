@@ -7,13 +7,13 @@ namespace rheo::sources {
 
   template <typename T>
   source_fn<T> empty() {
-    return [](push_fn<T> _1) {
+    return [](push_fn<T> _) {
       return [](){};
     };
   }
 
   template <typename T>
-  pull_fn empty(push_fn<T> _1) {
+  pull_fn empty(push_fn<T> _) {
     return [](){};
   }
 

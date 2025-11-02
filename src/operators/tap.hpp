@@ -2,6 +2,7 @@
 
 #include <functional>
 #include <core_types.hpp>
+#include <types/Wrapper.hpp>
 
 namespace rheo::operators {
 
@@ -17,19 +18,16 @@ namespace rheo::operators {
   template <typename T, typename SinkFn>
   source_fn<T> tap(source_fn<T> source, SinkFn&& sink) {
     return [source, sink = std::forward<SinkFn>(sink)](push_fn<T> pushPrimary) {
-      push_fn<T> pushToTap;
-
-      sink((source_fn<T>)[&pushToTap](push_fn<T> push) {
-        pushToTap = push;
+      auto pushSecondary = make_wrapper_shared<push_fn<T>>();
+      sink((source_fn<T>)[pushSecondary](push_fn<T> push) {
+        (*pushSecondary).value = std::forward<push_fn<T>>(push);
         // The tap isn't allowed to pull.
         return [](){};
       });
 
-      return source([pushPrimary, pushToTap](T value) {
+      return source([pushPrimary, pushSecondary](T value) {
         pushPrimary(value);
-        if (pushToTap) {
-          pushToTap(value);
-        }
+        (*pushSecondary).value(value);
       });
     };
   }

@@ -159,6 +159,7 @@ void setup() {
         mapChronoToScalar<unsigned long, typename arduino_millis_clock::duration>
       )
     );
+  /*
   auto setpoint = rheo::State<TempC>(au::celsius_pt(20.0f), false);
 
   auto emptyStyleSource = constant(std::vector<lvgl::StyleAndSelector>());
@@ -235,6 +236,7 @@ void setup() {
   lv_obj_set_flex_grow(humLabel, 1);
   lv_obj_set_style_text_color(humLabel, lv_palette_main(LV_PALETTE_BLUE), 0);
   lv_obj_set_style_text_align(humLabel, LV_TEXT_ALIGN_LEFT, 0);
+  */
 
   pullTempAndHum = tempAndHumSmooth
     | foreach([chart, tempSeries, humSeries, tempLabel, humLabel](arduino::sht2x::Reading value) {

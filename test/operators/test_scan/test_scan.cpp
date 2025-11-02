@@ -1,20 +1,25 @@
 #include <unity.h>
 #include <functional>
 #include <operators/scan.hpp>
+#include <operators/unwrap.hpp>
 #include <sources/sequence.hpp>
 #include <sources/empty.hpp>
 
+using namespace rheo;
+using namespace operators;
+using namespace sources;
+
 void test_scan_scans_with_initial() {
-  auto someNumbers = rheo::sources::sequence(0, 9, 1);
-  auto scanner = rheo::operators::scan<std::string, int>(
+  auto someNumbers = unwrapEndable(sequence(0, 9, 1));
+  auto scanner = scan(
     someNumbers,
-    "",
-    (rheo::fold_fn<std::string, int>)[](std::string acc, int v) {
+    (std::string)"",
+    [](std::string acc, int v) {
       return acc + std::to_string(v);
     }
   );
   std::string pushedValue;
-  rheo::pull_fn pull = scanner([&pushedValue](std::string v) { pushedValue = v; }, [](){});
+  auto pull = scanner([&pushedValue](std::string v) { pushedValue = v; });
   pull();
   TEST_ASSERT_EQUAL_STRING_MESSAGE("0", pushedValue.c_str(), "should scan initial acc with first item");
   pull();
@@ -38,35 +43,35 @@ void test_scan_scans_with_initial() {
 }
 
 void test_scan_scans_without_initial() {
-  auto someNumbers = rheo::sources::sequence(0, 9, 1);
-  auto scanner = rheo::operators::scan<int>(
+  auto someNumbers = unwrapEndable(sequence(0, 9, 1));
+  auto scanner = scan(
     someNumbers,
-    (rheo::reduce_fn<int>)[](int acc, int v) {
+    [](int acc, int v) {
       return acc + v;
     }
   );
-  int pushedValue;
-  rheo::pull_fn pull = scanr([&pushedValue](int v) { pushedValue = v; }, [](){});
+  int pushedValue = -1;
+  pull_fn pull = scanner([&pushedValue](auto v) { pushedValue = v; });
   pull();
-  TEST_ASSERT_EQUAL_MESSAGE(0, pushedValue, "should yield first item");
+  TEST_ASSERT_EQUAL_MESSAGE(-1, pushedValue, "should not yield first item by itself");
   pull();
-  TEST_ASSERT_EQUAL_MESSAGE(1, pushedValue, "should scan first item with second item");
+  TEST_ASSERT_EQUAL_MESSAGE(1, pushedValue, "should combine first item with second item");
   pull();
-  TEST_ASSERT_EQUAL_MESSAGE(3, pushedValue, "should scan acc with third item");
+  TEST_ASSERT_EQUAL_MESSAGE(3, pushedValue, "should combine acc with third item");
   pull();
-  TEST_ASSERT_EQUAL_MESSAGE(6, pushedValue, "should scan acc with fourth item");
+  TEST_ASSERT_EQUAL_MESSAGE(6, pushedValue, "should combine acc with fourth item");
   pull();
-  TEST_ASSERT_EQUAL_MESSAGE(10, pushedValue, "should scan acc with fifth item");
+  TEST_ASSERT_EQUAL_MESSAGE(10, pushedValue, "should combine acc with fifth item");
   pull();
-  TEST_ASSERT_EQUAL_MESSAGE(15, pushedValue, "should scan acc with sixth item");
+  TEST_ASSERT_EQUAL_MESSAGE(15, pushedValue, "should combine acc with sixth item");
   pull();
-  TEST_ASSERT_EQUAL_MESSAGE(21, pushedValue, "should scan acc with seventh item");
+  TEST_ASSERT_EQUAL_MESSAGE(21, pushedValue, "should combine acc with seventh item");
   pull();
-  TEST_ASSERT_EQUAL_MESSAGE(28, pushedValue, "should scan acc with eighth item");
+  TEST_ASSERT_EQUAL_MESSAGE(28, pushedValue, "should combine acc with eighth item");
   pull();
-  TEST_ASSERT_EQUAL_MESSAGE(36, pushedValue, "should scan acc with ninth item");
+  TEST_ASSERT_EQUAL_MESSAGE(36, pushedValue, "should combine acc with ninth item");
   pull();
-  TEST_ASSERT_EQUAL_MESSAGE(45, pushedValue, "should scan acc with tenth item");
+  TEST_ASSERT_EQUAL_MESSAGE(45, pushedValue, "should combine acc with tenth item");
 }
 
 int main(int argc, char **argv) {

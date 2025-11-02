@@ -2,14 +2,16 @@
 #include <types/State.hpp>
 #include <operators/dedupe.hpp>
 
+using namespace rheo;
+using namespace rheo::operators;
+
 void test_dedupe_dedupes() {
   rheo::State<int> state;
-  auto dedupedState = rheo::dedupe(state.sourceFn());
+  auto dedupedState = dedupe(state.sourceFn());
   int value = 0;
   int pushedCount = 0;
   auto pull = dedupedState(
-    [&value, &pushedCount](int v) { value = v; pushedCount ++; },
-    [](){}
+    [&value, &pushedCount](int v) { value = v; pushedCount ++; }
   );
 
   state.set(1);

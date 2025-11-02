@@ -3,16 +3,20 @@
 #include <sources/constant.hpp>
 #include <types/State.hpp>
 
+using namespace rheo;
+using namespace rheo::sources;
+using namespace rheo::operators;
+
 void test_choose_chooses_right_stream() {
-  std::map<int, rheo::source_fn<int>> streams {
-    { 1, rheo::constant(2) },
-    { 2, rheo::constant(4) },
-    { 3, rheo::constant(6) }
+  std::map<int, source_fn<int>> streams {
+    { 1, constant(2) },
+    { 2, constant(4) },
+    { 3, constant(6) }
   };
-  rheo::State<int> chooser(0);
-  auto chooseStreams = rheo::choose<int, int>(streams, chooser.sourceFn());
+  State<int> chooser(0);
+  auto chooseStreams = choose(streams, chooser.sourceFn());
   int lastPushedValue = 0;
-  rheo::pull_fn pull = chooseStreams([&lastPushedValue](int v) { lastPushedValue = v; }, [](){});
+  pull_fn pull = chooseStreams([&lastPushedValue](int v) { lastPushedValue = v; });
   pull();
   TEST_ASSERT_EQUAL_MESSAGE(0, lastPushedValue, "Shouldn't have pushed a value if chooser's value isn't in the map");
   lastPushedValue = 0;

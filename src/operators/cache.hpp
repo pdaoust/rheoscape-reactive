@@ -19,14 +19,15 @@ namespace rheo::operators {
   template <typename T>
   source_fn<T> cache(source_fn<T> source) {
     return [source](push_fn<T> push) {
-      auto lastSeenValue = std::make_shared<std::optional<T>>();
+      auto sharedPush = std::make_shared<push_fn<T>>(push);
+      auto lastSeenValue = std::make_shared<std::optional<T>>(std::nullopt);
       auto isWithinPull = make_wrapper_shared(false);
       auto didPushWithinPull = make_wrapper_shared(false);
 
       pull_fn pull = source(
-        [&push, lastSeenValue, isWithinPull, didPushWithinPull](T value) {
+        [sharedPush, lastSeenValue, isWithinPull, didPushWithinPull](T value) mutable {
           lastSeenValue->emplace(value);
-          push(value);
+          (*sharedPush)(value);
 
           if (isWithinPull->value) {
             // This is being called as a direct consequence of a pull.
@@ -37,7 +38,7 @@ namespace rheo::operators {
         }
       );
 
-      return [&push, pull = std::move(pull), lastSeenValue, isWithinPull, didPushWithinPull]() {
+      return [sharedPush, pull = std::move(pull), lastSeenValue, isWithinPull, didPushWithinPull]() {
         // Set the flag that tells the upstream push callback
         // that it is being pushed because of a pull.
         isWithinPull->value = true;
@@ -53,7 +54,7 @@ namespace rheo::operators {
         } else if (lastSeenValue->has_value()) {
           // No sync push happened because of pull.
           // Push the cached value instead.
-          push(lastSeenValue->value());
+          (*sharedPush)(lastSeenValue->value());
         }
 
         // Reset the flag, in case the push (or an unrelated push) is coming in async.

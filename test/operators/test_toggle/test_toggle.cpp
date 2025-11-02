@@ -4,18 +4,22 @@
 #include <sources/constant.hpp>
 #include <types/State.hpp>
 
+using namespace rheo;
+using namespace rheo::operators;
+using namespace rheo::sources;
+
+
 void test_toggle_toggles() {
-  auto valueSource = rheo::constant(5);
-  rheo::State<bool> toggler(false);
-  auto toggled = rheo::toggle(valueSource, toggler.sourceFn());
+  auto valueSource = constant(5);
+  State<bool> toggler(false);
+  auto toggled = toggle(valueSource, toggler.sourceFn());
   int pushedValue = -1;
   int pushedCount = 0;
   auto pull = toggled(
     [&pushedValue, &pushedCount](int v) {
       pushedValue = v;
       pushedCount ++;
-    },
-    [](){}
+    }
   );
 
   for (int i = 0; i < 5; i ++) {

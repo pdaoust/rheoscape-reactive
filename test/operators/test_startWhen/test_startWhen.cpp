@@ -1,16 +1,20 @@
 #include <unity.h>
 #include <functional>
 #include <operators/startWhen.hpp>
+#include <operators/unwrap.hpp>
 #include <sources/fromIterator.hpp>
+
+using namespace rheo;
+using namespace rheo::operators;
+using namespace rheo::sources;
 
 void test_startWhen_starts_when() {
   std::vector<int> numbers { 0, 1, 2, 3, 4, 5, 6, 7, 6, 5, 4 };
-  auto numbersSource = rheo::fromIterator(numbers.begin(), numbers.end());
-  auto numbersAboveFour = rheo::startWhen(numbersSource, (rheo::filter_fn<int>)[](int v) { return v > 4; });
+  auto numbersSource = unwrapEndable(fromIterator(numbers.begin(), numbers.end()));
+  auto numbersAboveFour = startWhen(numbersSource, (filter_fn<int>)[](int v) { return v > 4; });
   int pushedValue = -1;
   auto pull = numbersAboveFour(
-    [&pushedValue](int v) { pushedValue = v; },
-    [](){}
+    [&pushedValue](int v) { pushedValue = v; }
   );
   for (int i = 0; i < 5; i ++) {
     pull();

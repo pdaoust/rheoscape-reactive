@@ -2,6 +2,7 @@
 
 #include <functional>
 #include <core_types.hpp>
+#include <Endable.hpp>
 
 namespace rheo::operators {
 
@@ -10,14 +11,14 @@ namespace rheo::operators {
 
   template <typename T, typename FilterFn>
   source_fn<Endable<T>> takeWhile(source_fn<T> source, FilterFn&& condition) {
-    return [source, condition = std::forward<FilterFn>(condition)](push_fn<T> push) {
-      return source([condition, push, running = true](T value) mutable {
+    return [source, condition = std::forward<FilterFn>(condition)](push_fn<Endable<T>> push) {
+      return source([condition, push, running = true](T&& value) mutable {
         if (running) {
           if (!condition(value)) {
             running = false;
             push(Endable<T>());
           } else {
-            push(Endable<T>(value));
+            push(Endable<T>(std::forward<T>(value)));
           }
         }
       });
@@ -34,7 +35,7 @@ namespace rheo::operators {
   }
 
   template <typename T, typename FilterFn>
-  source_fn<T> takeUntil(source_fn<T> source, FilterFn&& condition) {
+  source_fn<Endable<T>> takeUntil(source_fn<T> source, FilterFn&& condition) {
     return takeWhile(source, [condition = std::forward<FilterFn>(condition)](T value) { return !condition(value); });
   }
 

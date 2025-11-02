@@ -19,14 +19,14 @@ namespace rheo {
       std::vector<push_fn<T>> _sinks;
 
     public:
-      State(std::optional<T> initial = std::nullopt, bool initialPush = true) {
-        if (initial.has_value()) {
-          set(initial.value(), initialPush);
-        }
+      State() {}
+      
+      State(T initial, bool initialPush = true) {
+        set(initial, initialPush);
       }
 
       void set(T value, bool push = true) {
-        _value = value;
+        _value.emplace(value);
 
         if (push) {
           for (auto sink : _sinks) {

@@ -8,9 +8,11 @@
 #include <Endable.hpp>
 #include <logging.hpp>
 #include <types/au_all_units_noio.hpp>
+#ifdef PLATFORM_ESP32
 #include <Arduino.h>
 #include <Wire.h>
 #include <SHT2x.h>
+#endif
 
 namespace rheo::sources::arduino::sht2x {
 
@@ -24,6 +26,7 @@ namespace rheo::sources::arduino::sht2x {
   // (b) if it ends, it's because of an error.
   using ReadingFallible = Fallible<Reading, Error>;
 
+#ifdef PLATFORM_ESP32
   source_fn<ReadingFallible> sht2x(TwoWire* i2c, uint8_t resolution = 0) {
     auto sensor = new SHT2x(i2c);
     int sensorStartError = 0;
@@ -166,5 +169,6 @@ namespace rheo::sources::arduino::sht2x {
       return "SHT2x: Stream has ended";
     }
   }
+#endif
 
 }

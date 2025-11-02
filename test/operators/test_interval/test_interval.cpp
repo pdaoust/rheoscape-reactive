@@ -4,22 +4,25 @@
 #include <sources/fromClock.hpp>
 #include <types/mock_clock.hpp>
 
+using namespace rheo;
+using namespace rheo::sources;
+using namespace rheo::operators;
+
 void test_interval_counts_correct_intervals() {
-  rheo::mock_clock_ulong_millis::setTime(0);
-  auto mockClock = rheo::fromClock<rheo::mock_clock_ulong_millis>();
-  auto interval = rheo::interval(
+  mock_clock_ulong_millis::setTime(0);
+  auto mockClock = fromClock<mock_clock_ulong_millis>();
+  auto intervaled = interval(
     mockClock,
-    rheo::every(rheo::mock_clock_ulong_millis::duration(100))
+    every(mock_clock_ulong_millis::duration(100))
   );
 
   int intervalsCounted = 0;
-  rheo::mock_clock_ulong_millis::time_point lastTimestamp;
-  rheo::pull_fn pull = interval(
-    [&intervalsCounted, &lastTimestamp](rheo::mock_clock_ulong_millis::time_point v) {
+  mock_clock_ulong_millis::time_point lastTimestamp;
+  pull_fn pull = intervaled(
+    [&intervalsCounted, &lastTimestamp](mock_clock_ulong_millis::time_point v) {
       intervalsCounted ++;
       lastTimestamp = v;
-    },
-    [](){}
+    }
   );
 
   for (int i = 0; i < 10; i ++) {
@@ -27,7 +30,7 @@ void test_interval_counts_correct_intervals() {
       pull();
       TEST_ASSERT_EQUAL_MESSAGE(i, intervalsCounted, "should have counted the right number of intervals");
       TEST_ASSERT_EQUAL_MESSAGE(i * 100, lastTimestamp.time_since_epoch().count(), "should have pushed the right timestamp");
-      rheo::mock_clock_ulong_millis::tick();
+      mock_clock_ulong_millis::tick();
     }
   }
 }

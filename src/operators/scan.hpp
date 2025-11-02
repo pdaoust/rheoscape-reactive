@@ -6,7 +6,7 @@ namespace rheo::operators {
   
   template <typename TAcc, typename TIn, typename ScanFn>
   source_fn<TAcc> scan(source_fn<TIn> source, TAcc initial, ScanFn&& scanner) {
-    return [source, scanner = std::forward<ScanFn>(scanner), acc = initial](push_fn<TAcc> push) {
+    return [source, scanner = std::forward<ScanFn>(scanner), acc = initial](push_fn<TAcc> push) mutable {
       return source([scanner, &acc, push](TIn value) mutable {
         acc = scanner(acc, value);
         push(acc);
@@ -28,10 +28,12 @@ namespace rheo::operators {
     };
   }
 
-  template <typename TAcc, typename TIn, typename ScanFn>
-  pipe_fn<TAcc, TIn> scan(TAcc initial, ScanFn&& scanner) {
+  template <typename TAcc, typename ScanFn>
+  auto scan(TAcc initial, ScanFn&& scanner)
+  -> pipe_fn<TAcc, transformer_2_in_in_2_type_t<ScanFn>> {
+    using TIn = transformer_2_in_in_2_type_t<ScanFn>;
     return [scanner = std::forward<ScanFn>(scanner), initial](source_fn<TIn> source) {
-      return scan(source, std::forward<ScanFn>(scanner), initial);
+      return scan(source, initial, scanner);
     };
   }
 

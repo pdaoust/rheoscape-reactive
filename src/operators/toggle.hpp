@@ -13,7 +13,7 @@ namespace rheo::operators {
   // This source ends when either of its sources ends.
   template <typename T>
   source_fn<T> toggle(source_fn<T> valueSource, source_fn<bool> toggleSource) {
-    auto combined = combineTuple(valueSource, toggleSource);
+    auto combined = combine(valueSource, toggleSource, std::make_tuple<T, bool>);
     auto filtered = filter(combined, (rheo::filter_fn<std::tuple<T, bool>>)[](std::tuple<T, bool> value) { return std::get<1>(value); });
     return map(filtered, (map_fn<T, std::tuple<T, bool>>)[](std::tuple<T, bool> value) { return std::get<0>(value); });
   }

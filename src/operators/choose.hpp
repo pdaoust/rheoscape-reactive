@@ -26,7 +26,7 @@ namespace rheo::operators {
       auto pullValueFns = std::make_shared<std::map<TKey, pull_fn>>();
 
       for (std::pair<TKey, source_fn<TVal>> const& pair : valueSourceMap) {
-        pullValueFns->insert_or_assign(pair.first, pair.second([&push, switchState, pair](TVal value) {
+        pullValueFns->insert_or_assign(pair.first, pair.second([push, switchState, pair](TVal value) {
           // You'd think this is unnecessary, because this source fn's pull fn
           // guards against the wrong source being pulled.
           // Ah, but what about sources that do their own pushing?
@@ -38,7 +38,7 @@ namespace rheo::operators {
 
       pull_fn pullSwitchSource = switchSource([switchState](TKey key) { switchState->emplace(key); });
 
-      return [switchState, pullValueFns = std::move<pull_fn>(pullValueFns), pullSwitchSource = std::move(pullSwitchSource)]() {
+      return [switchState, pullValueFns, pullSwitchSource]() {
         // Pull this one first to give us a better chance of getting a desired switch state.
         pullSwitchSource();
         // Only pull the value source that's switched on.

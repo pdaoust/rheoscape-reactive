@@ -26,17 +26,17 @@ namespace rheo::operators {
   template <typename T>
   source_fn<ProcessCommand> bangBang(
     source_fn<T> processVariableSource,
-    source_fn<SetpointAndHysteresis<T>> boundsSource
+    source_fn<Range<T>> boundsSource
   ) {
-    auto combined = combine(processVariableSource, boundsSource, std::make_tuple<T, SetpointAndHysteresis<T>>);
+    auto combined = combine(processVariableSource, boundsSource, std::make_tuple<T, Range<T>>);
 
     return scan(
       std::move(combined),
       ProcessCommand::neutral,
-      [](ProcessCommand acc, std::tuple<T, SetpointAndHysteresis<T>> value) {
-        if (std::get<0>(value) < std::get<1>(value).min()) {
+      [](ProcessCommand acc, std::tuple<T, Range<T>> value) {
+        if (std::get<0>(value) < std::get<1>(value).min) {
           return ProcessCommand::up;
-        } else if (std::get<0>(value) > std::get<1>(value).max()) {
+        } else if (std::get<0>(value) > std::get<1>(value).max) {
           return ProcessCommand::down;
         } else {
           // In the dead zone.
@@ -49,9 +49,9 @@ namespace rheo::operators {
   }
 
   template <typename T>
-  pipe_fn<T, T> bangBang(source_fn<SetpointAndHysteresis<T>> boundsSource) {
-    return [boundsSource = std::move<source_fn<SetpointAndHysteresis<T>>>(boundsSource)](source_fn<T> processVariableSource) {
-      return bangBang(std::move<source_fn<T>>(processVariableSource), std::move<source_fn<SetpointAndHysteresis<T>>>(boundsSource));
+  pipe_fn<T, T> bangBang(source_fn<Range<T>> boundsSource) {
+    return [boundsSource = std::move<source_fn<Range<T>>>(boundsSource)](source_fn<T> processVariableSource) {
+      return bangBang(std::move<source_fn<T>>(processVariableSource), std::move<source_fn<Range<T>>>(boundsSource));
     };
   }
 

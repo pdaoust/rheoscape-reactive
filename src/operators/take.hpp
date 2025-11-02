@@ -10,11 +10,13 @@ namespace rheo::operators {
   // then end the source.
   template <typename T>
   source_fn<Endable<T>> take(source_fn<T> source, size_t count) {
-    return [source, count](push_fn<T> push) {
-      return source([count, push, i = 0](T value) mutable {
+    return [source, count](push_fn<Endable<T>> push) {
+      return source([count, push, i = 0](T&& value) mutable {
         if (i < count) {
-          push(Endable<T>(value, i == count - 1));
+          push(Endable<T>(std::forward<T>(value), i == count - 1));
           i ++;
+        } else {
+          push(Endable<T>());
         }
       });
     };

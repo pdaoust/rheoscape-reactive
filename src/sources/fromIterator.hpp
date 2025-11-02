@@ -17,7 +17,7 @@ namespace rheo::sources {
           return;
         }
         if (i < iEnd) {
-          push(Endable(*i));
+          push(Endable(*i, i + 1 == iEnd));
           ++ i;
           if (i == iEnd) {
             isEnded = true;

@@ -1,27 +1,31 @@
 #include <unity.h>
 #include <util.hpp>
 #include <operators/merge.hpp>
+#include <operators/unwrap.hpp>
 #include <sources/constant.hpp>
 #include <sources/fromIterator.hpp>
 #include <sources/sequence.hpp>
 #include <types/State.hpp>
 
+using namespace rheo;
+using namespace rheo::operators;
+using namespace rheo::sources;
+
 void test_merge_merges_disparate_pull_streams() {
-  auto lettersSource = rheo::sequence<char>('a', 'c', 1);
-  auto numbersSource = rheo::sequence(1, 3, 1);
-  auto merged = rheo::merge(lettersSource, numbersSource);
+  auto lettersSource = unwrapEndable(sequence<char>('a', 'c', 1));
+  auto numbersSource = unwrapEndable(sequence(1, 3, 1));
+  auto merged = merge(lettersSource, numbersSource);
 
   std::vector<char> pushedLetters;
   std::vector<int> pushedNumbers;
   auto pull = merged(
-    [&pushedLetters, &pushedNumbers](std::variant<char, int> v) {
+    [&pushedLetters, &pushedNumbers](auto v) {
       if (v.index() == 0) {
         pushedLetters.push_back(std::get<0>(v));
       } else {
         pushedNumbers.push_back(std::get<1>(v));
       }
-    },
-    [](){}
+    }
   );
 
   pull();
@@ -42,14 +46,13 @@ void test_merge_merges_disparate_pull_streams() {
 }
 
 void test_merge_merges_disparate_push_streams() {
-  rheo::State<char> lettersSource;
-  rheo::State<int> numbersSource;
-  auto merged = rheo::merge(lettersSource.sourceFn(), numbersSource.sourceFn());
+  State<char> lettersSource;
+  State<int> numbersSource;
+  auto merged = merge(lettersSource.sourceFn(), numbersSource.sourceFn());
 
   std::variant<char, int> lastPushedValue;
   auto pull = merged(
-    [&lastPushedValue](std::variant<char, int> v) { lastPushedValue = v; },
-    [](){}
+    [&lastPushedValue](std::variant<char, int> v) { lastPushedValue = v; }
   );
 
   lettersSource.set('a');
@@ -67,14 +70,13 @@ void test_merge_merges_disparate_push_streams() {
 }
 
 void test_merge_merges_similar_streams() {
-  rheo::State<int> numbersSource1;
-  rheo::State<int> numbersSource2;
-  auto merged = rheo::merge(numbersSource1.sourceFn(), numbersSource2.sourceFn());
+  State<int> numbersSource1;
+  State<int> numbersSource2;
+  auto merged = merge(numbersSource1.sourceFn(), numbersSource2.sourceFn());
 
   std::vector<int> pushedValues;
   auto pull = merged(
-    [&pushedValues](int v) { pushedValues.push_back(v); },
-    [](){}
+    [&pushedValues](int v) { pushedValues.push_back(v); }
   );
 
   numbersSource1.set(1);

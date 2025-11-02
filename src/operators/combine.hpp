@@ -36,31 +36,44 @@ namespace rheo::operators {
   ) -> source_fn<transformer_2_in_out_type_t<CombineFn>> {
     using TOut = transformer_2_in_out_type_t<CombineFn>;
 
-    return [&source1, &source2, combiner = std::forward<CombineFn>(combiner)](push_fn<TOut> push) {
+    return [source1, source2, combiner = std::forward<CombineFn>(combiner)](push_fn<TOut> push) {
       auto currentValue1 = std::make_shared<std::optional<T1>>();
       auto currentValue2 = std::make_shared<std::optional<T2>>();
+      auto pullSource1 = std::make_shared<pull_fn>();
+      // The second source's pull function won't be bound to anything when source 1 is ready;
+      // if source 1 receives a value immediately upon subscribe,
+      // source 2's pull would be a null pointer.
+      // So we have to make it an optional and check for a value.
+      auto pullSource2 = std::make_shared<std::optional<pull_fn>>();
 
-      pull_fn pullSource1 = source1([combiner, &push, currentValue1, currentValue2](T1&& value) {
+      *pullSource1 = source1([combiner, push, currentValue1, currentValue2, pullSource2](T1&& value) {
         currentValue1->emplace(std::forward<T1>(value));
         if (currentValue2->has_value()) {
+          // Source 2 has already been pushed to. Push and reset the values for next time.
           push(combiner(std::forward<T1>(currentValue1->value()), std::forward<T2>(currentValue2->value())));
+          currentValue1->reset();
+          currentValue2->reset();
+        } else if (pullSource2->has_value()) {
+          // We're going first. Pull the second source and let its push function handle the push.
+          pullSource2->value()();
         }
       });
 
-      pull_fn pullSource2 = source2([&combiner, &push, currentValue1, currentValue2](T2&& value) {
+      pullSource2->emplace(source2([combiner, push, currentValue1, currentValue2, pullSource1](T2&& value) {
         currentValue2->emplace(std::forward<T2>(value));
         if (currentValue1->has_value()) {
           push(combiner(std::forward<T1>(currentValue1->value()), std::forward<T2>(currentValue2->value())));
+          currentValue2->reset();
+          currentValue1->reset();
+        } else {
+          (*pullSource1)();
         }
-      });
+      }));
 
-      return [pullSource1 = std::move(pullSource1), pullSource2 = std::move(pullSource2)]() {
-        // FIXME: Should it pull both sources? Maybe all we want is to pull the first one?
-        // This is necessary first time round, but after that it'll cause the combined value to be pushed twice.
-        // On the other hand, if we don't pull both sources,
-        // the second source will stay stale forevermore.
-        pullSource1();
-        pullSource2();
+      return [pullSource1]() {
+        // We only need to pull one source;
+        // it'll handle the pulling of the other.
+        (*pullSource1)();
       };
     };
   }
@@ -89,32 +102,59 @@ namespace rheo::operators {
       auto currentValue1 = std::make_shared<std::optional<T1>>();
       auto currentValue2 = std::make_shared<std::optional<T2>>();
       auto currentValue3 = std::make_shared<std::optional<T3>>();
+      auto pullSource1 = std::make_shared<pull_fn>();
+      auto pullSource2 = std::make_shared<std::optional<pull_fn>>();
+      auto pullSource3 = std::make_shared<std::optional<pull_fn>>();
 
-      pull_fn pullSource1 = source1([&combiner, &push, currentValue1, currentValue2, currentValue3](T1 value) {
-        currentValue1->emplace(value);
+      *pullSource1 = source1([combiner, push, currentValue1, currentValue2, currentValue3, pullSource2, pullSource3](T1&& value) {
+        currentValue1->emplace(std::forward<T1>(value));
         if (currentValue2->has_value() && currentValue3->has_value()) {
-          push(combiner(value, currentValue2->value(), currentValue3->value()));
+          push(combiner(std::forward<T1>(currentValue1->value()), std::forward<T2>(currentValue2->value()), std::forward<T3>(currentValue3->value())));
+          currentValue1->reset();
+          currentValue2->reset();
+          currentValue3->reset();
+        } else if (pullSource2->has_value() && !currentValue2->has_value()) {
+          // This will cascade to source 2, which will cascade to source 3 if needed.
+          pullSource2->value()();
+        } else if (pullSource3->has_value()) {
+          pullSource3->value()();
         }
       });
 
-      pull_fn pullSource2 = source2([&combiner, &push, currentValue1, currentValue2, currentValue3](T2 value) {
-        currentValue2->emplace(value);
+      pullSource2->emplace(source2([combiner, push, currentValue1, currentValue2, currentValue3, pullSource1, pullSource3](T2&& value) {
+        currentValue2->emplace(std::forward<T2>(value));
         if (currentValue1->has_value() && currentValue3->has_value()) {
-          push(combiner(currentValue1->value(), value, currentValue3->value()));
+          push(combiner(std::forward<T1>(currentValue1->value()), std::forward<T2>(currentValue2->value()), std::forward<T3>(currentValue3->value())));
+          currentValue1->reset();
+          currentValue2->reset();
+          currentValue3->reset();
+        } else if (!currentValue1->has_value()) {
+          (*pullSource1)();
+        } else if (pullSource3->has_value()) {
+          pullSource3->value()();
         }
-      });
+      }));
 
-      pull_fn pullSource3 = source3([&combiner, &push, currentValue1, currentValue2, currentValue3](T3 value) {
-        currentValue3->emplace(value);
+      pullSource3->emplace(source3([combiner, push, currentValue1, currentValue2, currentValue3, pullSource1, pullSource2](T3&& value) {
+        currentValue3->emplace(std::forward<T3>(value));
         if (currentValue1->has_value() && currentValue2->has_value()) {
-          push(combiner(currentValue1->value(), currentValue2->value(), value));
+          push(combiner(std::forward<T1>(currentValue1->value()), std::forward<T2>(currentValue2->value()), std::forward<T3>(currentValue3->value())));
+          currentValue1->reset();
+          currentValue2->reset();
+          currentValue3->reset();
+        } else if (!currentValue1->has_value()) {
+          (*pullSource1)();
+        } else if (pullSource2->has_value() && !currentValue2->has_value()) {
+          pullSource2->value()();
         }
-      });
+        // We don't need to test for the existence of value 2 and pull from it,
+        // because we know it'll cascade from 1 to 2.
+      }));
 
-      return [pullSource1 = std::move(pullSource1), pullSource2 = std::move(pullSource2), pullSource3 = std::move(pullSource3)]() {
-        pullSource1();
-        pullSource2();
-        pullSource3();
+      return [pullSource1]() {
+        // We only need to pull one source;
+        // it'll handle the pulling of the other.
+        (*pullSource1)();
       };
     };
   }
@@ -146,40 +186,118 @@ namespace rheo::operators {
       auto currentValue2 = std::make_shared<std::optional<T2>>();
       auto currentValue3 = std::make_shared<std::optional<T3>>();
       auto currentValue4 = std::make_shared<std::optional<T4>>();
+      auto pullSource1 = std::make_shared<pull_fn>();
+      auto pullSource2 = std::make_shared<std::optional<pull_fn>>();
+      auto pullSource3 = std::make_shared<std::optional<pull_fn>>();
+      auto pullSource4 = std::make_shared<std::optional<pull_fn>>();
 
-      pull_fn pullSource1 = source1([&combiner, &push, currentValue1, currentValue2, currentValue3, currentValue4](T1 value) {
-        currentValue1->emplace(value);
-        if (currentValue2->has_value() && currentValue3->has_value()) {
-          push(combiner(value, currentValue2->value(), currentValue3->value(), currentValue4->value()));
+      *pullSource1 = source1([combiner, push, currentValue1, currentValue2, currentValue3, currentValue4, pullSource2, pullSource3, pullSource4](T1&& value) {
+        currentValue1->emplace(std::forward<T1>(value));
+        if (currentValue2->has_value()
+          && currentValue3->has_value()
+          && currentValue4->has_value()
+        ) {
+          push(combiner(
+            std::forward<T1>(currentValue1->value()),
+            std::forward<T2>(currentValue2->value()),
+            std::forward<T3>(currentValue3->value()),
+            std::forward<T4>(currentValue4->value())
+          ));
+          currentValue1->reset();
+          currentValue2->reset();
+          currentValue3->reset();
+          currentValue4->reset();
+        } else if (pullSource2->has_value() && !currentValue2->has_value()) {
+          pullSource2->value()();
+        } else if (pullSource3->has_value() && !currentValue3->has_value()) {
+          pullSource3->value()();
+        } else if (pullSource4->has_value()) {
+          pullSource4->value()();
         }
       });
 
-      pull_fn pullSource2 = source2([&combiner, &push, currentValue1, currentValue2, currentValue3, currentValue4](T2 value) {
-        currentValue2->emplace(value);
-        if (currentValue1->has_value() && currentValue3->has_value()) {
-          push(combiner(currentValue1->value(), value, currentValue3->value(), currentValue4->value()));
+      pullSource2->emplace(source2([combiner, push, currentValue1, currentValue2, currentValue3, currentValue4, pullSource1, pullSource3, pullSource4](T2&& value) {
+        currentValue2->emplace(std::forward<T2>(value));
+        if (
+          currentValue1->has_value()
+          && currentValue3->has_value()
+          && currentValue4->has_value()
+        ) {
+          push(combiner(
+            std::forward<T1>(currentValue1->value()),
+            std::forward<T2>(currentValue2->value()),
+            std::forward<T3>(currentValue3->value()),
+            std::forward<T4>(currentValue4->value())
+          ));
+          currentValue1->reset();
+          currentValue2->reset();
+          currentValue3->reset();
+          currentValue4->reset();
+        } else if (!currentValue1->has_value()) {
+          (*pullSource1)();
+        } else if (pullSource3->has_value() && !currentValue3->has_value()) {
+          pullSource3->value()();
+        } else if (pullSource4->has_value()) {
+          pullSource4->value()();
         }
-      });
+      }));
 
-      pull_fn pullSource3 = source3([&combiner, &push, currentValue1, currentValue2, currentValue3, currentValue4](T3 value) {
-        currentValue3->emplace(value);
-        if (currentValue1->has_value() && currentValue2->has_value()) {
-          push(combiner(currentValue1->value(), currentValue2->value(), value, currentValue4->value()));
+      pullSource3->emplace(source3([combiner, push, currentValue1, currentValue2, currentValue3, currentValue4, pullSource1, pullSource2, pullSource4](T3&& value) {
+        currentValue3->emplace(std::forward<T3>(value));
+        if (
+          currentValue1->has_value()
+          && currentValue2->has_value()
+          && currentValue4->has_value()
+        ) {
+          push(combiner(
+            std::forward<T1>(currentValue1->value()),
+            std::forward<T2>(currentValue2->value()),
+            std::forward<T3>(currentValue3->value()),
+            std::forward<T4>(currentValue4->value())
+          ));
+          currentValue1->reset();
+          currentValue2->reset();
+          currentValue3->reset();
+          currentValue4->reset();
+        } else if (!currentValue1->has_value()) {
+          (*pullSource1)();
+        } else if (pullSource2->has_value() && !currentValue2->has_value()) {
+          pullSource2->value()();
+        } else if (pullSource4->has_value()) {
+          pullSource4->value()();
         }
-      });
+      }));
 
-      pull_fn pullSource4 = source4([&combiner, &push, currentValue1, currentValue2, currentValue3, currentValue4](T4 value) {
-        currentValue4->emplace(value);
-        if (currentValue1->has_value() && currentValue2->has_value() && currentValue3->has_value()) {
-          push(combiner(currentValue1->value(), currentValue2->value(), currentValue3->value(), value));
+      pullSource4->emplace(source4([combiner, push, currentValue1, currentValue2, currentValue3, currentValue4, pullSource1, pullSource2, pullSource3](T4&& value) {
+        currentValue4->emplace(std::forward<T4>(value));
+        if (
+          currentValue1->has_value()
+          && currentValue2->has_value()
+          && currentValue3->has_value()
+        ) {
+          push(combiner(
+            std::forward<T1>(currentValue1->value()),
+            std::forward<T2>(currentValue2->value()),
+            std::forward<T3>(currentValue3->value()),
+            std::forward<T4>(currentValue4->value())
+          ));
+          currentValue1->reset();
+          currentValue2->reset();
+          currentValue3->reset();
+          currentValue4->reset();
+        } else if (!currentValue1->has_value()) {
+          (*pullSource1)();
+        } else if (pullSource2->has_value() && !currentValue2->has_value()) {
+          pullSource2->value()();
+        } else if (pullSource3->has_value() && !currentValue3->has_value()) {
+          pullSource3->value()();
         }
-      });
+      }));
 
-      return [pullSource1 = std::move(pullSource1), pullSource2 = std::move(pullSource2), pullSource3 = std::move(pullSource3), pullSource4 = std::move(pullSource4)]() {
-        pullSource1();
-        pullSource2();
-        pullSource3();
-        pullSource4();
+      return [pullSource1]() {
+        // We only need to pull one source;
+        // it'll handle the pulling of the other.
+        (*pullSource1)();
       };
     };
   }

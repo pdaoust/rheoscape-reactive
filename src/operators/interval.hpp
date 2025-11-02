@@ -76,7 +76,7 @@ namespace rheo::operators {
   // An alias for `constant`, to make it read better!
   template <typename TInterval>
   source_fn<TInterval> every(TInterval interval) {
-    return constant(interval);
+    return sources::constant(interval);
   }
 
   // Useful for exponential backoff.

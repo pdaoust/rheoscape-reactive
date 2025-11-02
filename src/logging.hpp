@@ -2,7 +2,9 @@
 
 #include <functional>
 #include <util.hpp>
+#ifdef PLATFORM_ESP32
 #include <Arduino.h>
+#endif
 
 namespace rheo::logging {
 
@@ -15,20 +17,20 @@ namespace rheo::logging {
   #define LOG_LEVEL_LABEL(l) (l == rheo::logging::LOG_LEVEL_ERROR ? "ERROR" : l == rheo::logging::LOG_LEVEL_WARN ? "WARN" : l == rheo::logging::LOG_LEVEL_INFO ? "INFO" : l == rheo::logging::LOG_LEVEL_DEBUG ? "DEBUG" : l == rheo::logging::LOG_LEVEL_TRACE ? "TRACE" : "")
 
   namespace {
-    static std::vector<std::function<void(uint8_t, const char* const, const char* const)>> _logSubscribers;
+    static std::vector<std::function<void(uint8_t, std::optional<std::string>, std::string)>> _logSubscribers;
   }
 
-  void registerSubscriber(std::function<void(uint8_t, const char* const, const char* const)> subscriber) {
+  void registerSubscriber(std::function<void(uint8_t, std::optional<std::string>, std::string)> subscriber) {
     _logSubscribers.push_back(subscriber);
   }
 
-  void log(uint8_t level, const char* const topic, const char* const message) {
+  void log(uint8_t level, std::optional<std::string> topic, std::string message) {
     for (auto subscriber: _logSubscribers) {
       subscriber(level, topic, message);
     }
   }
 
-  #define RHEO_LOGGING_LOG_LEVEL(label, level) void label(const char* const topic, const char* const message) { log(level, topic, message); }
+  #define RHEO_LOGGING_LOG_LEVEL(label, level) void label(std::optional<std::string> topic, std::string message) { log(level, topic, message); }
 
   RHEO_LOGGING_LOG_LEVEL(error, rheo::logging::LOG_LEVEL_ERROR)
   RHEO_LOGGING_LOG_LEVEL(warn, rheo::logging::LOG_LEVEL_WARN)

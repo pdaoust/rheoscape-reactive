@@ -1,7 +1,12 @@
 #include <unity.h>
 #include <functional>
 #include <operators/latch.hpp>
+#include <operators/unwrap.hpp>
 #include <sources/fromIterator.hpp>
+
+using namespace rheo;
+using namespace rheo::operators;
+using namespace rheo::sources;
 
 void test_latch_latches() {
   std::vector<std::optional<int>> values {
@@ -12,11 +17,11 @@ void test_latch_latches() {
     2,
     3
   };
-  auto someNumbers = rheo::fromIterator(values.begin(), values.end());
-  auto latcher = rheo::latch(someNumbers);
+  auto someNumbers = unwrapEndable(fromIterator(values.begin(), values.end()));
+  auto latcher = latch(someNumbers);
   int pushCount = false;
   int pushedValue;
-  rheo::pull_fn pull = latcher([&pushCount, &pushedValue](int v) { pushCount ++; pushedValue = v; }, [](){});
+  pull_fn pull = latcher([&pushCount, &pushedValue](int v) { pushCount ++; pushedValue = v; });
   pull();
   TEST_ASSERT_EQUAL_MESSAGE(0, pushCount, "Should not push before first non-empty upstream value is pushed");
   pull();

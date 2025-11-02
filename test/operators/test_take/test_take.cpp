@@ -1,20 +1,28 @@
 #include <unity.h>
 #include <functional>
+#include <Endable.hpp>
 #include <operators/take.hpp>
 #include <sources/constant.hpp>
 
+using namespace rheo;
+using namespace rheo::operators;
+using namespace rheo::sources;
+
 void test_take_takes() {
-  auto source = rheo::constant(5);
-  auto taker = rheo::take(source, 8);
+  auto source = constant(5);
+  auto taker = take(source, 8);
   bool didEnd = false;
   int pushedValue = 0;
   int pushedCount = 0;
   auto pull = taker(
-    [&pushedValue, &pushedCount](int v) {
-      pushedValue = v;
+    [&didEnd, &pushedValue, &pushedCount](auto v) {
       pushedCount ++;
-    },
-    [&didEnd]() { didEnd = true; }
+      if (v.hasValue()) {
+        pushedValue = v.value();
+      } else {
+        didEnd = true;
+      }
+    }
   );
   for (int i = 1; i <= 8; i ++) {
     pull();
@@ -22,7 +30,7 @@ void test_take_takes() {
     TEST_ASSERT_EQUAL_MESSAGE(5, pushedValue, "should push correct value");
   }
   pull();
-  TEST_ASSERT_EQUAL_MESSAGE(8, pushedCount, "should not have pushed anything after end of take");
+  TEST_ASSERT_EQUAL_MESSAGE(9, pushedCount, "should push ended value after take is finished");
   TEST_ASSERT_TRUE_MESSAGE(didEnd, "should end after take");
 }
 
