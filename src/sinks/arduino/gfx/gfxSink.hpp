@@ -16,15 +16,15 @@ namespace rheo::sinks::arduino::gfx {
     source_fn<THints> hintsSource
   ) {
     return combine(
-      commandsSource,
-      hintsSource,
       [](std::vector<GfxCommand<TCanvas>> commands, THints hints) {
         TCanvas canvas(display.width(), display.height());
         for (const GfxCommand& command : commands) {
           command(&canvas);
         }
         applyCanvasFunc(&display, canvas);
-      }
+      },
+      commandsSource,
+      hintsSource
     )
   }
 

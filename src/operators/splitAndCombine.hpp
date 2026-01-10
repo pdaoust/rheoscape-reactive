@@ -18,9 +18,9 @@ namespace rheo::operators {
     combine2_fn<TOut, TPipeIn1, TPipeIn2> combiner
   ) {
     return combine(
+      combiner,
       pipe1(map(source, mapper1)),
-      pipe2(map(source, mapper2)),
-      combiner
+      pipe2(map(source, mapper2))
     );
   }
 

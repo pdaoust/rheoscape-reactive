@@ -16,8 +16,6 @@ namespace rheo::operators {
   template <typename TDuration, typename T, typename TTimePoint, typename FilterFn>
   source_fn<TaggedValue<T, TDuration>> stopwatch(source_fn<T> source, source_fn<TTimePoint> clockSource, FilterFn&& lapCondition) {
     return combine(
-      source,
-      clockSource,
       // This is kinda sneaky. We're turning `combine` into a reducer here,
       // because the combining callback has state.
       (combine2_fn<TaggedValue<T, TDuration>, T, TTimePoint>)[lapCondition = std::forward<FilterFn>(lapCondition), lapStart = std::optional<TTimePoint>(), lastValueMatched = false](T value, TTimePoint ts) mutable {
@@ -30,16 +28,19 @@ namespace rheo::operators {
 
         lastValueMatched = thisValueMatches;
         return TaggedValue(value, ts - lapStart.value());
-      }
+      },
+      source,
+      clockSource
     );
   }
 
+  // Pipe factory
   template <typename TDuration, typename TTimePoint, typename FilterFn>
   auto stopwatch(source_fn<TTimePoint> clockSource, FilterFn&& lapCondition)
-  -> source_fn<TaggedValue<transformer_1_in_in_type_t<std::decay_t<FilterFn>>, TDuration>> {
-    using T = transformer_1_in_in_type_t<std::decay_t<FilterFn>>;
-    return [clockSource, lapCondition = std::forward<FilterFn>(lapCondition)](source_fn<T> source) {
-      return stopwatch(source, clockSource, lapCondition);
+  -> pipe_fn<TaggedValue<arg_of<FilterFn>, TDuration>, arg_of<FilterFn>> {
+    using T = arg_of<FilterFn>;
+    return [clockSource, lapCondition = std::forward<FilterFn>(lapCondition)](source_fn<T> source) -> source_fn<TaggedValue<T, TDuration>> {
+      return stopwatch<TDuration>(std::move(source), clockSource, std::move(lapCondition));
     };
   }
 

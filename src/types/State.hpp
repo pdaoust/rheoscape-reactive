@@ -29,7 +29,7 @@ namespace rheo {
         _value.emplace(value);
 
         if (push) {
-          for (auto sink : _sinks) {
+          for (auto& sink : _sinks) {
             sink(value);
           }
         }

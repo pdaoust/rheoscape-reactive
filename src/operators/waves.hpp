@@ -19,11 +19,11 @@ namespace rheo::operators {
   // if one operand is negative.
   template <typename TInput, typename MapFn>
   auto wave(source_fn<TInput> inputSource, source_fn<TInput> periodSource, source_fn<TInput> phaseShiftSource, MapFn&& waveFunction)
-  -> source_fn<transformer_1_in_out_type_t<std::decay_t<MapFn>>> {
-    using TFloat = transformer_1_in_out_type_t<std::decay_t<MapFn>>;
+  -> source_fn<return_of<std::decay_t<MapFn>>> {
+    using TFloat = return_of<std::decay_t<MapFn>>;
     
     return map(
-      combine(inputSource, periodSource, phaseShiftSource, std::make_tuple<TInput, TInput, TInput>),
+      combine(std::make_tuple<TInput, TInput, TInput>, inputSource, periodSource, phaseShiftSource),
       [waveFunction = std::forward<MapFn>(waveFunction)](std::tuple<TInput, TInput, TInput> value) {
         TInput input = std::get<0>(value);
         TInput period = std::get<1>(value);
@@ -67,9 +67,9 @@ namespace rheo::operators {
   source_fn<TFloat> pwmWave(source_fn<TInput> inputSource, source_fn<TInput> periodSource, source_fn<TInput> phaseShiftSource, source_fn<TFloat> dutySource) {
     return map(
       combine(
+        std::make_tuple<TFloat, TFloat>,
         wave(inputSource, periodSource, phaseShiftSource, [](TFloat v) { return v; }),
-        dutySource,
-        std::make_tuple<TFloat, TFloat>
+        dutySource
       ),
       [](std::tuple<TFloat, TFloat> value) {
         return std::get<0>(value) < std::get<1>(value)

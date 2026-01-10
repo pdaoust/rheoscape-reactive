@@ -1,24 +1,44 @@
 #pragma once
 
 #include <functional>
+#include <optional>
 #include <core_types.hpp>
-#include <types/Wrapper.hpp>
 
 namespace rheo::operators {
-  
+
+  // Named callable for dedupe's push handler
+  // Uses shared_ptr for state so copies share the same lastSeenValue
+  template<typename T>
+  struct dedupe_push_handler {
+    push_fn<T> push;
+    std::shared_ptr<std::optional<T>> lastSeenValue;
+
+    dedupe_push_handler(push_fn<T> push)
+      : push(push), lastSeenValue(std::make_shared<std::optional<T>>(std::nullopt)) {}
+
+    RHEO_NOINLINE void operator()(T value) const {
+      if (!lastSeenValue->has_value() || lastSeenValue->value() != value) {
+        lastSeenValue->emplace(value);
+        push(value);
+      }
+    }
+  };
+
+  // Named callable for dedupe's source binder
+  template<typename T>
+  struct dedupe_source_binder {
+    source_fn<T> source;
+
+    RHEO_NOINLINE pull_fn operator()(push_fn<T> push) const {
+      return source(dedupe_push_handler<T>{push});
+    }
+  };
+
   // Only push the first received instance of a value.
   // There is no factory for this function because it already is a pipe function!
   template <typename T>
-  source_fn<T> dedupe(source_fn<T> source) {
-    return [source](push_fn<T> push) {
-      auto lastSeenValue = rheo::make_wrapper_shared<std::optional<T>>(std::nullopt);
-      return source([push, lastSeenValue](T value) {
-        if (!lastSeenValue->value.has_value() || lastSeenValue->value.value() != value) {
-          lastSeenValue->value.emplace(value);
-          push(value);
-        }
-      });
-    };
+  RHEO_INLINE source_fn<T> dedupe(source_fn<T> source) {
+    return dedupe_source_binder<T>{source};
   }
 
 }

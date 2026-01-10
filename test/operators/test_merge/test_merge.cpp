@@ -14,7 +14,7 @@ using namespace rheo::sources;
 void test_merge_merges_disparate_pull_streams() {
   auto lettersSource = unwrapEndable(sequence<char>('a', 'c', 1));
   auto numbersSource = unwrapEndable(sequence(1, 3, 1));
-  auto merged = merge(lettersSource, numbersSource);
+  auto merged = mergeMixed(lettersSource, numbersSource);
 
   std::vector<char> pushedLetters;
   std::vector<int> pushedNumbers;
@@ -48,7 +48,7 @@ void test_merge_merges_disparate_pull_streams() {
 void test_merge_merges_disparate_push_streams() {
   State<char> lettersSource;
   State<int> numbersSource;
-  auto merged = merge(lettersSource.sourceFn(), numbersSource.sourceFn());
+  auto merged = mergeMixed(lettersSource.sourceFn(), numbersSource.sourceFn());
 
   std::variant<char, int> lastPushedValue;
   auto pull = merged(
@@ -86,6 +86,7 @@ void test_merge_merges_similar_streams() {
   TEST_ASSERT_EQUAL_MESSAGE(2, pushedValues.size(), "blah");
   TEST_ASSERT_EQUAL_MESSAGE(-1, pushedValues[1], "blah 2");
 }
+
 
 int main(int argc, char **argv) {
   UNITY_BEGIN();

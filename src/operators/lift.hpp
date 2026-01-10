@@ -68,11 +68,11 @@ namespace rheo::operators {
     LowerFn&& lowerFn
   )
   -> pipe_fn<
-    transformer_2_in_out_type_t<std::decay_t<LiftFn>>,
-    transformer_1_in_in_type_t<std::decay_t<LowerFn>>
+    return_of<LiftFn>,
+    arg_of<LowerFn>
   > {
-    using TLiftedOut = transformer_2_in_out_type_t<std::decay_t<LiftFn>>;
-    using TLiftedIn = transformer_1_in_in_type_t<std::decay_t<LowerFn>>;
+    using TLiftedOut = return_of<LiftFn>;
+    using TLiftedIn = arg_of<LowerFn>;
 
     // My profound apologies to anyone reading this code,
     // including my future self.

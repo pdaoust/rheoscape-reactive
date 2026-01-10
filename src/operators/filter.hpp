@@ -4,20 +4,47 @@
 #include <core_types.hpp>
 
 namespace rheo::operators {
-  
+
+  // Named callable for filter's push handler - provides better stack traces in debug mode
+  template<typename T, typename FilterFn>
+  struct filter_push_handler {
+    FilterFn filterer;
+    push_fn<T> push;
+
+    RHEO_NOINLINE void operator()(T value) const {
+      if (filterer(value)) {
+        push(value);
+      }
+    }
+  };
+
+  // Named callable for filter's source binder
+  template<typename T, typename FilterFn>
+  struct filter_source_binder {
+    source_fn<T> source;
+    FilterFn filterer;
+
+    RHEO_NOINLINE pull_fn operator()(push_fn<T> push) const {
+      return source(filter_push_handler<T, FilterFn>{filterer, std::move(push)});
+    }
+  };
+
   template <typename T, typename FilterFn>
-  source_fn<T> filter(source_fn<T> source, FilterFn&& filterer) {
-    return [source, filterer = std::forward<FilterFn>(filterer)](push_fn<T> push) {
-      return source([filterer, push](T value) { if (filterer(value)) push(value); });
+    requires concepts::Predicate<FilterFn, T>
+  RHEO_INLINE source_fn<T> filter(source_fn<T> source, FilterFn&& filterer) {
+    return filter_source_binder<T, std::decay_t<FilterFn>>{
+      source,
+      std::forward<FilterFn>(filterer)
     };
   }
 
+  // Pipe factory overload
   template <typename FilterFn>
   auto filter(FilterFn&& filterer)
-  -> pipe_fn<transformer_1_in_in_type_t<std::decay_t<FilterFn>>, transformer_1_in_in_type_t<std::decay_t<FilterFn>>> {
-    using T = transformer_1_in_in_type_t<std::decay_t<FilterFn>>;
-    return [filterer = std::forward<FilterFn>(filterer)](source_fn<T> source) {
-      return filter(source, filterer);
+  -> pipe_fn<arg_of<FilterFn>, arg_of<FilterFn>> {
+    using T = arg_of<FilterFn>;
+    return [filterer = std::forward<FilterFn>(filterer)](source_fn<T> source) -> source_fn<T> {
+      return filter(std::move(source), std::move(filterer));
     };
   }
 

@@ -84,7 +84,7 @@ void test_merge_merges_similar_streams() {
 
 int main(int argc, char **argv) {
   UNITY_BEGIN();
-  RUN_TEST(test_merge_merges_disparate_pull_streams);
+  RUN_TEST(test_pid_is_stable_at_setpoint);
   RUN_TEST(test_merge_merges_disparate_push_streams);
   RUN_TEST(test_merge_merges_similar_streams);
   UNITY_END();

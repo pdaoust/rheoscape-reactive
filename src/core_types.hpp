@@ -1,7 +1,9 @@
 #pragma once
 
 #include <chrono>
+#include <concepts>
 #include <functional>
+#include <type_traits>
 
 namespace rheo {
 
@@ -260,187 +262,171 @@ namespace rheo {
     stop,
   };
 
-  // Type deduction helper traits for functions of various sizes.
+  // ============================================================================
+  // C++20 Concepts for Type-Safe Callables
+  // ============================================================================
+  //
+  // These concepts provide compile-time validation of callable types.
+  // They work alongside std::invoke_result_t for type deduction.
 
-  // One parameter and void return value.
-  template <typename T>
-  struct visitor_1_in_value_type {
-    static_assert(std::is_same_v<T, void>, "type must be a 1-parameter visitor function");
+  // Helper to check if a type is std::optional<T> for some T
+  template<typename T>
+  struct is_optional : std::false_type {};
+
+  template<typename T>
+  struct is_optional<std::optional<T>> : std::true_type {};
+
+  template<typename T>
+  inline constexpr bool is_optional_v = is_optional<T>::value;
+
+  namespace concepts {
+
+    // Base callable concept - anything invocable with given arguments
+    template<typename F, typename... Args>
+    concept Callable = std::invocable<F, Args...>;
+
+    // Transformer: Single-input function that returns non-void
+    template<typename F, typename TIn>
+    concept Transformer = requires(F f, TIn in) {
+      { f(in) } -> std::convertible_to<std::invoke_result_t<F, TIn>>;
+      requires !std::is_void_v<std::invoke_result_t<F, TIn>>;
+    };
+
+    // Visitor: Single-input function that returns void
+    template<typename F, typename TIn>
+    concept Visitor = requires(F f, TIn in) {
+      { f(in) } -> std::same_as<void>;
+    };
+
+    // Predicate: Single-input function that returns bool (alias for clarity)
+    template<typename F, typename T>
+    concept Predicate = std::predicate<F, T>;
+
+    // Combiner2: Two-input transformer
+    template<typename F, typename T1, typename T2>
+    concept Combiner2 = requires(F f, T1 t1, T2 t2) {
+      { f(t1, t2) } -> std::convertible_to<std::invoke_result_t<F, T1, T2>>;
+      requires !std::is_void_v<std::invoke_result_t<F, T1, T2>>;
+    };
+
+    // Combiner: Variadic combiner for N inputs (N >= 2)
+    template<typename F, typename... TInputs>
+    concept Combiner =
+      std::invocable<F, TInputs...> &&
+      !std::is_void_v<std::invoke_result_t<F, TInputs...>> &&
+      sizeof...(TInputs) >= 2;
+
+    // Scanner: Accumulator function that takes (accumulator, value) and returns new accumulator
+    template<typename F, typename TAcc, typename TIn>
+    concept Scanner =
+      std::invocable<F, TAcc, TIn> &&
+      std::convertible_to<std::invoke_result_t<F, TAcc, TIn>, TAcc>;
+
+    // FilterMapper: Function that returns std::optional<T> (for filterMap operations)
+    template<typename F, typename TIn>
+    concept FilterMapper =
+      std::invocable<F, TIn> &&
+      is_optional_v<std::invoke_result_t<F, TIn>>;
+
+  } // namespace concepts
+
+  // ============================================================================
+  // Inline Control Macros for Debug/Release Builds
+  // ============================================================================
+  //
+  // These macros control inlining behavior based on NDEBUG:
+  // - Debug (NDEBUG undefined): Preserve stack frames for debugging
+  // - Release (NDEBUG defined): Aggressive inlining for performance
+
+#ifdef NDEBUG
+  // Release build: suggest aggressive inlining
+  #if defined(__GNUC__) || defined(__clang__)
+    #define RHEO_INLINE [[gnu::always_inline]] inline
+    #define RHEO_NOINLINE
+  #elif defined(_MSC_VER)
+    #define RHEO_INLINE __forceinline
+    #define RHEO_NOINLINE
+  #else
+    #define RHEO_INLINE inline
+    #define RHEO_NOINLINE
+  #endif
+#else
+  // Debug build: preserve stack frames for better debugging
+  #if defined(__GNUC__) || defined(__clang__)
+    #define RHEO_INLINE inline
+    #define RHEO_NOINLINE [[gnu::noinline]]
+  #elif defined(_MSC_VER)
+    #define RHEO_INLINE inline
+    #define RHEO_NOINLINE __declspec(noinline)
+  #else
+    #define RHEO_INLINE inline
+    #define RHEO_NOINLINE
+  #endif
+#endif
+
+  // ============================================================================
+  // Callable Type Traits
+  // ============================================================================
+  //
+  // A single variadic trait that extracts return type and argument types
+  // from any callable (lambda, function pointer, std::function, etc.)
+
+  // Primary template - delegates to operator() inspection for callable objects
+  template<typename F, typename = void>
+  struct callable_traits : callable_traits<decltype(&std::decay_t<F>::operator())> {};
+
+  // Specialization for const member function pointers (most lambdas)
+  template<typename C, typename R, typename... Args>
+  struct callable_traits<R(C::*)(Args...) const, void> {
+    using return_type = R;
+    using args_tuple = std::tuple<Args...>;
+    static constexpr size_t arity = sizeof...(Args);
+    template<size_t N> using arg = std::tuple_element_t<N, args_tuple>;
   };
 
-  template <typename TIn>
-  struct visitor_1_in_value_type<std::function<void(TIn)>> {
-    using in_type = TIn;
+  // Specialization for non-const member function pointers (mutable lambdas)
+  template<typename C, typename R, typename... Args>
+  struct callable_traits<R(C::*)(Args...), void> {
+    using return_type = R;
+    using args_tuple = std::tuple<Args...>;
+    static constexpr size_t arity = sizeof...(Args);
+    template<size_t N> using arg = std::tuple_element_t<N, args_tuple>;
   };
 
-  template <typename TIn>
-  struct visitor_1_in_value_type<void(*)(TIn)> {
-    using in_type = TIn;
+  // Specialization for function pointers
+  template<typename R, typename... Args>
+  struct callable_traits<R(*)(Args...), void> {
+    using return_type = R;
+    using args_tuple = std::tuple<Args...>;
+    static constexpr size_t arity = sizeof...(Args);
+    template<size_t N> using arg = std::tuple_element_t<N, args_tuple>;
   };
 
-  template <typename TIn>
-  struct visitor_1_in_value_type<void(TIn)> {
-    using in_type = TIn;
+  // Specialization for function types
+  template<typename R, typename... Args>
+  struct callable_traits<R(Args...), void> {
+    using return_type = R;
+    using args_tuple = std::tuple<Args...>;
+    static constexpr size_t arity = sizeof...(Args);
+    template<size_t N> using arg = std::tuple_element_t<N, args_tuple>;
   };
+
+  // Specialization for std::function
+  template<typename R, typename... Args>
+  struct callable_traits<std::function<R(Args...)>, void> {
+    using return_type = R;
+    using args_tuple = std::tuple<Args...>;
+    static constexpr size_t arity = sizeof...(Args);
+    template<size_t N> using arg = std::tuple_element_t<N, args_tuple>;
+  };
+
+  // Convenience aliases
+  template<typename F>
+  using return_of = typename callable_traits<std::decay_t<F>>::return_type;
+
+  template<typename F, size_t N = 0>
+  using arg_of = typename callable_traits<std::decay_t<F>>::template arg<N>;
 
   template<typename F>
-  using visitor_1_in_value_type_from_callable = visitor_1_in_value_type<decltype(to_std_function(std::declval<F>()))>;
-
-  template <typename F>
-  using visitor_1_in_in_type_t = typename visitor_1_in_value_type_from_callable<F>::in_type;
-
-  // One parameter and non-void return value.
-  template <typename T>
-  struct transformer_1_in_value_types {
-    static_assert(std::is_same_v<T, void>, "type must be a 1-parameter transformer function");
-  };
-
-  template <typename TOut, typename TIn>
-  struct transformer_1_in_value_types<std::function<TOut(TIn)>> {
-    using out_type = TOut;
-    using in_type = TIn;
-  };
-
-  template<typename TOut, typename TIn>
-  struct transformer_1_in_value_types<TOut(*)(TIn)> {
-    using out_type = TOut;
-    using in_type = TIn;
-  };
-
-  template<typename F>
-  using transformer_1_in_value_types_from_callable = transformer_1_in_value_types<decltype(to_std_function(std::declval<F>()))>;
-
-  template <typename F>
-  using transformer_1_in_out_type_t = typename transformer_1_in_value_types_from_callable<F>::out_type;
-
-  template <typename F>
-  using transformer_1_in_in_type_t = typename transformer_1_in_value_types_from_callable<F>::in_type;
-
-  // Two parameters and non-void return value.
-  template <typename T>
-  struct transformer_2_in_value_types {
-    static_assert(std::is_same_v<T, void>, "type must be a 2-parameter transformer function");
-  };
-
-  template <typename TOut, typename TIn1, typename TIn2>
-  struct transformer_2_in_value_types<std::function<TOut(TIn1, TIn2)>> {
-    using out_type = TOut;
-    using in_1_type = TIn1;
-    using in_2_type = TIn2;
-  };
-
-  template<typename TOut, typename TIn1, typename TIn2>
-  struct transformer_2_in_value_types<TOut(*)(TIn1, TIn2)> {
-    using out_type = TOut;
-    using in_1_type = TIn1;
-    using in_2_type = TIn2;
-  };
-
-  template<typename F>
-  using transformer_2_in_value_types_from_callable = transformer_2_in_value_types<decltype(to_std_function(std::declval<F>()))>;
-
-  template <typename F>
-  using transformer_2_in_out_type_t = typename transformer_2_in_value_types_from_callable<F>::out_type;
-
-  template <typename F>
-  using transformer_2_in_in_1_type_t = typename transformer_2_in_value_types_from_callable<F>::in_1_type;
-
-  template <typename F>
-  using transformer_2_in_in_2_type_t = typename transformer_2_in_value_types_from_callable<F>::in_2_type;
-
-  // Three parameters and non-void return value.
-  template <typename T>
-  struct transformer_3_in_value_types {
-    static_assert(std::is_same_v<T, void>, "type must be a 3-parameter transformer function");
-  };
-
-  template <typename TOut, typename TIn1, typename TIn2, typename TIn3>
-  struct transformer_3_in_value_types<std::function<TOut(TIn1, TIn2, TIn3)>> {
-    using out_type = TOut;
-    using in_1_type = TIn1;
-    using in_2_type = TIn2;
-    using in_3_type = TIn3;
-  };
-
-  template<typename TOut, typename TIn1, typename TIn2, typename TIn3>
-  struct transformer_3_in_value_types<TOut(*)(TIn1, TIn2, TIn3)> {
-    using out_type = TOut;
-    using in_1_type = TIn1;
-    using in_2_type = TIn2;
-    using in_3_type = TIn3;
-  };
-
-  template<typename F>
-  using transformer_3_in_value_types_from_callable = transformer_3_in_value_types<decltype(to_std_function(std::declval<F>()))>;
-
-  template <typename F>
-  using transformer_3_in_out_type_t = typename transformer_3_in_value_types_from_callable<F>::out_type;
-
-  template <typename F>
-  using transformer_3_in_in_1_type_t = typename transformer_3_in_value_types_from_callable<F>::in_1_type;
-
-  template <typename F>
-  using transformer_3_in_in_2_type_t = typename transformer_3_in_value_types_from_callable<F>::in_2_type;
-
-  template <typename F>
-  using transformer_3_in_in_3_type_t = typename transformer_3_in_value_types_from_callable<F>::in_3_type;
-
-  // Four parameters and non-void return value.
-  template <typename T>
-  struct transformer_4_in_value_types {
-    static_assert(std::is_same_v<T, void>, "type must be a 4-parameter transformer function");
-  };
-
-  template <typename TOut, typename TIn1, typename TIn2, typename TIn3, typename TIn4>
-  struct transformer_4_in_value_types<std::function<TOut(TIn1, TIn2, TIn3, TIn4)>> {
-    using out_type = TOut;
-    using in_1_type = TIn1;
-    using in_2_type = TIn2;
-    using in_3_type = TIn3;
-    using in_4_type = TIn4;
-  };
-
-  template<typename TOut, typename TIn1, typename TIn2, typename TIn3, typename TIn4>
-  struct transformer_4_in_value_types<TOut(*)(TIn1, TIn2, TIn3, TIn4)> {
-    using out_type = TOut;
-    using in_1_type = TIn1;
-    using in_2_type = TIn2;
-    using in_3_type = TIn3;
-    using in_4_type = TIn4;
-  };
-
-  template<typename F>
-  using transformer_4_in_value_types_from_callable = transformer_4_in_value_types<decltype(to_std_function(std::declval<F>()))>;
-
-  template <typename F>
-  using transformer_4_in_out_type_t = typename transformer_4_in_value_types_from_callable<F>::out_type;
-
-  template <typename F>
-  using transformer_4_in_in_1_type_t = typename transformer_4_in_value_types_from_callable<F>::in_1_type;
-
-  template <typename F>
-  using transformer_4_in_in_2_type_t = typename transformer_4_in_value_types_from_callable<F>::in_2_type;
-
-  template <typename F>
-  using transformer_4_in_in_3_type_t = typename transformer_4_in_value_types_from_callable<F>::in_3_type;
-
-  template <typename F>
-  using transformer_4_in_in_4_type_t = typename transformer_4_in_value_types_from_callable<F>::in_4_type;
-
-  // And a way of getting the wrapped type out of a filter mapper function.
-  template <typename T>
-  struct filter_mapper_value_type {
-    static_assert(std::is_same_v<T, void>, "type must be a filter mapper function");
-  };
-
-  template <typename TOut, typename TIn>
-  struct filter_mapper_value_type<std::function<std::optional<TOut>(TIn)>> {
-    using wrapped_out_type = TOut;
-  };
-
-  template<typename F>
-  using filter_mapper_value_type_from_callable = filter_mapper_value_type<decltype(to_std_function(std::declval<F>()))>;
-
-  template <typename F>
-  using filter_mapper_wrapped_out_type_t = typename filter_mapper_value_type_from_callable<F>::wrapped_out_type;
+  inline constexpr size_t arity_of = callable_traits<std::decay_t<F>>::arity;
 }

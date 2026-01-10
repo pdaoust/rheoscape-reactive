@@ -12,7 +12,7 @@ using namespace rheo::sources;
 void test_combine_combines_to_tuple() {
   source_fn<int> a = constant(3);
   source_fn<std::string> b = constant(std::string("hello"));
-  auto a_b = combine(a, b, std::make_tuple<int, std::string>);
+  auto a_b = combine(std::make_tuple<int, std::string>, a, b);
   std::tuple<int, std::string> pushedValue;
   pull_fn pull = a_b(
     [&pushedValue](auto v) {
@@ -27,7 +27,7 @@ void test_combine_combines_to_tuple() {
 void test_combine_combines_to_custom_value() {
   source_fn<int> a = constant(3);
   source_fn<int> b = constant(5);
-  auto a_b = combine(a, b, [](int v_a, int v_b) { return v_a + v_b; });
+  auto a_b = combine([](int v_a, int v_b) { return v_a + v_b; }, a, b);
   int pushedValue;
   pull_fn pull = a_b(
     [&pushedValue](auto v) {
@@ -42,7 +42,7 @@ void test_combine_combines_on_push_from_push_source() {
   State<int> state(0);
   auto pushSource = state.sourceFn();
   auto normalSource = constant(3);
-  auto combined = combine(pushSource, normalSource, std::make_tuple<int, int>);
+  auto combined = combine(std::make_tuple<int, int>, pushSource, normalSource);
   int pushedValueLeft = -1;
   int pushedValueRight = -1;
   int pushedCount = 0;
@@ -63,7 +63,7 @@ void test_combine3_combines() {
   auto a = constant(1);
   auto b = constant('a');
   auto c = constant(true);
-  auto combined = combine(a, b, c, std::make_tuple<int, char, bool>);
+  auto combined = combine(std::make_tuple<int, char, bool>, a, b, c);
   auto pushedValue = std::make_tuple<int, char, bool>(-1, 'z', false);
   auto pull = combined(
     [&pushedValue](std::tuple<int, char, bool> v) { pushedValue = v; }
@@ -79,7 +79,7 @@ void test_combine4_combines() {
   auto b = constant('a');
   auto c = constant(true);
   auto d = constant(3.14f);
-  auto combined = combine(a, b, c, d, std::make_tuple<int, char, bool, float>);
+  auto combined = combine(std::make_tuple<int, char, bool, float>, a, b, c, d);
   auto pushedValue = std::make_tuple<int, char, bool, float>(-1, 'z', false, 9.999f);
   auto pull = combined(
     [&pushedValue](std::tuple<int, char, bool, float> v) { pushedValue = v; }
@@ -95,7 +95,7 @@ void test_combine_only_pulls_once_for_each_push() {
   // Two-operand combine
   auto a = sequenceOpen(1, 1);
   auto b = sequenceOpen('a', (char)1);
-  auto combined2 = combine(a, b, std::make_tuple<int, char>);
+  auto combined2 = combine(std::make_tuple<int, char>, a, b);
   auto pushedValue2 = std::make_tuple<int, char>(-1, 'z');
   int pushCount2 = 0;
   auto pull2 = combined2([&pushedValue2, &pushCount2](std::tuple<int, char> v) {
@@ -109,7 +109,7 @@ void test_combine_only_pulls_once_for_each_push() {
 
   // Three-operand combine
   auto c = sequenceOpen(2.0f, 0.5f);
-  auto combined3 = combine(a, b, c, std::make_tuple<int, char, float>);
+  auto combined3 = combine(std::make_tuple<int, char, float>, a, b, c);
   auto pushedValue3 = std::make_tuple<int, char, float>(-1, 'z', 9.999f);
   int pushCount3 = 0;
   auto pull3 = combined3([&pushedValue3, &pushCount3](std::tuple<int, char, float> v) {
@@ -124,7 +124,7 @@ void test_combine_only_pulls_once_for_each_push() {
 
   // Four-operand combine
   auto d = sequenceOpen<uint16_t>(3, 1);
-  auto combined4 = combine(a, b, c, d, std::make_tuple<int, char, float, uint16_t>);
+  auto combined4 = combine(std::make_tuple<int, char, float, uint16_t>, a, b, c, d);
   auto pushedValue4 = std::make_tuple<int, char, float, int>(-1, 'z', 9.999f, 1000);
   int pushCount4 = 0;
   auto pull4 = combined4([&pushedValue4, &pushCount4](std::tuple<int, char, float, uint16_t> v) {

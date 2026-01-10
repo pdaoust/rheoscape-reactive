@@ -15,20 +15,49 @@ namespace rheo::operators {
   // pulling on it will do nothing.
   // This function is useful for logging.
 
-  template <typename T, typename SinkFn>
-  source_fn<T> tap(source_fn<T> source, SinkFn&& sink) {
-    return [source, sink = std::forward<SinkFn>(sink)](push_fn<T> pushPrimary) {
-      auto pushSecondary = make_wrapper_shared<push_fn<T>>();
-      sink((source_fn<T>)[pushSecondary](push_fn<T> push) {
-        (*pushSecondary).value = std::forward<push_fn<T>>(push);
-        // The tap isn't allowed to pull.
-        return [](){};
-      });
+  // Named callable for tap's secondary source (push-only, no pull)
+  template<typename T>
+  struct tap_secondary_source {
+    std::shared_ptr<Wrapper<push_fn<T>>> pushSecondary;
 
-      return source([pushPrimary, pushSecondary](T value) {
-        pushPrimary(value);
-        (*pushSecondary).value(value);
-      });
+    RHEO_NOINLINE pull_fn operator()(push_fn<T> push) const {
+      (*pushSecondary).value = std::forward<push_fn<T>>(push);
+      // The tap isn't allowed to pull
+      return [](){};
+    }
+  };
+
+  // Named callable for tap's primary push handler
+  template<typename T>
+  struct tap_push_handler {
+    push_fn<T> pushPrimary;
+    std::shared_ptr<Wrapper<push_fn<T>>> pushSecondary;
+
+    RHEO_NOINLINE void operator()(T value) const {
+      pushPrimary(value);
+      (*pushSecondary).value(value);
+    }
+  };
+
+  // Named callable for tap's source binder
+  template<typename T, typename SinkFn>
+  struct tap_source_binder {
+    source_fn<T> source;
+    SinkFn sink;
+
+    RHEO_NOINLINE pull_fn operator()(push_fn<T> pushPrimary) const {
+      auto pushSecondary = make_wrapper_shared<push_fn<T>>();
+      sink(tap_secondary_source<T>{pushSecondary});
+
+      return source(tap_push_handler<T>{pushPrimary, pushSecondary});
+    }
+  };
+
+  template <typename T, typename SinkFn>
+  RHEO_INLINE source_fn<T> tap(source_fn<T> source, SinkFn&& sink) {
+    return tap_source_binder<T, std::decay_t<SinkFn>>{
+      source,
+      std::forward<SinkFn>(sink)
     };
   }
 

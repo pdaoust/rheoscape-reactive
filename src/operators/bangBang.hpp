@@ -28,7 +28,7 @@ namespace rheo::operators {
     source_fn<T> processVariableSource,
     source_fn<Range<T>> boundsSource
   ) {
-    auto combined = combine(processVariableSource, boundsSource, std::make_tuple<T, Range<T>>);
+    auto combined = combine(std::make_tuple<T, Range<T>>, processVariableSource, boundsSource);
 
     return scan(
       std::move(combined),

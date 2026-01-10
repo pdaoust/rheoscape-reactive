@@ -17,7 +17,7 @@ namespace rheo::ui::lvgl {
     source_fn<std::vector<StyleAndSelector>> styleSource
   ) {
     // FIXME: Is it more performant _and_ equivalent to just do them separately w/o combining?
-    pull_fn pullDataAndStyle = rheo::operators::combine(dataSource, styleSource, std::make_tuple<TData, std::vector<StyleAndSelector>>)
+    pull_fn pullDataAndStyle = rheo::operators::combine(std::make_tuple<TData, std::vector<StyleAndSelector>>, dataSource, styleSource)
       | rheo::operators::foreach([widget, applyDataFn](std::tuple<TData, std::vector<StyleAndSelector>> value) {
         applyDataFn(std::get<0>(value), widget);
         for (const StyleAndSelector& style : std::get<1>(value)) {

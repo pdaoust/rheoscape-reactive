@@ -79,13 +79,13 @@ namespace rheo::operators {
     std::optional<Range<TCtl>> clampRange = std::nullopt
   ) {
     source_fn<PidData<TProc, TTime, TKp, TKi, TKd>> combinedSource = combine(
+      [](TProc processVariable, TProc setpoint, TTime timestamp, PidWeights<TKp, TKi, TKd> weights) {
+        return PidData<TProc, TTime, TKp, TKi, TKd> { processVariable, setpoint, timestamp, weights };
+      },
       processVariableSource,
       setpointSource,
       clockSource,
-      weightsSource,
-      [](TProc processVariable, TProc setpoint, TTime timestamp, PidWeights<TKp, TKi, TKd> weights) {
-        return PidData<TProc, TTime, TKp, TKi, TKd> { processVariable, setpoint, timestamp, weights };
-      }
+      weightsSource
     );
 
     source_fn<PidState<TP, TI, TCtl, TTime>> calculatedSource = scan(

@@ -15,8 +15,8 @@ namespace rheo::operators {
     source_fn<TEvent> eventSource,
     source_fn<TSample> sampleSource,
     CombineFn&& combiner
-  ) -> source_fn<transformer_2_in_out_type_t<CombineFn>> {
-    using TOut = transformer_2_in_out_type_t<CombineFn>;
+  ) -> source_fn<return_of<CombineFn>> {
+    using TOut = return_of<CombineFn>;
 
     return [eventSource, sampleSource, combiner = std::forward<CombineFn>(combiner)](push_fn<TOut> push) {
       auto lastEventValue = std::make_shared<std::optional<TEvent>>(std::nullopt);
@@ -41,7 +41,7 @@ namespace rheo::operators {
   auto sampleAndMap(
     source_fn<TSample> sampleSource,
     CombineFn&& combiner
-  ) -> pipe_fn<transformer_2_in_out_type_t<CombineFn>, TEvent> {
+  ) -> pipe_fn<return_of<CombineFn>, TEvent> {
     return [sampleSource, combiner = std::forward<CombineFn>(combiner)](source_fn<TEvent> eventSource) {
       return sampleAndMap(eventSource, sampleSource, combiner);
     };

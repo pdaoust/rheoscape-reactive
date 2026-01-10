@@ -10,9 +10,9 @@ namespace rheo::operators {
   template <typename T, typename TTime>
   source_fn<TaggedValue<T, TTime>> timestamp(source_fn<T> source, source_fn<TTime> clockSource) {
     return combine(
+      [](T value, TTime timestamp) { return TaggedValue<T, TTime> { value, timestamp }; },
       source,
-      clockSource,
-      [](T value, TTime timestamp) { return TaggedValue<T, TTime> { value, timestamp }; }
+      clockSource
     );
   }
 

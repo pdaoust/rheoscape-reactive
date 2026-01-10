@@ -10,9 +10,6 @@ namespace rheo::operators {
   template <typename TIn, typename TOut>
   source_fn<TOut> normalize(source_fn<TIn> source, source_fn<Range<TIn>> fromSource, source_fn<Range<TOut>> toSource) {
     return combine(
-      source,
-      fromSource,
-      toSource,
       [](TIn value, Range<TIn> from, Range<TOut> to) {
         if (value <= from.min) {
           return to.min;
@@ -21,7 +18,10 @@ namespace rheo::operators {
         } else {
           return to.min + (to.max - to.min) * (value - from.min) / (from.max - from.min);
         }
-      }
+      },
+      source,
+      fromSource,
+      toSource
     );
   }
 

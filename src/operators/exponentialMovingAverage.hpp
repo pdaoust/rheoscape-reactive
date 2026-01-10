@@ -24,9 +24,9 @@ namespace rheo::operators {
     source_fn<TInterval> timeConstantSource,
     TMapIntervalToRep&& mapIntervalToRep
   ) {
-    using TRep = transformer_1_in_out_type_t<std::decay_t<TMapIntervalToRep>>;
+    using TRep = return_of<std::decay_t<TMapIntervalToRep>>;
 
-    return combine(source, timeConstantSource, std::make_tuple<TVal, TInterval>)
+    return combine(std::make_tuple<TVal, TInterval>, source, timeConstantSource)
       | timestamp<std::tuple<TVal, TInterval>>(clockSource)
       | scan(
         std::optional<TaggedValue<TVal, TTime>>{},
