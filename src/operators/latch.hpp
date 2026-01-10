@@ -34,7 +34,12 @@ namespace rheo::operators {
 
   // Push the last non-empty value when pulled, even if the input source is empty.
   // Only starts pushing values once the first non-empty value has been received.
-  // There is no factory for this function because it already is a pipe function!
+  //
+  // PATTERN NOTE: This operator intentionally has no pipe factory (no zero-argument
+  // latch() overload) because latch() with a source argument IS already a pipe
+  // function - it takes source_fn<optional<T>> and returns source_fn<T>. You can
+  // use it directly with the pipe operator: optionalSource | latch
+  //
   // If you only want to push non-empty values
   // rather than remembering the last non-empty value and pushing it when pulled,
   // use `filter<std::optional<T>>(source, notEmpty)`

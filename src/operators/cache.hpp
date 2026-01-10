@@ -93,11 +93,17 @@ namespace rheo::operators {
     return cache_source_binder<T>{source};
   }
 
+  // Pipe factory for cache
+  template<typename T>
+  struct cache_pipe_factory {
+    RHEO_NOINLINE source_fn<T> operator()(source_fn<T> source) const {
+      return cache(std::move(source));
+    }
+  };
+
   template <typename T>
   pipe_fn<T, T> cache() {
-    return pipe_fn<T, T>([](source_fn<T> source) {
-      return cache(source);
-    });
+    return cache_pipe_factory<T>{};
   }
 
 }

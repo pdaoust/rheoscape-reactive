@@ -6,14 +6,28 @@
 
 namespace rheo::sinks::arduino {
 
+  struct analog_pin_sink_push_handler {
+    int pin;
+    uint8_t resolutionBits;
+
+    RHEO_NOINLINE void operator()(int value) const {
+      pinMode(pin, OUTPUT);
+      analogWriteResolution(resolutionBits);
+      analogWrite(pin, value);  // Fixed: was digitalWrite
+    }
+  };
+
+  struct analog_pin_sink_binder {
+    int pin;
+    uint8_t resolutionBits;
+
+    RHEO_NOINLINE pull_fn operator()(source_fn<int> source) const {
+      return source(analog_pin_sink_push_handler{pin, resolutionBits});
+    }
+  };
+
   pullable_sink_fn<int> analogPinSink(int pin, uint8_t resolutionBits = 10) {
-    return [pin, resolutionBits](source_fn<int> source) {
-      return source([pin, resolutionBits](int value) {
-        pinMode(pin, OUTPUT);
-        analogWriteResolution(resolutionBits);
-        digitalWrite(pin, value);
-      });
-    };
+    return analog_pin_sink_binder{pin, resolutionBits};
   }
 
 }

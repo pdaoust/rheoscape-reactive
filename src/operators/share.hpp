@@ -44,11 +44,17 @@ namespace rheo::operators {
     return share_source_binder<T>{sinks, pull};
   }
 
+  // Pipe factory for share
+  template<typename T>
+  struct share_pipe_factory {
+    RHEO_NOINLINE source_fn<T> operator()(source_fn<T> source) const {
+      return share(std::move(source));
+    }
+  };
+
   template <typename T>
   pipe_fn<T, T> share() {
-    return [](source_fn<T> source) {
-      return share(source);
-    };
+    return share_pipe_factory<T>{};
   }
 
 }

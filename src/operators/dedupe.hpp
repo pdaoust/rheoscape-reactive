@@ -35,7 +35,11 @@ namespace rheo::operators {
   };
 
   // Only push the first received instance of a value.
-  // There is no factory for this function because it already is a pipe function!
+  //
+  // PATTERN NOTE: This operator intentionally has no pipe factory (no zero-argument
+  // dedupe() overload) because dedupe() with a source argument IS already a pipe
+  // function - it takes source_fn<T> and returns source_fn<T>. You can use it
+  // directly with the pipe operator: source | dedupe
   template <typename T>
   RHEO_INLINE source_fn<T> dedupe(source_fn<T> source) {
     return dedupe_source_binder<T>{source};

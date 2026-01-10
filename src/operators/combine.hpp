@@ -155,8 +155,13 @@ namespace rheo::operators {
     };
   }
 
-  // Pipe factory overload - requires explicitly specifying T1 template parameter
+  // Pipe factory overload - requires explicitly specifying T1 template parameter.
   // Usage: source1 | combineWith<int>(combiner, source2, source3)
+  //
+  // NOTE: Unlike mergeWith() which can infer types from its source arguments,
+  // combineWith() requires explicit T1 because pipe_fn<TOut, TIn> needs to know
+  // TIn at the call site, but TIn (which is T1) cannot be deduced from the
+  // combiner function alone - it could be any type the combiner accepts.
   template <typename T1, typename CombineFn, typename... Ts>
     requires concepts::Combiner<CombineFn, T1, Ts...>
   RHEO_INLINE auto combineWith(

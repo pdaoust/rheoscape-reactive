@@ -25,7 +25,13 @@ namespace rheo::operators {
     }
   };
 
-  // Sink factory
+  // Sink factory - creates a pullable sink that executes exec on each value.
+  // Usage: source | foreach(myExec)
+  //
+  // PATTERN NOTE: This is a SINK, not an operator. Sinks consume values without
+  // producing a new source. The parameter order for sinks differs from operators:
+  // - Operators: operator(source, ...) and operatorWith(...) for pipe factory
+  // - Sinks: foreach(exec) returns a sink that can be piped
   template <typename ExecFn>
   auto foreach(ExecFn&& exec)
   -> pullable_sink_fn<arg_of<ExecFn>> {
@@ -35,6 +41,8 @@ namespace rheo::operators {
     };
   }
 
+  // Convenience overload that immediately binds source to sink.
+  // Usage: foreach(source, myExec) - equivalent to (source | foreach(myExec))
   template <typename T, typename ExecFn>
     requires concepts::Visitor<ExecFn, T>
   pull_fn foreach(source_fn<T> source, ExecFn&& exec) {

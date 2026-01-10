@@ -60,4 +60,30 @@ namespace rheo::operators {
     return tagCount_source_binder<T>{source};
   }
 
+  // Pipe factory for count
+  template<typename T>
+  struct count_pipe_factory {
+    RHEO_NOINLINE source_fn<size_t> operator()(source_fn<T> source) const {
+      return count(std::move(source));
+    }
+  };
+
+  template <typename T>
+  pipe_fn<size_t, T> count() {
+    return count_pipe_factory<T>{};
+  }
+
+  // Pipe factory for tagCount
+  template<typename T>
+  struct tagCount_pipe_factory {
+    RHEO_NOINLINE source_fn<TaggedValue<T, size_t>> operator()(source_fn<T> source) const {
+      return tagCount(std::move(source));
+    }
+  };
+
+  template <typename T>
+  pipe_fn<TaggedValue<T, size_t>, T> tagCount() {
+    return tagCount_pipe_factory<T>{};
+  }
+
 }

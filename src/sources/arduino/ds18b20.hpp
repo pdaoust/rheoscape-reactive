@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <functional>
 #include <memory>
 #include <variant>
@@ -10,7 +11,7 @@
 #include <DallasTemperature.h>
 
 namespace rheo::sources::arduino::ds18b20 {
-  
+
   enum Resolution {
     half_degree = 9,
     quarter_degree = 10,
@@ -18,12 +19,28 @@ namespace rheo::sources::arduino::ds18b20 {
     sixteenth_degree = 12
   };
 
-  void intToDeviceAddress(uint64_t address, DeviceAddress deviceAddress) {
-    for (uint8_t i = 0; i < 8; i ++) {
+  // Use std::array for copyable address storage
+  using Address = std::array<uint8_t, 8>;
+
+  inline void intToDeviceAddress(uint64_t address, DeviceAddress deviceAddress) {
+    for (uint8_t i = 0; i < 8; i++) {
       deviceAddress[i] = address & 0xFF;
       address >>= 8;
     }
   }
+
+  inline Address deviceAddressToArray(const DeviceAddress& address) {
+    Address result;
+    for (uint8_t i = 0; i < 8; i++) {
+      result[i] = address[i];
+    }
+    return result;
+  }
+
+  // Mutable state for the pull handler
+  struct ds18b20_state {
+    unsigned long lastRead;
+  };
 
   // A source function factory for a single DS18B20 sensor.
   // It expects a fully constructed DallasTemperature instance,
@@ -35,29 +52,50 @@ namespace rheo::sources::arduino::ds18b20 {
   // when a sensor reading is ready,
   // then it'll request a new temperature.
   // If the sensor is disconnected, it'll return an empty optional value.
-  source_fn<std::optional<au::QuantityPoint<au::Celsius, float>>> ds18b20(DeviceAddress address, DallasTemperature* sensor, int resolution) {
-    return [address, sensor, resolution](push_fn<std::optional<au::QuantityPoint<au::Celsius, float>>>&& push) {
-      sensor->setResolution(address, resolution);
-      sensor->setWaitForConversion(false);
-      sensor->requestTemperaturesByAddress(address);
-      return [address, &sensor, resolution, push = std::forward<push_fn<std::optional<au::QuantityPoint<au::Celsius, float>>>>(push), lastRead = millis()]() mutable {
-        // Normally when I'm consuming the time in a source function,
-        // I expect a time source.
-        // But because I know I'm on the Arduino platform,
-        // we'll just use the millis clock.
-        unsigned long now = millis();
-        if (now - lastRead > sensor->millisToWaitForConversion(resolution)) {
-          lastRead = now;
-          float tempC = sensor->getTempC(address);
-          if (tempC == DEVICE_DISCONNECTED_C) {
-            push(std::nullopt);
-          } else {
-            push(au::celsius_pt(tempC));
-          }
-          sensor->requestTemperaturesByAddress(address);
+
+  struct ds18b20_pull_handler {
+    Address address;
+    DallasTemperature* sensor;  // Value capture of pointer, not reference
+    int resolution;
+    push_fn<std::optional<au::QuantityPoint<au::Celsius, float>>> push;
+    std::shared_ptr<ds18b20_state> state;
+
+    RHEO_NOINLINE void operator()() const {
+      // Normally when I'm consuming the time in a source function,
+      // I expect a time source.
+      // But because I know I'm on the Arduino platform,
+      // we'll just use the millis clock.
+      unsigned long now = millis();
+      if (now - state->lastRead > sensor->millisToWaitForConversion(resolution)) {
+        state->lastRead = now;
+        float tempC = sensor->getTempC(address.data());
+        if (tempC == DEVICE_DISCONNECTED_C) {
+          push(std::nullopt);
+        } else {
+          push(au::celsius_pt(tempC));
         }
-      };
-    };
+        sensor->requestTemperaturesByAddress(address.data());
+      }
+    }
+  };
+
+  struct ds18b20_source_binder {
+    Address address;
+    DallasTemperature* sensor;
+    int resolution;
+
+    RHEO_NOINLINE pull_fn operator()(push_fn<std::optional<au::QuantityPoint<au::Celsius, float>>> push) const {
+      sensor->setResolution(address.data(), resolution);
+      sensor->setWaitForConversion(false);
+      sensor->requestTemperaturesByAddress(address.data());
+
+      auto state = std::make_shared<ds18b20_state>(ds18b20_state{millis()});
+      return ds18b20_pull_handler{address, sensor, resolution, std::move(push), state};
+    }
+  };
+
+  source_fn<std::optional<au::QuantityPoint<au::Celsius, float>>> ds18b20(DeviceAddress address, DallasTemperature* sensor, int resolution) {
+    return ds18b20_source_binder{deviceAddressToArray(address), sensor, resolution};
   }
 
   // A source function factory with a much nicer way of specifying a device address --
@@ -65,7 +103,7 @@ namespace rheo::sources::arduino::ds18b20 {
   source_fn<std::optional<au::QuantityPoint<au::Celsius, float>>> ds18b20(uint64_t address, DallasTemperature* sensor, Resolution resolution) {
     DeviceAddress address2;
     intToDeviceAddress(address, address2);
-    return ds18b20(address2, sensor, resolution);
+    return ds18b20(address2, sensor, static_cast<int>(resolution));
   }
 
 }
