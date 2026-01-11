@@ -25,7 +25,7 @@ The session file must contain sufficient context to:
 - Each completed checklist item triggers a commit containing:
   - The work completed for that item
   - Updated session file showing new status
-  - Commit message: `"<commit type>: <descriptive message for checklist item>"`. The commit type uses [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) to indicate the type of change. 
+  - Commit message: `"<commit type>: <descriptive message for checklist item>"`. The commit type uses [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) to indicate the type of change.
 
 ### Commit Granularity
 
@@ -93,7 +93,7 @@ Sources emit streams of data through pipes that transform the data, then eventua
 ### Code Organization
 
 - `src`: the library
-  - `src/homeAssistant`: sources and sinks for integration with Home Assistant (not currently usable)
+  - `src/home_assistant`: sources and sinks for integration with Home Assistant (not currently usable)
   - `src/mqtt`: sources and sinks for exposing the device to MQTT servers (not currently usable)
   - `src/operators`: a standard library of functional operators
   - `src/sinks`: sinks for IoT and generic data stuff
@@ -101,9 +101,9 @@ Sources emit streams of data through pipes that transform the data, then eventua
   - `src/types`: useful helper types
   - `src/ui`: sinks for LVGL-driven displays
   - `src/core_types.hpp`: the most important file, which defines Rheoscape's core types and idioms
-  - `src/**/everything.hpp`: 
+  - `src/**/everything.hpp`:
 - `test`: unit and integration tests
-- Naming conventions: camelCase for externally consumable things (sources, sinks, and operators), PascalCase for structs and classes. Private struct and class members start with an underscore.
+- Naming conventions: snake_case for functions and primitive types, PascalCase for structs and classes. Private struct and class members start with an underscore.
 - Every source, sink, or operator should live in a separate file. Extra types that are only used by the source, sink, or operator and their downstream sinks may be defined in that file; otherwise, if a type may be used by multiple components, it should be put into `src/types`.
 - This is a header-only library; all components should be in `.hpp` files.
 - Guard against multiple import with `#pragma once`.
@@ -111,7 +111,7 @@ Sources emit streams of data through pipes that transform the data, then eventua
 ### Quality Standards
 
 - Testing requirements: Every source, sink, and operator should have a corresponding set of unit tests in `test/` that exercises its use with trivial sources and sinks and explores edge cases and possible race conditions with parallel pipes. Sources and sinks that use embedded hardware should have a guard macro that prevents the test from running on the wrong hardware (check `platformio.ini` for currently supported environments and the `PLATFORM_*` flags that they set)
-- Documentation requirements: Every source, sink, and operator should have file-level 
+- Documentation requirements: Every source, sink, and operator should have file-level
 - Code review expectations: [what should reviewers focus on?]
 
 ### Common Patterns
@@ -158,7 +158,7 @@ Tests live in `test/` and are organised into folders for operators, sources, and
 
 ### Running Tests
 
-Just use `pio test`
+Use Platformio's built-in test command; you can find it at `~/.platformio/penv/bin/pio`. Always run tests locally using `-e dev_machine`.
 
 ### Test Philosophy
 
