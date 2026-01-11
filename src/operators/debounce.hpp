@@ -3,71 +3,102 @@
 #include <functional>
 #include <core_types.hpp>
 #include <operators/timestamp.hpp>
+#include <types/Wrapper.hpp>
 
 namespace rheo::operators {
-  
+
   // Don't emit a value until it's settled down
   // and matches the value recorded at the beginning of the interval.
   // Note: There is a period at the beginning of the stream
   // in which there will be no values pushed at all,
   // because it's checking whether the upstream source's initial value is stable.
-  template <typename T, typename TTime, typename TInterval>
-  source_fn<T> debounce(source_fn<T> source, source_fn<TTime> clockSource, TInterval interval) {
-    auto timestamped = timestamp(source, clockSource);
 
-    return [interval, timestamped](push_fn<T> push) {
+  template <typename T, typename TTime, typename TInterval>
+  struct debounce_push_handler {
+    TInterval interval;
+    push_fn<T> push;
+    std::shared_ptr<Wrapper<bool>> didPull;
+    mutable std::optional<TaggedValue<T, TTime>> testingNewState;
+    mutable std::optional<T> currentState;
+    mutable bool currentStateHasBeenPushed;
+
+    RHEO_NOINLINE void operator()(TaggedValue<T, TTime> value) const {
+      if (testingNewState.has_value()
+          // NOTE: This equation has to be this way
+          // to guard against wraparound for unsigned time representations.
+          // https://arduino.stackexchange.com/a/12588
+          && value.tag - testingNewState.value().tag >= interval) {
+        // The debounce period has settled down.
+        // Has it held the new state value to the end of the settling period?
+        if (value.value == testingNewState.value().value) {
+          // Yup, this is now the new state.
+          currentState = std::optional(value.value);
+        }
+        // Reset the testing value in preparation for the next state change.
+        testingNewState = std::nullopt;
+      }
+
+      // If the new value isn't the same as the current state,
+      // or if there is no current or testing states yet,
+      // start a new debounce test period.
+      if (
+        (!currentState.has_value() || currentState.value() != value.value)
+        && !testingNewState.has_value()
+      ) {
+        testingNewState = std::optional(value);
+      }
+
+      // Guard against initial non-state.
+      if (currentState.has_value() && (!currentStateHasBeenPushed || didPull->value)) {
+        // Push the current, not-bouncy state, whatever it is.
+        push(currentState.value());
+        currentStateHasBeenPushed = true;
+      }
+    }
+  };
+
+  template <typename T, typename TTime, typename TInterval>
+  struct debounce_pull_handler {
+    std::shared_ptr<Wrapper<bool>> didPull;
+    pull_fn innerPull;
+
+    RHEO_NOINLINE void operator()() const {
+      didPull->value = true;
+      innerPull();
+      didPull->value = false;
+    }
+  };
+
+  template <typename T, typename TTime, typename TInterval>
+  struct debounce_source_binder {
+    source_fn<TaggedValue<T, TTime>> timestamped;
+    TInterval interval;
+
+    RHEO_NOINLINE pull_fn operator()(push_fn<T> push) const {
       // We only want to push a value that's the same as the previously pushed value
       // if the push happens as a consequence of a pull.
       // It doesn't make sense for a push stream to force a debounced value to get emitted
       // for every single bouncy new value that's getting discarded.
       auto didPull = make_wrapper_shared(false);
 
-      pull_fn pull = timestamped([
+      pull_fn innerPull = timestamped(debounce_push_handler<T, TTime, TInterval>{
         interval,
-        push,
+        std::move(push),
         didPull,
-        testingNewState = std::optional<TaggedValue<T, TTime>>(),
-        currentState = std::optional<T>(),
-        currentStateHasBeenPushed = false
-      ](TaggedValue<T, TTime> value) mutable {
-        if (testingNewState.has_value()
-            // NOTE: This equation has to be this way
-            // to guard against wraparound for unsigned time representations.
-            // https://arduino.stackexchange.com/a/12588
-            && value.tag - testingNewState.value().tag >= interval) {
-          // The debounce period has settled down.
-          // Has it held the new state value to the end of the settling period?
-          if (value.value == testingNewState.value().value) {
-            // Yup, this is now the new state.
-            currentState = std::optional(value.value);
-          }
-          // Reset the testing value in preparation for the next state change.
-          testingNewState = std::nullopt;
-        }
-
-        // If the new value isn't the same as the current state,
-        // or if there is no current or testing states yet,
-        // start a new debounce test period.
-        if (
-          (!currentState.has_value() || currentState.value() != value.value)
-          && !testingNewState.has_value()
-        ) {
-          testingNewState = std::optional(value);
-        }
-
-        // Guard against initial non-state.
-        if (currentState.has_value() && (!currentStateHasBeenPushed || didPull->value)) {
-          // Push the current, not-bouncy state, whatever it is.
-          push(currentState.value());
-          currentStateHasBeenPushed = true;
-        }
+        std::nullopt,
+        std::nullopt,
+        false
       });
 
-      return [didPull, pull]() {
-        didPull->value = true;
-        pull();
-        didPull->value = false;
-      };
+      return debounce_pull_handler<T, TTime, TInterval>{didPull, std::move(innerPull)};
+    }
+  };
+
+  template <typename T, typename TTime, typename TInterval>
+  source_fn<T> debounce(source_fn<T> source, source_fn<TTime> clockSource, TInterval interval) {
+    return debounce_source_binder<T, TTime, TInterval>{
+      timestamp(source, clockSource),
+      interval
     };
   }
 

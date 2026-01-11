@@ -27,42 +27,75 @@ namespace rheo::operators {
   //    filter(timeSource, [](ts) { return !(ts % interval); }
   // But with something that would allow it to snap to time intervals if it missed one
 
+  template <typename TInterval>
+  struct interval_interval_push_handler {
+    std::shared_ptr<std::optional<TInterval>> lastInterval;
+
+    RHEO_NOINLINE void operator()(TInterval interval) const {
+      lastInterval->emplace(interval);
+    }
+  };
+
   template <typename TTimePoint, typename TInterval>
-  source_fn<TTimePoint> interval(source_fn<TTimePoint> timeSource, source_fn<TInterval> intervalSource) {
-    return [timeSource, intervalSource](push_fn<TTimePoint> push) {
+  struct interval_time_push_handler {
+    std::shared_ptr<std::optional<TInterval>> lastInterval;
+    std::shared_ptr<std::optional<TTimePoint>> lastIntervalTimestamp;
+    pull_fn pullNextInterval;
+    push_fn<TTimePoint> push;
+
+    RHEO_NOINLINE void operator()(TTimePoint timestamp) const {
+      if (!lastInterval->has_value()) {
+        pullNextInterval();
+        if (!lastInterval->has_value()) {
+          // Can't start yet; we have no interval.
+          return;
+        }
+      }
+
+      // This comes after we pull the first interval.
+      // That's because we don't want to start counting
+      // until we know what we're counting from/to.
+      if (!lastIntervalTimestamp->has_value()) {
+        // First pull or push of a timestamp; start the thing!
+        lastIntervalTimestamp->emplace(timestamp);
+      }
+
+      if (timestamp - lastIntervalTimestamp->value() >= lastInterval->value()) {
+        // An interval has passed. Push the timestamp and get the next interval.
+        // Don't use the current timestamp; that'll result in uneven interval spacing!
+        // Better to have unevenly emitted timestamps than unevenly calculated intervals.
+        lastIntervalTimestamp->emplace(lastIntervalTimestamp->value() + lastInterval->value());
+        push(lastIntervalTimestamp->value());
+        pullNextInterval();
+      }
+    }
+  };
+
+  template <typename TTimePoint, typename TInterval>
+  struct interval_source_binder {
+    source_fn<TTimePoint> timeSource;
+    source_fn<TInterval> intervalSource;
+
+    RHEO_NOINLINE pull_fn operator()(push_fn<TTimePoint> push) const {
       auto lastInterval = std::make_shared<std::optional<TInterval>>();
       auto lastIntervalTimestamp = std::make_shared<std::optional<TTimePoint>>();
 
-      pull_fn pullNextInterval = intervalSource([lastInterval](TInterval interval) {
-        lastInterval->emplace(interval);
+      pull_fn pullNextInterval = intervalSource(interval_interval_push_handler<TInterval>{lastInterval});
+
+      return timeSource(interval_time_push_handler<TTimePoint, TInterval>{
+        lastInterval,
+        lastIntervalTimestamp,
+        std::move(pullNextInterval),
+        std::move(push)
       });
+    }
+  };
 
-      return timeSource([lastInterval, lastIntervalTimestamp, pullNextInterval, push](TTimePoint timestamp) {
-        if (!lastInterval->has_value()) {
-          pullNextInterval();
-          if (!lastInterval->has_value()) {
-            // Can't start yet; we have no interval.
-            return;
-          }
-        }
-
-        // This comes after we pull the first interval.
-        // That's because we don't want to start counting
-        // until we know what we're counting from/to.          
-        if (!lastIntervalTimestamp->has_value()) {
-          // First pull or push of a timestamp; start the thing!
-          lastIntervalTimestamp->emplace(timestamp);
-        }
-
-        if (timestamp - lastIntervalTimestamp->value() >= lastInterval->value()) {
-          // An interval has passed. Push the timestamp and get the next interval.
-          // Don't use the current timestamp; that'll result in uneven interval spacing!
-          // Better to have unevenly emitted timestamps than unevenly calculated intervals.
-          lastIntervalTimestamp->emplace(lastIntervalTimestamp->value() + lastInterval->value());
-          push(lastIntervalTimestamp->value());
-          pullNextInterval();
-        }
-      });
+  template <typename TTimePoint, typename TInterval>
+  source_fn<TTimePoint> interval(source_fn<TTimePoint> timeSource, source_fn<TInterval> intervalSource) {
+    return interval_source_binder<TTimePoint, TInterval>{
+      std::move(timeSource),
+      std::move(intervalSource)
     };
   }
 
@@ -83,14 +116,30 @@ namespace rheo::operators {
   // I wouldn't recommend using a factor <1,
   // cuz then it'd just start getting faster and faster!
   template <typename TInterval>
+  struct curve_pull_handler {
+    mutable TInterval acc;
+    float factor;
+    push_fn<TInterval> push;
+
+    RHEO_NOINLINE void operator()() const {
+      push(acc);
+      acc *= factor;
+    }
+  };
+
+  template <typename TInterval>
+  struct curve_source_binder {
+    TInterval startInterval;
+    float factor;
+
+    RHEO_NOINLINE pull_fn operator()(push_fn<TInterval> push) const {
+      return curve_pull_handler<TInterval>{startInterval, factor, std::move(push)};
+    }
+  };
+
+  template <typename TInterval>
   source_fn<TInterval> curve(TInterval startInterval, float factor) {
-    return [startInterval, factor](push_fn<TInterval> push) {
-      TInterval acc = startInterval;
-      return [factor, &acc, push] {
-        push(acc);
-        acc *= factor;
-      };
-    };
+    return curve_source_binder<TInterval>{std::move(startInterval), factor};
   }
 
 }
