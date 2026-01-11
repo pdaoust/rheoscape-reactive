@@ -9,32 +9,71 @@ namespace rheo::operators {
 
   // Concatenate two sources into one,
   // starting the second one after the first one has ended.
+
+  // First overload: Endable<T> + T -> T
+  template <typename T>
+  struct concat_source1_push_handler {
+    push_fn<T> push;
+    std::shared_ptr<Wrapper<bool>> source1HasEnded;
+
+    RHEO_NOINLINE void operator()(Endable<T> value) const {
+      if (value.hasValue()) {
+        push(value.value);
+      } else {
+        source1HasEnded->value = true;
+      }
+    }
+  };
+
+  template <typename T>
+  struct concat_source2_push_handler {
+    push_fn<T> push;
+    std::shared_ptr<Wrapper<bool>> source1HasEnded;
+
+    RHEO_NOINLINE void operator()(T value) const {
+      if (source1HasEnded->value) {
+        push(value);
+      }
+    }
+  };
+
+  template <typename T>
+  struct concat_pull_handler {
+    std::shared_ptr<Wrapper<bool>> source1HasEnded;
+    pull_fn pullSource1;
+    pull_fn pullSource2;
+
+    RHEO_NOINLINE void operator()() const {
+      if (!source1HasEnded->value) {
+        pullSource1();
+      } else {
+        pullSource2();
+      }
+    }
+  };
+
+  template <typename T>
+  struct concat_source_binder {
+    source_fn<Endable<T>> source1;
+    source_fn<T> source2;
+
+    RHEO_NOINLINE pull_fn operator()(push_fn<T> push) const {
+      auto source1HasEnded = make_wrapper_shared<bool>(false);
+
+      pull_fn pullSource1 = source1(concat_source1_push_handler<T>{push, source1HasEnded});
+      pull_fn pullSource2 = source2(concat_source2_push_handler<T>{push, source1HasEnded});
+
+      return concat_pull_handler<T>{
+        source1HasEnded,
+        std::move(pullSource1),
+        std::move(pullSource2)
+      };
+    }
+  };
+
   template <typename T>
   source_fn<T> concat(source_fn<Endable<T>> source1, source_fn<T> source2) {
-    return [source1, source2](push_fn<T> push) {
-      auto source1HasEnded = make_wrapper_shared<bool>(false);
-      pull_fn pullSource1 = source1([&push, source1HasEnded](Endable<T> value) {
-        if (value.hasValue()) {
-          push(value.value);
-        } else {
-          source1HasEnded->value = true;
-        }
-      });
-
-      pull_fn pullSource2 = source2([&push, source1HasEnded](T value) {
-        if (source1HasEnded->value) {
-          push(value);
-        }
-      });
-
-      return [source1HasEnded, pullSource1 = std::move(pullSource1), pullSource2 = std::move(pullSource2)]() {
-        if (!source1HasEnded->value) {
-          pullSource1();
-        } else {
-          pullSource2();
-        }
-      };
-    };
+    return concat_source_binder<T>{std::move(source1), std::move(source2)};
   }
 
   template <typename T>
@@ -44,38 +83,74 @@ namespace rheo::operators {
     };
   }
 
-  // Concatenate two sources into one,
-  // starting the second one after the first one has ended.
+  // Second overload: Endable<T> + Endable<T> -> Endable<T>
+  template <typename T>
+  struct concat_endable_source1_push_handler {
+    push_fn<Endable<T>> push;
+    std::shared_ptr<Wrapper<bool>> source1HasEnded;
+
+    RHEO_NOINLINE void operator()(Endable<T> value) const {
+      if (value.hasValue()) {
+        push(value);
+      } else {
+        source1HasEnded->value = true;
+      }
+    }
+  };
+
+  template <typename T>
+  struct concat_endable_source2_push_handler {
+    push_fn<Endable<T>> push;
+    std::shared_ptr<Wrapper<bool>> source1HasEnded;
+
+    RHEO_NOINLINE void operator()(Endable<T> value) const {
+      if (source1HasEnded->value) {
+        push(value);
+      }
+    }
+  };
+
+  template <typename T>
+  struct concat_endable_pull_handler {
+    std::shared_ptr<Wrapper<bool>> source1HasEnded;
+    pull_fn pullSource1;
+    pull_fn pullSource2;
+
+    RHEO_NOINLINE void operator()() const {
+      if (!source1HasEnded->value) {
+        pullSource1();
+      }
+      if (source1HasEnded->value) {
+        // We can't use an else here;
+        // it's possible that the above attempt to pull source 1
+        // has resulted in the discovery that it's ended.
+        pullSource2();
+      }
+    }
+  };
+
+  template <typename T>
+  struct concat_endable_source_binder {
+    source_fn<Endable<T>> source1;
+    source_fn<Endable<T>> source2;
+
+    RHEO_NOINLINE pull_fn operator()(push_fn<Endable<T>> push) const {
+      auto source1HasEnded = make_wrapper_shared<bool>(false);
+
+      pull_fn pullSource1 = source1(concat_endable_source1_push_handler<T>{push, source1HasEnded});
+      pull_fn pullSource2 = source2(concat_endable_source2_push_handler<T>{push, source1HasEnded});
+
+      return concat_endable_pull_handler<T>{
+        source1HasEnded,
+        std::move(pullSource1),
+        std::move(pullSource2)
+      };
+    }
+  };
+
   template <typename T>
   source_fn<Endable<T>> concat(source_fn<Endable<T>> source1, source_fn<Endable<T>> source2) {
-    return [source1, source2](push_fn<Endable<T>> push) {
-      auto source1HasEnded = make_wrapper_shared<bool>(false);
-      pull_fn pullSource1 = source1([push, source1HasEnded](Endable<T> value) {
-        if (value.hasValue()) {
-          push(value);
-        } else {
-          source1HasEnded->value = true;
-        }
-      });
-
-      pull_fn pullSource2 = source2([push, source1HasEnded](Endable<T> value) {
-        if (source1HasEnded->value) {
-          push(value);
-        }
-      });
-      
-      return [source1HasEnded, pullSource1, pullSource2]() {
-        if (!source1HasEnded->value) {
-          pullSource1();
-        }
-        if (source1HasEnded->value) {
-          // We can't use an else here;
-          // it's possible that the above attempt to pull source 1
-          // has resulted in the discovery that it's ended.
-          pullSource2();
-        }
-      };
-    };
+    return concat_endable_source_binder<T>{std::move(source1), std::move(source2)};
   }
 
 }
