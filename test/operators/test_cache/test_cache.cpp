@@ -7,51 +7,51 @@ using namespace rheo;
 using namespace rheo::operators;
 
 void test_cache_caches_after_pushed() {
-  source_fn<int> pullOnceAndGiveUp = [](push_fn<int> push) {
-    return [push, hasPulledOnce = false]() mutable {
-      if (!hasPulledOnce) {
+  source_fn<int> pull_once_and_give_up = [](push_fn<int> push) {
+    return [push, has_pulled_once = false]() mutable {
+      if (!has_pulled_once) {
         push(11);
-        hasPulledOnce = true;
+        has_pulled_once = true;
       }
     };
   };
-  auto cacher = cache(pullOnceAndGiveUp);
-  int pushedValue = 0;
-  pull_fn pull = cacher([&pushedValue](int v) { pushedValue = v; });
+  auto cacher = cache(pull_once_and_give_up);
+  int pushed_value = 0;
+  pull_fn pull = cacher([&pushed_value](int v) { pushed_value = v; });
   pull();
-  TEST_ASSERT_EQUAL_MESSAGE(11, pushedValue, "should get initial value; this is nothing special");
+  TEST_ASSERT_EQUAL_MESSAGE(11, pushed_value, "should get initial value; this is nothing special");
   // Reset the pushed value to make sure it really does push again even when the upstream source won't push anymore.
-  pushedValue = 0;
+  pushed_value = 0;
   pull();
-  TEST_ASSERT_EQUAL_MESSAGE(11, pushedValue, "should get cached value");
+  TEST_ASSERT_EQUAL_MESSAGE(11, pushed_value, "should get cached value");
 }
 
 void test_cache_doesnt_push_cached_value_when_theres_something_to_push() {
-  source_fn<int> pullAlternately = [](push_fn<int> push) {
-    return [push, count = 1, justPushed = false]() mutable {
-      if (!justPushed) {
+  source_fn<int> pull_alternately = [](push_fn<int> push) {
+    return [push, count = 1, just_pushed = false]() mutable {
+      if (!just_pushed) {
         push(count);
-        justPushed = true;
+        just_pushed = true;
         count ++;
       } else {
-        justPushed = false;
+        just_pushed = false;
       }
     };
   };
-  auto cacher = cache(pullAlternately);
-  int pushedValue = 0;
-  pull_fn pull = cacher([&pushedValue](int v) { pushedValue = v; });
+  auto cacher = cache(pull_alternately);
+  int pushed_value = 0;
+  pull_fn pull = cacher([&pushed_value](int v) { pushed_value = v; });
   pull();
-  TEST_ASSERT_EQUAL_MESSAGE(1, pushedValue, "should get first pushed value");
-  pushedValue = 0;
+  TEST_ASSERT_EQUAL_MESSAGE(1, pushed_value, "should get first pushed value");
+  pushed_value = 0;
   pull();
-  TEST_ASSERT_EQUAL_MESSAGE(1, pushedValue, "should get cached first value");
-  pushedValue = 0;
+  TEST_ASSERT_EQUAL_MESSAGE(1, pushed_value, "should get cached first value");
+  pushed_value = 0;
   pull();
-  TEST_ASSERT_EQUAL_MESSAGE(2, pushedValue, "should get second pushed value");
-  pushedValue = 0;
+  TEST_ASSERT_EQUAL_MESSAGE(2, pushed_value, "should get second pushed value");
+  pushed_value = 0;
   pull();
-  TEST_ASSERT_EQUAL_MESSAGE(2, pushedValue, "should get cached second value");
+  TEST_ASSERT_EQUAL_MESSAGE(2, pushed_value, "should get cached second value");
 }
 
 int main(int argc, char **argv) {

@@ -5,81 +5,81 @@ using namespace rheo;
 using namespace rheo::sources;
 
 void test_sequence_yields_all_values_then_ends() {
-  int pushedValue = 0;
-  bool isEnded = false;
-  auto iterOverSequence = sequence(1, 15, 2);
-  auto pull = iterOverSequence([&pushedValue, &isEnded](Endable<int> v) {
-    if (v.hasValue()) {
-      pushedValue = v.value();
+  int pushed_value = 0;
+  bool is_ended = false;
+  auto iter_over_sequence = sequence(1, 15, 2);
+  auto pull = iter_over_sequence([&pushed_value, &is_ended](Endable<int> v) {
+    if (v.has_value()) {
+      pushed_value = v.value();
     } else {
-      isEnded = true;
+      is_ended = true;
     };
   });
   for (int i = 1; i <= 15; i += 2) {
-    TEST_ASSERT_FALSE_MESSAGE(isEnded, "shouldn't be ended until the last value");
+    TEST_ASSERT_FALSE_MESSAGE(is_ended, "shouldn't be ended until the last value");
     pull();
-    TEST_ASSERT_EQUAL_MESSAGE(i, pushedValue, "should get next value in sequence");
+    TEST_ASSERT_EQUAL_MESSAGE(i, pushed_value, "should get next value in sequence");
   }
   pull();
-  TEST_ASSERT_TRUE_MESSAGE(isEnded, "should be done now");
+  TEST_ASSERT_TRUE_MESSAGE(is_ended, "should be done now");
 }
 
 void test_sequence_can_be_bound_to_twice_and_yield_twice() {
-  int pushedValue1 = 0;
-  bool isEnded1 = false;
-  int pushedValue2 = 0;
-  bool isEnded2 = false;
-  auto iterOverSequence = sequence(1, 15, 2);
-  auto pull1 = iterOverSequence([&pushedValue1, &isEnded1](Endable<int> v) {
-    if (v.hasValue()) {
-      pushedValue1 = v.value();
+  int pushed_value1 = 0;
+  bool is_ended1 = false;
+  int pushed_value2 = 0;
+  bool is_ended2 = false;
+  auto iter_over_sequence = sequence(1, 15, 2);
+  auto pull1 = iter_over_sequence([&pushed_value1, &is_ended1](Endable<int> v) {
+    if (v.has_value()) {
+      pushed_value1 = v.value();
     } else {
-      isEnded1 = true;
+      is_ended1 = true;
     }
   });
-  auto pull2 = iterOverSequence([&pushedValue2, &isEnded2](Endable<int> v) {
-    if (v.hasValue()) {
-      pushedValue2 = v.value();
+  auto pull2 = iter_over_sequence([&pushed_value2, &is_ended2](Endable<int> v) {
+    if (v.has_value()) {
+      pushed_value2 = v.value();
     } else {
-      isEnded2 = true;
+      is_ended2 = true;
     }
   });
   for (int i = 1; i <= 15; i += 2) {
-    TEST_ASSERT_FALSE_MESSAGE(isEnded1, "first bound listener shouldn't be ended until the last value");
+    TEST_ASSERT_FALSE_MESSAGE(is_ended1, "first bound listener shouldn't be ended until the last value");
     pull1();
-    TEST_ASSERT_EQUAL_MESSAGE(i, pushedValue1, "first bound listener should get next value in vector");
+    TEST_ASSERT_EQUAL_MESSAGE(i, pushed_value1, "first bound listener should get next value in vector");
   }
   pull1();
-  TEST_ASSERT_TRUE_MESSAGE(isEnded1, "first bound listener should be done now");
+  TEST_ASSERT_TRUE_MESSAGE(is_ended1, "first bound listener should be done now");
   for (int i = 1; i <= 15; i += 2) {
-    TEST_ASSERT_FALSE_MESSAGE(isEnded2, "second bound listener shouldn't be ended until the last value");
+    TEST_ASSERT_FALSE_MESSAGE(is_ended2, "second bound listener shouldn't be ended until the last value");
     pull2();
-    TEST_ASSERT_EQUAL_MESSAGE(i, pushedValue2, "second bound listener should get next value in vector");
+    TEST_ASSERT_EQUAL_MESSAGE(i, pushed_value2, "second bound listener should get next value in vector");
   }
   pull2();
-  TEST_ASSERT_TRUE_MESSAGE(isEnded2, "second bound listener should be done now");
+  TEST_ASSERT_TRUE_MESSAGE(is_ended2, "second bound listener should be done now");
 }
 
 void test_sequence_can_go_backwards() {
-  int pushedValue = 0;
-  bool isEnded = false;
-  auto iterOverSequence = sequence(1, -10, -1);
-  auto pull = iterOverSequence(
-    [&pushedValue, &isEnded](Endable<int> v) {
-      if (v.hasValue()) {
-        pushedValue = v.value();
+  int pushed_value = 0;
+  bool is_ended = false;
+  auto iter_over_sequence = sequence(1, -10, -1);
+  auto pull = iter_over_sequence(
+    [&pushed_value, &is_ended](Endable<int> v) {
+      if (v.has_value()) {
+        pushed_value = v.value();
       } else {
-        isEnded = true;
+        is_ended = true;
       }
     }
   );
   for (int i = 1; i >= -10; i -= 1) {
-    TEST_ASSERT_FALSE_MESSAGE(isEnded, "shouldn't be ended until the last value");
+    TEST_ASSERT_FALSE_MESSAGE(is_ended, "shouldn't be ended until the last value");
     pull();
-    TEST_ASSERT_EQUAL_MESSAGE(i, pushedValue, "should get next value in sequence");
+    TEST_ASSERT_EQUAL_MESSAGE(i, pushed_value, "should get next value in sequence");
   }
   pull();
-  TEST_ASSERT_TRUE_MESSAGE(isEnded, "should be done now");
+  TEST_ASSERT_TRUE_MESSAGE(is_ended, "should be done now");
 }
 
 int main(int argc, char **argv) {

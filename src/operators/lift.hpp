@@ -24,10 +24,10 @@ namespace rheo::operators {
   // * Depending on the higher-ordered type, you can't always lower a value
   //   in order to pass it to the inner pipe.
   //   For instance, you can't feed `std::nullopt` into a pipe that expects real values.
-  //   That means your lowerFn must return a variant
+  //   That means your lower_fn must return a variant
   //   of either the lowered value (position 0) if it can be lowered
   //   or the original higher-ordered value transformed into an appropriate value of TLiftedOut (position 1) if it can't.
-  // * If your lowerFn can't map to a lower-order value,
+  // * If your lower_fn can't map to a lower-order value,
   //   the transformed higher-order TLiftedOut you return will bypass the inner pipe
   //   and get pushed directly to the downstream source function.
   // * In order to lift a lower-ordered value back to a higher-ordered value,
@@ -35,7 +35,7 @@ namespace rheo::operators {
   //   before it was sent through the inner pipe.
   //   An example would be timestamped values that are sent through an inner pipe
   //   that knows nothing about timestamps.
-  //   Therefore, your liftFn receives the original higher-ordered value
+  //   Therefore, your lift_fn receives the original higher-ordered value
   //   as its second parameter.
   // * Either the upstream source function or the inner pipe can end the stream.
   //   Whichever happens first.
@@ -53,20 +53,20 @@ namespace rheo::operators {
   // Push handler for outer source values - lowers and routes them
   template <typename TIn, typename TLiftedIn, typename TLiftedOut, typename LowerFn>
   struct lift_outer_push_handler {
-    LowerFn lowerFn;
-    push_fn<TLiftedOut> pushOuterOut;
-    std::shared_ptr<Wrapper<TLiftedIn>> lastLiftedIn;
-    push_fn<TIn> pushInnerIn;
+    LowerFn lower_fn;
+    push_fn<TLiftedOut> push_outer_out;
+    std::shared_ptr<Wrapper<TLiftedIn>> last_lifted_in;
+    push_fn<TIn> push_inner_in;
 
-    RHEO_NOINLINE void operator()(TLiftedIn outerValueIn) const {
-      lastLiftedIn->value = outerValueIn;
-      std::variant<TIn, TLiftedOut> maybeLoweredValue = lowerFn(outerValueIn);
-      if (maybeLoweredValue.index() == 0) {
+    RHEO_NOINLINE void operator()(TLiftedIn outer_value_in) const {
+      last_lifted_in->value = outer_value_in;
+      std::variant<TIn, TLiftedOut> maybe_lowered_value = lower_fn(outer_value_in);
+      if (maybe_lowered_value.index() == 0) {
         // This value could be lowered; pass it to the inner pipe.
-        pushInnerIn(std::get<0>(maybeLoweredValue));
+        push_inner_in(std::get<0>(maybe_lowered_value));
       } else {
         // This value couldn't be lowered; pass it to the outer end of the lifted pipe.
-        pushOuterOut(std::get<1>(maybeLoweredValue));
+        push_outer_out(std::get<1>(maybe_lowered_value));
       }
     }
   };
@@ -74,17 +74,17 @@ namespace rheo::operators {
   // Source binder for inner pipe input - wires outer source to inner pipe
   template <typename TIn, typename TLiftedIn, typename TLiftedOut, typename LowerFn>
   struct lift_inner_in_source_binder {
-    LowerFn lowerFn;
-    push_fn<TLiftedOut> pushOuterOut;
-    source_fn<TLiftedIn> outerSourceIn;
-    std::shared_ptr<Wrapper<TLiftedIn>> lastLiftedIn;
+    LowerFn lower_fn;
+    push_fn<TLiftedOut> push_outer_out;
+    source_fn<TLiftedIn> outer_source_in;
+    std::shared_ptr<Wrapper<TLiftedIn>> last_lifted_in;
 
-    RHEO_NOINLINE pull_fn operator()(push_fn<TIn> pushInnerIn) const {
-      return outerSourceIn(lift_outer_push_handler<TIn, TLiftedIn, TLiftedOut, LowerFn>{
-        lowerFn,
-        pushOuterOut,
-        lastLiftedIn,
-        std::move(pushInnerIn)
+    RHEO_NOINLINE pull_fn operator()(push_fn<TIn> push_inner_in) const {
+      return outer_source_in(lift_outer_push_handler<TIn, TLiftedIn, TLiftedOut, LowerFn>{
+        lower_fn,
+        push_outer_out,
+        last_lifted_in,
+        std::move(push_inner_in)
       });
     }
   };
@@ -92,40 +92,40 @@ namespace rheo::operators {
   // Push handler for inner pipe output - lifts values back up
   template <typename TOut, typename TLiftedIn, typename TLiftedOut, typename LiftFn>
   struct lift_inner_out_push_handler {
-    LiftFn liftFn;
-    push_fn<TLiftedOut> pushOuterOut;
-    std::shared_ptr<Wrapper<TLiftedIn>> lastLiftedIn;
+    LiftFn lift_fn;
+    push_fn<TLiftedOut> push_outer_out;
+    std::shared_ptr<Wrapper<TLiftedIn>> last_lifted_in;
 
-    RHEO_NOINLINE void operator()(TOut innerValueOut) const {
-      pushOuterOut(liftFn(innerValueOut, lastLiftedIn->value));
+    RHEO_NOINLINE void operator()(TOut inner_value_out) const {
+      push_outer_out(lift_fn(inner_value_out, last_lifted_in->value));
     }
   };
 
   // Source binder for outer lifted source
   template <typename TOut, typename TIn, typename TLiftedIn, typename TLiftedOut, typename LiftFn, typename LowerFn>
   struct lift_source_binder {
-    pipe_fn<TOut, TIn> innerPipeFn;
-    LiftFn liftFn;
-    LowerFn lowerFn;
-    source_fn<TLiftedIn> outerSourceIn;
+    pipe_fn<TOut, TIn> inner_pipe_fn;
+    LiftFn lift_fn;
+    LowerFn lower_fn;
+    source_fn<TLiftedIn> outer_source_in;
 
-    RHEO_NOINLINE pull_fn operator()(push_fn<TLiftedOut> pushOuterOut) const {
-      auto lastLiftedIn = make_wrapper_shared<TLiftedIn>();
+    RHEO_NOINLINE pull_fn operator()(push_fn<TLiftedOut> push_outer_out) const {
+      auto last_lifted_in = make_wrapper_shared<TLiftedIn>();
 
       // Create the inner source by applying inner pipe to our custom source binder
-      auto innerSourceOut = innerPipeFn(lift_inner_in_source_binder<TIn, TLiftedIn, TLiftedOut, LowerFn>{
-        lowerFn,
-        pushOuterOut,
-        outerSourceIn,
-        lastLiftedIn
+      auto inner_source_out = inner_pipe_fn(lift_inner_in_source_binder<TIn, TLiftedIn, TLiftedOut, LowerFn>{
+        lower_fn,
+        push_outer_out,
+        outer_source_in,
+        last_lifted_in
       });
 
       // The pull function comes from the 'out' end of the inner pipe,
       // which is wired up all the way through to the outer source.
-      return innerSourceOut(lift_inner_out_push_handler<TOut, TLiftedIn, TLiftedOut, LiftFn>{
-        liftFn,
-        pushOuterOut,
-        lastLiftedIn
+      return inner_source_out(lift_inner_out_push_handler<TOut, TLiftedIn, TLiftedOut, LiftFn>{
+        lift_fn,
+        push_outer_out,
+        last_lifted_in
       });
     }
   };
@@ -133,25 +133,25 @@ namespace rheo::operators {
   // Pipe factory for lift
   template <typename TOut, typename TIn, typename TLiftedIn, typename TLiftedOut, typename LiftFn, typename LowerFn>
   struct lift_pipe_factory {
-    pipe_fn<TOut, TIn> innerPipeFn;
-    LiftFn liftFn;
-    LowerFn lowerFn;
+    pipe_fn<TOut, TIn> inner_pipe_fn;
+    LiftFn lift_fn;
+    LowerFn lower_fn;
 
-    RHEO_NOINLINE source_fn<TLiftedOut> operator()(source_fn<TLiftedIn> outerSourceIn) const {
+    RHEO_NOINLINE source_fn<TLiftedOut> operator()(source_fn<TLiftedIn> outer_source_in) const {
       return lift_source_binder<TOut, TIn, TLiftedIn, TLiftedOut, LiftFn, LowerFn>{
-        innerPipeFn,
-        liftFn,
-        lowerFn,
-        std::move(outerSourceIn)
+        inner_pipe_fn,
+        lift_fn,
+        lower_fn,
+        std::move(outer_source_in)
       };
     }
   };
 
   template <typename TOut, typename TIn, typename LiftFn, typename LowerFn>
   auto lift(
-    pipe_fn<TOut, TIn> innerPipeFn,
-    LiftFn liftFn,
-    LowerFn lowerFn
+    pipe_fn<TOut, TIn> inner_pipe_fn,
+    LiftFn lift_fn,
+    LowerFn lower_fn
   )
   -> pipe_fn<
     return_of<LiftFn>,
@@ -161,17 +161,17 @@ namespace rheo::operators {
     using TLiftedIn = arg_of<LowerFn>;
 
     return lift_pipe_factory<TOut, TIn, TLiftedIn, TLiftedOut, LiftFn, LowerFn>{
-      std::move(innerPipeFn),
-      std::move(liftFn),
-      std::move(lowerFn)
+      std::move(inner_pipe_fn),
+      std::move(lift_fn),
+      std::move(lower_fn)
     };
   }
 
   template <typename TOut, typename TIn>
-  auto liftToOptional(pipe_fn<TOut, TIn> innerPipeFn)
+  auto lift_to_optional(pipe_fn<TOut, TIn> inner_pipe_fn)
   -> pipe_fn<std::optional<TOut>, std::optional<TIn>> {
     return lift(
-      innerPipeFn,
+      inner_pipe_fn,
       [](TOut value, std::optional<TIn> _) { return std::optional<TOut>(value); },
       [](std::optional<TIn> value) {
         return value.has_value()
@@ -182,23 +182,23 @@ namespace rheo::operators {
   }
 
   template <typename TTag, typename TOut, typename TIn>
-  auto liftToTaggedValue(pipe_fn<TOut, TIn> innerPipeFn)
+  auto lift_to_tagged_value(pipe_fn<TOut, TIn> inner_pipe_fn)
   -> pipe_fn<TaggedValue<TOut, TTag>, TaggedValue<TIn, TTag>> {
     return lift(
-      innerPipeFn,
-      [](TOut value, TaggedValue<TIn, TTag> taggedIn) { return TaggedValue<TOut, TTag>{ value, taggedIn.tag }; },
+      inner_pipe_fn,
+      [](TOut value, TaggedValue<TIn, TTag> tagged_in) { return TaggedValue<TOut, TTag>{ value, tagged_in.tag }; },
       [](TaggedValue<TIn, TTag> value) { return (std::variant<TIn, TaggedValue<TOut, TTag>>)value.value; }
     );
   }
 
   template <typename TErr, typename TOut, typename TIn>
-  auto liftToFallible(pipe_fn<TOut, TIn> innerPipeFn)
+  auto lift_to_fallible(pipe_fn<TOut, TIn> inner_pipe_fn)
   -> pipe_fn<Fallible<TOut, TErr>, Fallible<TIn, TErr>> {
     return lift(
-      innerPipeFn,
-      [](TOut value, Fallible<TIn, TErr> fallibleIn) { return Fallible<TOut, TErr>{ value, fallibleIn.error() }; },
+      inner_pipe_fn,
+      [](TOut value, Fallible<TIn, TErr> fallible_in) { return Fallible<TOut, TErr>{ value, fallible_in.error() }; },
       [](Fallible<TIn, TErr> value) {
-        return value.isOk()
+        return value.is_ok()
           ? (std::variant<TIn, Fallible<TErr, TOut>>)value.value()
           : (std::variant<TIn, Fallible<TErr, TOut>>)value;
       }
@@ -206,23 +206,23 @@ namespace rheo::operators {
   }
 
   template <typename TRight, typename TOut, typename TIn>
-  auto liftToTupleLeft(pipe_fn<TOut, TIn> innerPipeFn)
+  auto lift_to_tuple_left(pipe_fn<TOut, TIn> inner_pipe_fn)
   -> pipe_fn<std::tuple<TOut, TRight>, std::tuple<TIn, TRight>> {
     return lift(
-      innerPipeFn,
-      [](TOut value, std::tuple<TIn, TRight> tupleIn) { return std::tuple<TOut, TRight>{ value, std::get<1>(tupleIn) }; },
+      inner_pipe_fn,
+      [](TOut value, std::tuple<TIn, TRight> tuple_in) { return std::tuple<TOut, TRight>{ value, std::get<1>(tuple_in) }; },
       [](std::tuple<TIn, TRight> value) { return (std::variant<TIn, std::tuple<TOut, TRight>>)value; }
     );
   }
 
   template <typename TLeft, typename TOut, typename TIn>
-  auto liftToTupleRight(pipe_fn<TOut, TIn> innerPipeFn)
+  auto lift_to_tuple_right(pipe_fn<TOut, TIn> inner_pipe_fn)
   -> pipe_fn<std::tuple<TLeft, TOut>, std::tuple<TLeft, TIn>> {
     return lift(
-      innerPipeFn,
-      [](TOut value, std::tuple<TLeft, TIn> tupleIn) { return std::tuple<TLeft, TOut>{ std::get<0>(tupleIn), value }; },
+      inner_pipe_fn,
+      [](TOut value, std::tuple<TLeft, TIn> tuple_in) { return std::tuple<TLeft, TOut>{ std::get<0>(tuple_in), value }; },
       [](std::tuple<TLeft, TIn> value) { return (std::variant<TIn, std::tuple<TLeft, TOut>>)value; }
     );
   }
-  
+
 }

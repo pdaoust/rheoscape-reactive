@@ -60,23 +60,23 @@ namespace rheo::operators {
 
     // Cascade pull helper: pulls the next source that needs a value
     template<size_t I, size_t N, typename ValuesPtr, typename PullsPtr>
-    RHEO_NOINLINE void cascade_pull(const ValuesPtr& currentValues, const PullsPtr& pullFunctions) {
+    RHEO_NOINLINE void cascade_pull(const ValuesPtr& current_values, const PullsPtr& pull_functions) {
       // Try sources after I first, then sources before I
       [&]<size_t... Js>(std::index_sequence<Js...>) {
         (
           [&]<size_t J>() {
             if constexpr (J > I && J < N) {
-              if (!std::get<J>(*currentValues).has_value()) {
-                if (std::get<J>(*pullFunctions).has_value()) {
-                  std::get<J>(*pullFunctions).value()();
+              if (!std::get<J>(*current_values).has_value()) {
+                if (std::get<J>(*pull_functions).has_value()) {
+                  std::get<J>(*pull_functions).value()();
                 }
                 return true;
               }
             }
             if constexpr (J < I) {
-              if (!std::get<J>(*currentValues).has_value()) {
-                if (std::get<J>(*pullFunctions).has_value()) {
-                  std::get<J>(*pullFunctions).value()();
+              if (!std::get<J>(*current_values).has_value()) {
+                if (std::get<J>(*pull_functions).has_value()) {
+                  std::get<J>(*pull_functions).value()();
                 }
                 return true;
               }
@@ -97,23 +97,23 @@ namespace rheo::operators {
 
     CombineFn combiner;
     push_fn<TOut> push;
-    std::shared_ptr<ValuesType> currentValues;
-    std::shared_ptr<PullsType> pullFunctions;
+    std::shared_ptr<ValuesType> current_values;
+    std::shared_ptr<PullsType> pull_functions;
 
     RHEO_NOINLINE void operator()(TValue value) const {
       // Store the value at index I
-      std::get<I>(*currentValues).emplace(std::move(value));
+      std::get<I>(*current_values).emplace(std::move(value));
 
       // Check if all values are ready
-      if (detail::all_have_values(*currentValues)) {
+      if (detail::all_have_values(*current_values)) {
         // All ready - push combined result
-        auto extractedValues = detail::extract_values(*currentValues);
-        auto result = std::apply(combiner, std::move(extractedValues));
+        auto extracted_values = detail::extract_values(*current_values);
+        auto result = std::apply(combiner, std::move(extracted_values));
         push(std::move(result));
-        detail::reset_all(*currentValues);
+        detail::reset_all(*current_values);
       } else {
         // Not all ready - cascade pull to next source that needs a value
-        detail::cascade_pull<I, N>(currentValues, pullFunctions);
+        detail::cascade_pull<I, N>(current_values, pull_functions);
       }
     }
   };
@@ -123,11 +123,11 @@ namespace rheo::operators {
   struct combine_pull_handler {
     using PullsType = std::tuple<decltype((void)std::declval<AllTypes>(), std::optional<pull_fn>())...>;
 
-    std::shared_ptr<PullsType> pullFunctions;
+    std::shared_ptr<PullsType> pull_functions;
 
     RHEO_NOINLINE void operator()() const {
-      if (std::get<0>(*pullFunctions).has_value()) {
-        std::get<0>(*pullFunctions).value()();
+      if (std::get<0>(*pull_functions).has_value()) {
+        std::get<0>(*pull_functions).value()();
       }
     }
   };
@@ -146,47 +146,47 @@ namespace rheo::operators {
     std::tuple<source_fn<T1>, source_fn<Ts>...> sources;
 
     RHEO_NOINLINE pull_fn operator()(push_fn<TOut> push) const {
-      auto currentValues = std::make_shared<ValuesType>();
-      auto pullFunctions = std::make_shared<PullsType>();
+      auto current_values = std::make_shared<ValuesType>();
+      auto pull_functions = std::make_shared<PullsType>();
 
       // Bind each source with its push handler
-      bind_sources(push, currentValues, pullFunctions, std::make_index_sequence<N>{});
+      bind_sources(push, current_values, pull_functions, std::make_index_sequence<N>{});
 
-      return combine_pull_handler<T1, Ts...>{pullFunctions};
+      return combine_pull_handler<T1, Ts...>{pull_functions};
     }
 
   private:
     template<size_t... Is>
     RHEO_NOINLINE void bind_sources(
       const push_fn<TOut>& push,
-      const std::shared_ptr<ValuesType>& currentValues,
-      const std::shared_ptr<PullsType>& pullFunctions,
+      const std::shared_ptr<ValuesType>& current_values,
+      const std::shared_ptr<PullsType>& pull_functions,
       std::index_sequence<Is...>
     ) const {
-      (bind_source<Is>(push, currentValues, pullFunctions), ...);
+      (bind_source<Is>(push, current_values, pull_functions), ...);
     }
 
     template<size_t I>
     RHEO_NOINLINE void bind_source(
       const push_fn<TOut>& push,
-      const std::shared_ptr<ValuesType>& currentValues,
-      const std::shared_ptr<PullsType>& pullFunctions
+      const std::shared_ptr<ValuesType>& current_values,
+      const std::shared_ptr<PullsType>& pull_functions
     ) const {
       using TValue = std::tuple_element_t<I, std::tuple<T1, Ts...>>;
 
       auto handler = combine_push_handler<I, N, CombineFn, TOut, T1, Ts...>{
         combiner,
         push,
-        currentValues,
-        pullFunctions
+        current_values,
+        pull_functions
       };
 
-      std::get<I>(*pullFunctions).emplace(std::get<I>(sources)(handler));
+      std::get<I>(*pull_functions).emplace(std::get<I>(sources)(handler));
     }
   };
 
   // Variadic combine implementation
-  // Usage: combine(combinerFn, source1, source2, ...)
+  // Usage: combine(combiner_fn, source1, source2, ...)
   // Note: combiner is first to enable variadic parameter pack deduction
   template <typename CombineFn, typename T1, typename... Ts>
     requires (sizeof...(Ts) >= 1) && concepts::Combiner<CombineFn, T1, Ts...>
@@ -204,15 +204,15 @@ namespace rheo::operators {
   }
 
   // Pipe factory overload - requires explicitly specifying T1 template parameter.
-  // Usage: source1 | combineWith<int>(combiner, source2, source3)
+  // Usage: source1 | combine_with<int>(combiner, source2, source3)
   //
   // NOTE: Unlike merge() which can infer types from its source arguments,
-  // combineWith() requires explicit T1 because pipe_fn<TOut, TIn> needs to know
+  // combine_with() requires explicit T1 because pipe_fn<TOut, TIn> needs to know
   // TIn at the call site, but TIn (which is T1) cannot be deduced from the
   // combiner function alone - it could be any type the combiner accepts.
   template <typename T1, typename CombineFn, typename... Ts>
     requires concepts::Combiner<CombineFn, T1, Ts...>
-  RHEO_NOINLINE auto combineWith(
+  RHEO_NOINLINE auto combine_with(
     CombineFn combiner,
     source_fn<Ts>... sources
   ) -> pipe_fn<std::invoke_result_t<CombineFn, T1, Ts...>, T1> {

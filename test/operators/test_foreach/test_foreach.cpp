@@ -8,12 +8,12 @@ using namespace rheo::operators;
 using namespace rheo::sources;
 
 void test_foreach_is_called_for_each() {
-  int pushedCount = 0;
+  int pushed_count = 0;
   auto source = constant(true);
-  auto pull = source | foreach([&pushedCount](bool _) { pushedCount ++; });
+  auto pull = source | foreach([&pushed_count](bool _) { pushed_count ++; });
   for (int i = 1; i < 10; i ++) {
     pull();
-    TEST_ASSERT_EQUAL_MESSAGE(i, pushedCount, fmt::format("Should have pushed {} times", i).c_str());
+    TEST_ASSERT_EQUAL_MESSAGE(i, pushed_count, fmt::format("Should have pushed {} times", i).c_str());
   }
 }
 

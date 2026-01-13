@@ -7,7 +7,7 @@
 #include <core_types.hpp>
 #include <ArduinoJson.h>
 
-namespace rheo::homeAssistant {
+namespace rheo::home_assistant {
 
   class value_bad_get_type_access : std::exception {
     public:
@@ -26,35 +26,35 @@ namespace rheo::homeAssistant {
     Value(double d) : d(d), type(Type::Float) { }
     Value(std::vector<std::string> l) : l(l), type(Type::List) { }
 
-    bool asBoolean() {
+    bool as_boolean() {
       if (type != Type::Boolean) {
         throw value_bad_get_type_access();
       }
       return b;
     }
 
-    std::string asString() {
+    std::string as_string() {
       if (type != Type::String) {
         throw value_bad_get_type_access();
       }
       return s;
     }
 
-    int asInteger() {
+    int as_integer() {
       if (type != Type::Integer) {
         throw value_bad_get_type_access();
       }
       return i;
     }
 
-    double asFloat() {
+    double as_float() {
       if (type != Type::Float) {
         throw value_bad_get_type_access();
       }
       return d;
     }
 
-    std::vector<std::string> asList() {
+    std::vector<std::string> as_list() {
       if (type != Type::List) {
         throw value_bad_get_type_access();
       }
@@ -76,13 +76,13 @@ namespace rheo::homeAssistant {
     std::string name;
     std::string manufacturer;
     std::string model;
-    std::string modelId;
-    std::string swVersion;
-    std::string hwVersion;
-    std::string suggestedArea;
-    std::string serialNumber;
+    std::string model_id;
+    std::string sw_version;
+    std::string hw_version;
+    std::string suggested_area;
+    std::string serial_number;
 
-    JsonDocument toJson() {
+    JsonDocument to_json() {
       JsonDocument doc;
       JsonArray identifiers = doc["identifiers"].to<JsonArray>();
       for (auto id: identifiers) {
@@ -91,47 +91,47 @@ namespace rheo::homeAssistant {
       doc["name"] = name;
       if (!manufacturer.empty()) { doc["manufacturer"] = manufacturer; }
       if (!model.empty()) { doc["model"] = model; }
-      if (!modelId.empty()) { doc["model_id"] = modelId; }
-      if (!swVersion.empty()) { doc["sw_version"] = swVersion; }
-      if (!hwVersion.empty()) { doc["hw_version"] = hwVersion; }
-      if (!suggestedArea.empty()) { doc["suggested_area"] = suggestedArea; }
-      if (!serialNumber.empty()) { doc["serial_number"] = serialNumber; }
+      if (!model_id.empty()) { doc["model_id"] = model_id; }
+      if (!sw_version.empty()) { doc["sw_version"] = sw_version; }
+      if (!hw_version.empty()) { doc["hw_version"] = hw_version; }
+      if (!suggested_area.empty()) { doc["suggested_area"] = suggested_area; }
+      if (!serial_number.empty()) { doc["serial_number"] = serial_number; }
       return doc;
     }
   };
 
   struct Origin {
     std::string name;
-    std::string swVersion;
-    std::string supportUrl;
+    std::string sw_version;
+    std::string support_url;
 
-    JsonDocument toJson() {
+    JsonDocument to_json() {
       JsonDocument doc;
       doc["name"] = name;
-      doc["sw_version"] = swVersion;
-      doc["support_url"] = supportUrl;   
+      doc["sw_version"] = sw_version;
+      doc["support_url"] = support_url;   
       return doc;   
     }
   };
 
   class entity_topic_key_not_found : std::exception {
     private:
-      std::string topicType;
-      std::string topicKey;
+      std::string topic_type;
+      std::string topic_key;
 
     public:
-      entity_topic_key_not_found(std::string topicType, std::string topicKey)
-      : topicType(topicType), topicKey(topicKey)
+      entity_topic_key_not_found(std::string topic_type, std::string topic_key)
+      : topic_type(topic_type), topic_key(topic_key)
       { }
 
       const char* what() {
-        return fmt::format("Couldn't find {} topic '{}'", topicType.c_str(), topicKey.c_str()).c_str();
+        return fmt::format("Couldn't find {} topic '{}'", topic_type.c_str(), topic_key.c_str()).c_str();
       }
   };
 
   class Entity {
     protected:
-      std::string baseTopic() {
+      std::string base_topic() {
         return fmt::format("homeassistant/{}/{}", platform.c_str(), device.identifiers[0].c_str());
       }
 
@@ -140,7 +140,7 @@ namespace rheo::homeAssistant {
       Origin origin;
       std::string platform;
       // E.g., "temperature" for sensor, "awning" for cover, etc.
-      std::string deviceClass;
+      std::string device_class;
       std::string id;
       // A map of internal command keys to topic names and keys.
       // Here's the way these should be used.
@@ -152,8 +152,8 @@ namespace rheo::homeAssistant {
       //    to tell HA how to send you command messages (here using ArduinoJSON):
       //
       //    ```c++
-      //    doc[entity.commandTopicKey("tilt")] = commandTopic();
-      //    doc[entity.commandTemplateKey("tilt")] = commandTemplate("tilt");
+      //    doc[entity.command_topic_key("tilt")] = command_topic();
+      //    doc[entity.command_template_key("tilt")] = command_template("tilt");
       //    ```
       //
       //    This will generate JSON that looks like this:
@@ -167,7 +167,7 @@ namespace rheo::homeAssistant {
       //      "tilt_command_template": "{\"tilt\":{{ tilt_position }}}",
       //      // ...
       //    }
-      // 3. Subscribe to the command topic `commandTopic("tilt")`
+      // 3. Subscribe to the command topic `command_topic("tilt")`
       //    and look for JSON messages with the key `"tilt"`:
       //
       //    ```c++
@@ -175,7 +175,7 @@ namespace rheo::homeAssistant {
       //      // It's a tilt command!
       //    }
       //    ```
-      std::map<std::string, std::tuple<std::string, std::string>> commandTopics;
+      std::map<std::string, std::tuple<std::string, std::string>> command_topics;
 
       // A map of internal status keys to topic names.
       // For `{ "tilt", "tilt_status" }` you'd want to:
@@ -183,92 +183,92 @@ namespace rheo::homeAssistant {
       // 1. Add the tilt topic and template to your discovery message:
       //
       //    ```c++
-      //    doc[entity.stateTopicKey()] = entity.stateTopic();
-      //    doc[entity.stateTemplateKey("tilt")] = entity.stateTemplate("tilt");
+      //    doc[entity.state_topic_key()] = entity.state_topic();
+      //    doc[entity.state_template_key("tilt")] = entity.state_template("tilt");
       //    ```
       // 2. Publish state messages wrapped in a JSON object with the right key:
       //
       //    ```c++
       //    doc["tilt"] = value;
       //    ```
-      std::map<std::string, std::string> stateTopics;
-      std::map<std::string, Value> platformSpecificOptions;
+      std::map<std::string, std::string> state_topics;
+      std::map<std::string, Value> platform_specific_options;
 
-      std::string formatTopic(std::string topic) {
-        return fmt::format("{}/{}", baseTopic().c_str(), topic.c_str());
+      std::string format_topic(std::string topic) {
+        return fmt::format("{}/{}", base_topic().c_str(), topic.c_str());
       }
 
-      std::string discoveryTopic() {
-        return formatTopic("config");
+      std::string discovery_topic() {
+        return format_topic("config");
       }
 
-      std::string availabilityTopic() {
-        return formatTopic("availability");
+      std::string availability_topic() {
+        return format_topic("availability");
       }
 
-      std::string commandTopic() {
-        return formatTopic("set");
+      std::string command_topic() {
+        return format_topic("set");
       }
 
-      std::string commandTopicKey(std::string key) {
-        if (!commandTopics.count(key)) {
+      std::string command_topic_key(std::string key) {
+        if (!command_topics.count(key)) {
           throw entity_topic_key_not_found("command", key);
         }
-        return fmt::format("{}_topic", std::get<0>(commandTopics[key]).c_str());
+        return fmt::format("{}_topic", std::get<0>(command_topics[key]).c_str());
       }
 
-      std::string commandTemplateKey(std::string key) {
-        if (!commandTopics.count(key)) {
+      std::string command_template_key(std::string key) {
+        if (!command_topics.count(key)) {
           throw entity_topic_key_not_found("command", key);
         }
-        return fmt::format("{}_template", std::get<0>(commandTopics[key]).c_str());
+        return fmt::format("{}_template", std::get<0>(command_topics[key]).c_str());
       }
 
-      std::string commandTemplate(std::string key) {
-        if (!commandTopics.count(key)) {
+      std::string command_template(std::string key) {
+        if (!command_topics.count(key)) {
           throw entity_topic_key_not_found("command", key);
         }
-        return fmt::format("\{\"{}\":\{\{{}\}\}\}", key, std::get<1>(commandTopics[key]).c_str());
+        return fmt::format("\{\"{}\":\{\{{}\}\}\}", key, std::get<1>(command_topics[key]).c_str());
       }
 
-      std::string stateTopic() {
-        return formatTopic("state");
+      std::string state_topic() {
+        return format_topic("state");
       }
 
-      std::string stateTopicKey(std::string key) {
-        if (!stateTopics.count(key)) {
+      std::string state_topic_key(std::string key) {
+        if (!state_topics.count(key)) {
           throw entity_topic_key_not_found("state", key);
         }
-        return fmt::format("{}_topic", stateTopics[key].c_str());
+        return fmt::format("{}_topic", state_topics[key].c_str());
       }
 
-      std::string stateTemplateKey(std::string key) {
-        if (!stateTopics.count(key)) {
+      std::string state_template_key(std::string key) {
+        if (!state_topics.count(key)) {
           throw entity_topic_key_not_found("state", key);
         }
-        return fmt::format("{}_template", stateTopics[key].c_str());
+        return fmt::format("{}_template", state_topics[key].c_str());
       }
 
-      std::string stateTemplate(std::string key) {
-        if (!stateTopics.count(key)) {
+      std::string state_template(std::string key) {
+        if (!state_topics.count(key)) {
           throw entity_topic_key_not_found("state", key);
         }
         return fmt::format("\{\{value_json.{}\}\}", key);
       }
 
-      JsonDocument toJson() {
+      JsonDocument to_json() {
         JsonDocument doc;
-        doc["device"] = device.toJson();
-        doc["origin"] = origin.toJson();
-        doc["device_class"] = deviceClass;
+        doc["device"] = device.to_json();
+        doc["origin"] = origin.to_json();
+        doc["device_class"] = device_class;
         doc["unique_id"] = id;
-        for (auto& option : platformSpecificOptions) {
+        for (auto& option : platform_specific_options) {
           switch (option.second.type) {
-            case Value::Type::Boolean: doc[option.first] = option.second.asBoolean(); break;
-            case Value::Type::String:  doc[option.first] = option.second.asString(); break;
-            case Value::Type::Integer: doc[option.first] = option.second.asInteger(); break;
-            case Value::Type::Float:   doc[option.first] = option.second.asFloat(); break;
-            case Value::Type::List:    doc[option.first] = option.second.asList(); break;
+            case Value::Type::Boolean: doc[option.first] = option.second.as_boolean(); break;
+            case Value::Type::String:  doc[option.first] = option.second.as_string(); break;
+            case Value::Type::Integer: doc[option.first] = option.second.as_integer(); break;
+            case Value::Type::Float:   doc[option.first] = option.second.as_float(); break;
+            case Value::Type::List:    doc[option.first] = option.second.as_list(); break;
           }
         }
         return doc;

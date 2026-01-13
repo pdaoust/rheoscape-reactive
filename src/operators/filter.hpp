@@ -50,7 +50,7 @@ namespace rheo::operators {
 
   // This is a filter_fn<std::optional<T>>.
   template <typename T>
-  bool notEmpty(std::optional<T> value) {
+  bool not_empty(std::optional<T> value) {
     return value.has_value();
   }
 

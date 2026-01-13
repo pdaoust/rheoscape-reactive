@@ -18,10 +18,10 @@ namespace rheo::operators {
   // Named callable for tap's secondary source (push-only, no pull)
   template<typename T>
   struct tap_secondary_source {
-    std::shared_ptr<Wrapper<push_fn<T>>> pushSecondary;
+    std::shared_ptr<Wrapper<push_fn<T>>> push_secondary;
 
     RHEO_NOINLINE pull_fn operator()(push_fn<T> push) const {
-      (*pushSecondary).value = std::forward<push_fn<T>>(push);
+      (*push_secondary).value = std::forward<push_fn<T>>(push);
       // The tap isn't allowed to pull
       return [](){};
     }
@@ -30,12 +30,12 @@ namespace rheo::operators {
   // Named callable for tap's primary push handler
   template<typename T>
   struct tap_push_handler {
-    push_fn<T> pushPrimary;
-    std::shared_ptr<Wrapper<push_fn<T>>> pushSecondary;
+    push_fn<T> push_primary;
+    std::shared_ptr<Wrapper<push_fn<T>>> push_secondary;
 
     RHEO_NOINLINE void operator()(T value) const {
-      pushPrimary(value);
-      (*pushSecondary).value(value);
+      push_primary(value);
+      (*push_secondary).value(value);
     }
   };
 
@@ -45,11 +45,11 @@ namespace rheo::operators {
     source_fn<T> source;
     SinkFn sink;
 
-    RHEO_NOINLINE pull_fn operator()(push_fn<T> pushPrimary) const {
-      auto pushSecondary = make_wrapper_shared<push_fn<T>>();
-      sink(tap_secondary_source<T>{pushSecondary});
+    RHEO_NOINLINE pull_fn operator()(push_fn<T> push_primary) const {
+      auto push_secondary = make_wrapper_shared<push_fn<T>>();
+      sink(tap_secondary_source<T>{push_secondary});
 
-      return source(tap_push_handler<T>{pushPrimary, pushSecondary});
+      return source(tap_push_handler<T>{push_primary, push_secondary});
     }
   };
 

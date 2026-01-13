@@ -18,15 +18,15 @@ class DimensionedUnit {
         DimensionedUnit(UnitDef<QtyType, Ref>* def, int8_t power = 1)
             : power(power), definition(def) {}
 
-        bool isEquivalentTo(DimensionedUnit<QtyType, Ref> const& other) const {
+        bool is_equivalent_to(DimensionedUnit<QtyType, Ref> const& other) const {
             return power == other.power;
         }
 
-        bool getPower() const {
+        bool get_power() const {
             return power;
         }
 
-        Ref getConversionFactorFor(DimensionedUnit<QtyType, Ref> const& other) const {
+        Ref get_conversion_factor_for(DimensionedUnit<QtyType, Ref> const& other) const {
             if (definition == other.definition && power == other.power) {
                 // No conversion necessary.
                 return static_cast<Ref>(1);
@@ -41,7 +41,7 @@ class DimensionedUnit {
         }
 
         template <typename Power>
-        DimensionedUnitPowerSafe<QtyType, Ref, Power> tryToPowerSafe() const {
+        DimensionedUnitPowerSafe<QtyType, Ref, Power> try_to_power_safe() const {
             if (power != Power) {
                 // Incompatible power
                 throw std::runtime_error("Incompatible power for dimensioned unit.");
@@ -56,7 +56,7 @@ class DimensionedUnitPowerSafe : DimensionedUnit<QtyType, Ref> {
         DimensionedUnitPowerSafe(UnitDef<QtyType, Ref>* def)
             : DimensionedUnit<QtyType, Ref>(def, power) {}
 
-        DimensionedUnit<QtyType, Ref> toUnchecked() const {
+        DimensionedUnit<QtyType, Ref> to_unchecked() const {
             DimensionedUnit<QtyType, Ref> base_unit(this->definition, Power);
             return base_unit;
         }

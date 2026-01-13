@@ -1,7 +1,7 @@
 #include <unity.h>
 #include <operators/concat.hpp>
 #include <operators/unwrap.hpp>
-#include <sources/fromIterator.hpp>
+#include <sources/from_iterator.hpp>
 
 using namespace rheo;
 using namespace rheo::sources;
@@ -9,26 +9,26 @@ using namespace rheo::operators;
 
 void test_concat_concats() {
   std::vector<int> first { 1, 2, 3 };
-  auto firstStream = fromIterator(first.begin(), first.end());
+  auto first_stream = from_iterator(first.begin(), first.end());
   std::vector<int> second { 4, 5, 6 };
-  auto secondStream = fromIterator(second.begin(), second.end());
-  auto concatted = concat(firstStream, secondStream);
-  int lastPushedValue = 0;
-  bool isEnded = false;
-  pull_fn pull = concatted([&lastPushedValue, &isEnded](Endable<int> v) {
-    if (v.hasValue()) {
-      lastPushedValue = v.value();
+  auto second_stream = from_iterator(second.begin(), second.end());
+  auto concatted = concat(first_stream, second_stream);
+  int last_pushed_value = 0;
+  bool is_ended = false;
+  pull_fn pull = concatted([&last_pushed_value, &is_ended](Endable<int> v) {
+    if (v.has_value()) {
+      last_pushed_value = v.value();
     } else {
-      isEnded = true;
+      is_ended = true;
     }
  });
   for (int i = 1; i <= 6; i ++) {
-    lastPushedValue = 0;
+    last_pushed_value = 0;
     pull();
-    TEST_ASSERT_EQUAL_MESSAGE(i, lastPushedValue, "should get numbers 1 through 6");
+    TEST_ASSERT_EQUAL_MESSAGE(i, last_pushed_value, "should get numbers 1 through 6");
   }
   pull();
-  TEST_ASSERT_TRUE_MESSAGE(isEnded, "should be ended after chewing through both streams");
+  TEST_ASSERT_TRUE_MESSAGE(is_ended, "should be ended after chewing through both streams");
 }
 
 int main(int argc, char **argv) {

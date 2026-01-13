@@ -15,66 +15,66 @@ namespace rheo {
   using Percent = au::Quantity<au::Percent, float>;
 
   template <typename TRepOut, typename TRepIn, typename TUnit>
-  map_fn<au::Quantity<TUnit, TRepOut>, au::Quantity<TUnit, TRepIn>> castUnitRep() {
+  map_fn<au::Quantity<TUnit, TRepOut>, au::Quantity<TUnit, TRepIn>> cast_unit_rep() {
     return au::rep_cast<TRepOut, TUnit, TRepIn>;
   }
 
   template <typename TRepOut, typename TRepIn, typename TUnit>
-  map_fn<au::QuantityPoint<TUnit, TRepOut>, au::QuantityPoint<TUnit, TRepIn>> castUnitRep() {
+  map_fn<au::QuantityPoint<TUnit, TRepOut>, au::QuantityPoint<TUnit, TRepIn>> cast_unit_rep() {
     return au::rep_cast<TRepOut, TUnit, TRepIn>;
   }
 
   template <typename TUnitOut, typename TUnitIn, typename TRep>
-  map_fn<au::Quantity<TUnitOut, TRep>, au::Quantity<TUnitIn, TRep>> convertUnit() {
+  map_fn<au::Quantity<TUnitOut, TRep>, au::Quantity<TUnitIn, TRep>> convert_unit() {
     return [](au::Quantity<TUnitIn, TRep> value) { return value.as(TUnitOut{}); };
   }
 
   template <typename TUnitOut, typename TUnitIn, typename TRep>
-  map_fn<au::QuantityPoint<TUnitOut, TRep>, au::QuantityPoint<TUnitIn, TRep>> convertUnit() {
+  map_fn<au::QuantityPoint<TUnitOut, TRep>, au::QuantityPoint<TUnitIn, TRep>> convert_unit() {
     return [](au::QuantityPoint<TUnitIn, TRep> value) { return value.as(TUnitOut{}); };
   }
 
   // Conversion for things that can be converted to au quantities automatically
   template <typename TDuration>
-  map_fn<decltype(au::as_quantity(TDuration{})), TDuration> convertToQuantity() {
+  map_fn<decltype(au::as_quantity(TDuration{})), TDuration> convert_to_quantity() {
     return [](TDuration value) { return au::as_quantity(value); };
   }
 
   template <typename TUnit, typename TRep>
-  map_fn<au::Quantity<TUnit, TRep>, TRep> convertToQuantity() {
+  map_fn<au::Quantity<TUnit, TRep>, TRep> convert_to_quantity() {
     return [](TRep value) { return au::Quantity<TUnit, TRep>(value); };
   }
 
   template <typename TUnit, typename TRep>
-  map_fn<au::QuantityPoint<TUnit, TRep>, TRep> convertToQuantityPoint() {
+  map_fn<au::QuantityPoint<TUnit, TRep>, TRep> convert_to_quantity_point() {
     return [](TRep value) { return au::QuantityPoint<TUnit, TRep>(value); };
   }
 
   template <typename TUnit, typename TRep>
-  map_fn<TRep, au::Quantity<TUnit, TRep>> stripQuantity() {
+  map_fn<TRep, au::Quantity<TUnit, TRep>> strip_quantity() {
     return [](au::Quantity<TUnit, TRep> v) { return v.in(TUnit{}); };
   }
 
   template <typename TUnit, typename TRep>
-  map_fn<TRep, au::QuantityPoint<TUnit, TRep>> stripQuantityPoint() {
+  map_fn<TRep, au::QuantityPoint<TUnit, TRep>> strip_quantity_point() {
     return [](au::QuantityPoint<TUnit, TRep> v) { return v.in(TUnit{}); };
   }
 
   template <typename TUnit, typename TRep>
-  pipe_fn<au::Quantity<TUnit, TRep>, au::Quantity<TUnit, TRep>> liftToQuantity(pipe_fn<TRep, TRep> scalarPipe) {
+  pipe_fn<au::Quantity<TUnit, TRep>, au::Quantity<TUnit, TRep>> lift_to_quantity(pipe_fn<TRep, TRep> scalar_pipe) {
     return lift(
-      scalarPipe,
-      convertToQuantity<TUnit, TRep>(),
-      stripQuantity<TUnit, TRep>()
+      scalar_pipe,
+      convert_to_quantity<TUnit, TRep>(),
+      strip_quantity<TUnit, TRep>()
     );
   }
 
   template <typename TUnit, typename TRep>
-  pipe_fn<au::Quantity<TUnit, TRep>, au::Quantity<TUnit, TRep>> liftToQuantityPoint(pipe_fn<TRep, TRep> scalarPipe) {
+  pipe_fn<au::Quantity<TUnit, TRep>, au::Quantity<TUnit, TRep>> lift_to_quantity_point(pipe_fn<TRep, TRep> scalar_pipe) {
     return lift(
-      scalarPipe,
-      convertToQuantityPoint<TUnit, TRep>(),
-      stripQuantityPoint<TUnit, TRep>()
+      scalar_pipe,
+      convert_to_quantity_point<TUnit, TRep>(),
+      strip_quantity_point<TUnit, TRep>()
     );
   }
 

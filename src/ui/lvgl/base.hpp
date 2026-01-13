@@ -10,11 +10,11 @@ namespace rheo::ui::lvgl {
 
   WidgetPullAndEventSource base(
     lv_obj_t* base,
-    source_fn<std::vector<StyleAndSelector>> styleSource
+    source_fn<std::vector<StyleAndSelector>> style_source
   ) {
     return _widget(
       base,
-      styleSource
+      style_source
     );
   }
 

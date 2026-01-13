@@ -14,15 +14,15 @@ void test_choose_chooses_right_stream() {
     { 3, constant(6) }
   };
   State<int> chooser(0);
-  auto chooseStreams = choose(streams, chooser.sourceFn());
-  int lastPushedValue = 0;
-  pull_fn pull = chooseStreams([&lastPushedValue](int v) { lastPushedValue = v; });
+  auto choose_streams = choose(streams, chooser.get_source_fn());
+  int last_pushed_value = 0;
+  pull_fn pull = choose_streams([&last_pushed_value](int v) { last_pushed_value = v; });
   pull();
-  TEST_ASSERT_EQUAL_MESSAGE(0, lastPushedValue, "Shouldn't have pushed a value if chooser's value isn't in the map");
-  lastPushedValue = 0;
+  TEST_ASSERT_EQUAL_MESSAGE(0, last_pushed_value, "Shouldn't have pushed a value if chooser's value isn't in the map");
+  last_pushed_value = 0;
   chooser.set(1);
   pull();
-  TEST_ASSERT_EQUAL_MESSAGE(2, lastPushedValue, "Should have chosen the right stream's value from the map");
+  TEST_ASSERT_EQUAL_MESSAGE(2, last_pushed_value, "Should have chosen the right stream's value from the map");
 }
 
 int main(int argc, char **argv) {

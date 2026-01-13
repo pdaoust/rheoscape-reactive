@@ -14,32 +14,32 @@ namespace rheo::sources {
   struct sequence_state {
     T i;
     T step;
-    bool isEnded = false;
+    bool is_ended = false;
   };
 
   template <typename T>
   struct sequence_pull_handler {
-    T iBegin;
-    T iEnd;
+    T i_begin;
+    T i_end;
     push_fn<Endable<T>> push;
     std::shared_ptr<sequence_state<T>> state;
 
     RHEO_NOINLINE void operator()() const {
-      if (state->isEnded) {
+      if (state->is_ended) {
         push(Endable<T>());
         return;
       }
-      bool isBackwards = (iBegin > iEnd);
-      if (isBackwards && state->step > 0) {
+      bool is_backwards = (i_begin > i_end);
+      if (is_backwards && state->step > 0) {
         state->step *= -1;
       }
-      if ((!isBackwards && state->i <= iEnd)
-          || (isBackwards && state->i >= iEnd)) {
-        push(Endable<T>(state->i, state->i == iEnd));
+      if ((!is_backwards && state->i <= i_end)
+          || (is_backwards && state->i >= i_end)) {
+        push(Endable<T>(state->i, state->i == i_end));
         state->i += state->step;
-        if ((!isBackwards && state->i > iEnd)
-            || (isBackwards && state->i < iEnd)) {
-          state->isEnded = true;
+        if ((!is_backwards && state->i > i_end)
+            || (is_backwards && state->i < i_end)) {
+          state->is_ended = true;
         }
       }
     }
@@ -47,24 +47,24 @@ namespace rheo::sources {
 
   template <typename T>
   struct sequence_source_binder {
-    T iBegin;
-    T iEnd;
+    T i_begin;
+    T i_end;
     T step;
 
     RHEO_NOINLINE pull_fn operator()(push_fn<Endable<T>> push) const {
-      auto state = std::make_shared<sequence_state<T>>(sequence_state<T>{iBegin, step, false});
-      return sequence_pull_handler<T>{iBegin, iEnd, std::move(push), state};
+      auto state = std::make_shared<sequence_state<T>>(sequence_state<T>{i_begin, step, false});
+      return sequence_pull_handler<T>{i_begin, i_end, std::move(push), state};
     }
   };
 
   template <typename T>
-  source_fn<Endable<T>> sequence(T iBegin, T iEnd, T step = 1) {
-    return sequence_source_binder<T>{iBegin, iEnd, step};
+  source_fn<Endable<T>> sequence(T i_begin, T i_end, T step = 1) {
+    return sequence_source_binder<T>{i_begin, i_end, step};
   }
 
   template <typename T>
-  source_fn<T> sequenceOpen(T iBegin, T step = 1) {
-    return operators::unwrapEndable(sequence(iBegin, std::numeric_limits<T>::max(), step));
+  source_fn<T> sequence_open(T i_begin, T step = 1) {
+    return operators::unwrap_endable(sequence(i_begin, std::numeric_limits<T>::max(), step));
   }
 
 }

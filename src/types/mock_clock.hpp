@@ -22,7 +22,7 @@ namespace rheo {
 
       static time_point now() noexcept;
 
-      static void setTime(Rep timestamp);
+      static void set_time(Rep timestamp);
 
       static void tick(Rep ticks = 1);
   };
@@ -36,7 +36,7 @@ namespace rheo {
   }
 
   template <typename Rep, typename Period>
-  void mock_clock<Rep, Period>::setTime(Rep timestamp) {
+  void mock_clock<Rep, Period>::set_time(Rep timestamp) {
     _timestamp = timestamp;
   }
 

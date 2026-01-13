@@ -14,15 +14,15 @@ namespace rheo::operators {
   struct throttle_push_handler {
     TInterval interval;
     push_fn<T> push;
-    mutable std::optional<TTime> intervalStart;
+    mutable std::optional<TTime> interval_start;
 
     RHEO_NOINLINE void operator()(TaggedValue<T, TTime> value) const {
-      if (intervalStart.has_value() && value.tag - intervalStart.value() > interval) {
-        intervalStart = std::nullopt;
+      if (interval_start.has_value() && value.tag - interval_start.value() > interval) {
+        interval_start = std::nullopt;
       }
 
-      if (!intervalStart.has_value()) {
-        intervalStart = value.tag;
+      if (!interval_start.has_value()) {
+        interval_start = value.tag;
         push(value.value);
       }
     }
@@ -43,17 +43,17 @@ namespace rheo::operators {
   };
 
   template <typename T, typename TTime, typename TInterval>
-  source_fn<T> throttle(source_fn<T> source, source_fn<TTime> clockSource, TInterval interval) {
+  source_fn<T> throttle(source_fn<T> source, source_fn<TTime> clock_source, TInterval interval) {
     return throttle_source_binder<T, TTime, TInterval>{
-      timestamp(source, clockSource),
+      timestamp(source, clock_source),
       interval
     };
   }
 
   template <typename T, typename TTime, typename TInterval>
-  pipe_fn<T, T> throttle(source_fn<TTime> clockSource, TInterval interval) {
-    return [clockSource, interval](source_fn<T> source) {
-      return throttle(source, clockSource, interval);
+  pipe_fn<T, T> throttle(source_fn<TTime> clock_source, TInterval interval) {
+    return [clock_source, interval](source_fn<T> source) {
+      return throttle(source, clock_source, interval);
     };
   }
 

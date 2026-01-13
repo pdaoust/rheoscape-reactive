@@ -5,19 +5,19 @@ using namespace rheo;
 using namespace rheo::sources;
 
 void test_done_is_still_done_on_every_pull() {
-  int pushedCount = 0;
-  int endedCount = 0;
-  auto doneSource = done<int>();
-  auto pull = doneSource([&pushedCount, &endedCount](Endable<int> v) {
-    pushedCount ++;
-    if (!v.hasValue()) {
-      endedCount ++;
+  int pushed_count = 0;
+  int ended_count = 0;
+  auto done_source = done<int>();
+  auto pull = done_source([&pushed_count, &ended_count](Endable<int> v) {
+    pushed_count ++;
+    if (!v.has_value()) {
+      ended_count ++;
     }
   });
   for (int i = 0; i <= 4; i ++) {
     pull();
-    TEST_ASSERT_EQUAL_MESSAGE(1, pushedCount, "should push once");
-    TEST_ASSERT_EQUAL_MESSAGE(1, endedCount, "should be ended on first push");
+    TEST_ASSERT_EQUAL_MESSAGE(1, pushed_count, "should push once");
+    TEST_ASSERT_EQUAL_MESSAGE(1, ended_count, "should be ended on first push");
   }
 }
 

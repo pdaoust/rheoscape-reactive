@@ -9,14 +9,14 @@ using namespace rheo::operators;
 using namespace rheo::sources;
 
 void test_filter_filters() {
-  auto someNumbers = unwrapEndable(sequence(-3, 3, 1));
-  auto filterer = filter(someNumbers, (filter_fn<int>)[](int v) { return v > 0; });
-  std::optional<int> pushedValue;
-  pull_fn pull = filterer([&pushedValue](int v) { pushedValue = v; });
+  auto some_numbers = unwrap_endable(sequence(-3, 3, 1));
+  auto filterer = filter(some_numbers, (filter_fn<int>)[](int v) { return v > 0; });
+  std::optional<int> pushed_value;
+  pull_fn pull = filterer([&pushed_value](int v) { pushed_value = v; });
   for (int i = 0; i < 7; i ++) {
     pull();
-    if (pushedValue.has_value()) {
-      TEST_ASSERT_TRUE_MESSAGE(pushedValue > 0, "filterer should filter out everything not matched by the predicate");
+    if (pushed_value.has_value()) {
+      TEST_ASSERT_TRUE_MESSAGE(pushed_value > 0, "filterer should filter out everything not matched by the predicate");
     }
   }
 }

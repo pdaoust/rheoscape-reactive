@@ -13,50 +13,50 @@ void test_combine_combines_to_tuple() {
   source_fn<int> a = constant(3);
   source_fn<std::string> b = constant(std::string("hello"));
   auto a_b = combine(std::make_tuple<int, std::string>, a, b);
-  std::tuple<int, std::string> pushedValue;
+  std::tuple<int, std::string> pushed_value;
   pull_fn pull = a_b(
-    [&pushedValue](auto v) {
-      pushedValue = v;
+    [&pushed_value](auto v) {
+      pushed_value = v;
     }
   );
   pull();
-  TEST_ASSERT_EQUAL_MESSAGE(3, std::get<0>(pushedValue), "should push a tuple and its first value should be the a value");
-  TEST_ASSERT_TRUE_MESSAGE(std::get<1>(pushedValue) == "hello", "tuple's second value should be the b value");
+  TEST_ASSERT_EQUAL_MESSAGE(3, std::get<0>(pushed_value), "should push a tuple and its first value should be the a value");
+  TEST_ASSERT_TRUE_MESSAGE(std::get<1>(pushed_value) == "hello", "tuple's second value should be the b value");
 }
 
 void test_combine_combines_to_custom_value() {
   source_fn<int> a = constant(3);
   source_fn<int> b = constant(5);
   auto a_b = combine([](int v_a, int v_b) { return v_a + v_b; }, a, b);
-  int pushedValue;
+  int pushed_value;
   pull_fn pull = a_b(
-    [&pushedValue](auto v) {
-      pushedValue = v;
+    [&pushed_value](auto v) {
+      pushed_value = v;
     }
   );
   pull();
-  TEST_ASSERT_EQUAL_MESSAGE(8, pushedValue, "should combine two ints to sum of ints using custom combiner");
+  TEST_ASSERT_EQUAL_MESSAGE(8, pushed_value, "should combine two ints to sum of ints using custom combiner");
 }
 
 void test_combine_combines_on_push_from_push_source() {
   State<int> state(0);
-  auto pushSource = state.sourceFn();
-  auto normalSource = constant(3);
-  auto combined = combine(std::make_tuple<int, int>, pushSource, normalSource);
-  int pushedValueLeft = -1;
-  int pushedValueRight = -1;
-  int pushedCount = 0;
+  auto push_source = state.get_source_fn();
+  auto normal_source = constant(3);
+  auto combined = combine(std::make_tuple<int, int>, push_source, normal_source);
+  int pushed_value_left = -1;
+  int pushed_value_right = -1;
+  int pushed_count = 0;
   combined(
-    [&pushedValueLeft, &pushedValueRight, &pushedCount](std::tuple<int, int> v) {
-      pushedValueLeft = std::get<0>(v);
-      pushedValueRight = std::get<1>(v);
-      pushedCount ++;
+    [&pushed_value_left, &pushed_value_right, &pushed_count](std::tuple<int, int> v) {
+      pushed_value_left = std::get<0>(v);
+      pushed_value_right = std::get<1>(v);
+      pushed_count ++;
     }
   );
   state.set(5);
-  TEST_ASSERT_EQUAL_MESSAGE(5, pushedValueLeft, "Should have pushed a value from the left source");
-  TEST_ASSERT_EQUAL_MESSAGE(3, pushedValueRight, "Should have pushed a value from the right source");
-  TEST_ASSERT_EQUAL_MESSAGE(1, pushedCount, "Should have pushed on upstream push");
+  TEST_ASSERT_EQUAL_MESSAGE(5, pushed_value_left, "Should have pushed a value from the left source");
+  TEST_ASSERT_EQUAL_MESSAGE(3, pushed_value_right, "Should have pushed a value from the right source");
+  TEST_ASSERT_EQUAL_MESSAGE(1, pushed_count, "Should have pushed on upstream push");
 }
 
 void test_combine3_combines() {
@@ -64,14 +64,14 @@ void test_combine3_combines() {
   auto b = constant('a');
   auto c = constant(true);
   auto combined = combine(std::make_tuple<int, char, bool>, a, b, c);
-  auto pushedValue = std::make_tuple<int, char, bool>(-1, 'z', false);
+  auto pushed_value = std::make_tuple<int, char, bool>(-1, 'z', false);
   auto pull = combined(
-    [&pushedValue](std::tuple<int, char, bool> v) { pushedValue = v; }
+    [&pushed_value](std::tuple<int, char, bool> v) { pushed_value = v; }
   );
   pull();
-  TEST_ASSERT_EQUAL_MESSAGE(1, std::get<0>(pushedValue), "Value 1 should be in order");
-  TEST_ASSERT_EQUAL_MESSAGE('a', std::get<1>(pushedValue), "Value 2 should be in order");
-  TEST_ASSERT_EQUAL_MESSAGE(true, std::get<2>(pushedValue), "Value 3 should be in order");
+  TEST_ASSERT_EQUAL_MESSAGE(1, std::get<0>(pushed_value), "Value 1 should be in order");
+  TEST_ASSERT_EQUAL_MESSAGE('a', std::get<1>(pushed_value), "Value 2 should be in order");
+  TEST_ASSERT_EQUAL_MESSAGE(true, std::get<2>(pushed_value), "Value 3 should be in order");
 }
 
 void test_combine4_combines() {
@@ -80,63 +80,63 @@ void test_combine4_combines() {
   auto c = constant(true);
   auto d = constant(3.14f);
   auto combined = combine(std::make_tuple<int, char, bool, float>, a, b, c, d);
-  auto pushedValue = std::make_tuple<int, char, bool, float>(-1, 'z', false, 9.999f);
+  auto pushed_value = std::make_tuple<int, char, bool, float>(-1, 'z', false, 9.999f);
   auto pull = combined(
-    [&pushedValue](std::tuple<int, char, bool, float> v) { pushedValue = v; }
+    [&pushed_value](std::tuple<int, char, bool, float> v) { pushed_value = v; }
   );
   pull();
-  TEST_ASSERT_EQUAL_MESSAGE(1, std::get<0>(pushedValue), "Value 1 should be in order");
-  TEST_ASSERT_EQUAL_MESSAGE('a', std::get<1>(pushedValue), "Value 2 should be in order");
-  TEST_ASSERT_EQUAL_MESSAGE(true, std::get<2>(pushedValue), "Value 3 should be in order");
-  TEST_ASSERT_EQUAL_FLOAT_MESSAGE(3.14f, std::get<3>(pushedValue), "Value 4 should be in order");
+  TEST_ASSERT_EQUAL_MESSAGE(1, std::get<0>(pushed_value), "Value 1 should be in order");
+  TEST_ASSERT_EQUAL_MESSAGE('a', std::get<1>(pushed_value), "Value 2 should be in order");
+  TEST_ASSERT_EQUAL_MESSAGE(true, std::get<2>(pushed_value), "Value 3 should be in order");
+  TEST_ASSERT_EQUAL_FLOAT_MESSAGE(3.14f, std::get<3>(pushed_value), "Value 4 should be in order");
 }
 
 void test_combine_only_pulls_once_for_each_push() {
   // Two-operand combine
-  auto a = sequenceOpen(1, 1);
-  auto b = sequenceOpen('a', (char)1);
+  auto a = sequence_open(1, 1);
+  auto b = sequence_open('a', (char)1);
   auto combined2 = combine(std::make_tuple<int, char>, a, b);
-  auto pushedValue2 = std::make_tuple<int, char>(-1, 'z');
-  int pushCount2 = 0;
-  auto pull2 = combined2([&pushedValue2, &pushCount2](std::tuple<int, char> v) {
-    pushedValue2 = v;
-    pushCount2 ++;
+  auto pushed_value2 = std::make_tuple<int, char>(-1, 'z');
+  int push_count2 = 0;
+  auto pull2 = combined2([&pushed_value2, &push_count2](std::tuple<int, char> v) {
+    pushed_value2 = v;
+    push_count2 ++;
   });
   pull2();
-  TEST_ASSERT_EQUAL_MESSAGE(1, std::get<0>(pushedValue2), "Should have combined the first value from source A");
-  TEST_ASSERT_EQUAL_MESSAGE('a', std::get<1>(pushedValue2), "Should have combined the first value from source B");
-  TEST_ASSERT_EQUAL_MESSAGE(1, pushCount2, "Should only have pushed one value for each pull");
+  TEST_ASSERT_EQUAL_MESSAGE(1, std::get<0>(pushed_value2), "Should have combined the first value from source A");
+  TEST_ASSERT_EQUAL_MESSAGE('a', std::get<1>(pushed_value2), "Should have combined the first value from source B");
+  TEST_ASSERT_EQUAL_MESSAGE(1, push_count2, "Should only have pushed one value for each pull");
 
   // Three-operand combine
-  auto c = sequenceOpen(2.0f, 0.5f);
+  auto c = sequence_open(2.0f, 0.5f);
   auto combined3 = combine(std::make_tuple<int, char, float>, a, b, c);
-  auto pushedValue3 = std::make_tuple<int, char, float>(-1, 'z', 9.999f);
-  int pushCount3 = 0;
-  auto pull3 = combined3([&pushedValue3, &pushCount3](std::tuple<int, char, float> v) {
-    pushedValue3 = v;
-    pushCount3 ++;
+  auto pushed_value3 = std::make_tuple<int, char, float>(-1, 'z', 9.999f);
+  int push_count3 = 0;
+  auto pull3 = combined3([&pushed_value3, &push_count3](std::tuple<int, char, float> v) {
+    pushed_value3 = v;
+    push_count3 ++;
   });
   pull3();
-  TEST_ASSERT_EQUAL_MESSAGE(1, std::get<0>(pushedValue3), "Should have combined the first value from source A");
-  TEST_ASSERT_EQUAL_MESSAGE('a', std::get<1>(pushedValue3), "Should have combined the first value from source B");
-  TEST_ASSERT_EQUAL_FLOAT_MESSAGE(2.0f, std::get<2>(pushedValue3), "Should have combined the first value from source C");
-  TEST_ASSERT_EQUAL_MESSAGE(1, pushCount3, "Should only have pushed one value for each pull");
+  TEST_ASSERT_EQUAL_MESSAGE(1, std::get<0>(pushed_value3), "Should have combined the first value from source A");
+  TEST_ASSERT_EQUAL_MESSAGE('a', std::get<1>(pushed_value3), "Should have combined the first value from source B");
+  TEST_ASSERT_EQUAL_FLOAT_MESSAGE(2.0f, std::get<2>(pushed_value3), "Should have combined the first value from source C");
+  TEST_ASSERT_EQUAL_MESSAGE(1, push_count3, "Should only have pushed one value for each pull");
 
   // Four-operand combine
-  auto d = sequenceOpen<uint16_t>(3, 1);
+  auto d = sequence_open<uint16_t>(3, 1);
   auto combined4 = combine(std::make_tuple<int, char, float, uint16_t>, a, b, c, d);
-  auto pushedValue4 = std::make_tuple<int, char, float, int>(-1, 'z', 9.999f, 1000);
-  int pushCount4 = 0;
-  auto pull4 = combined4([&pushedValue4, &pushCount4](std::tuple<int, char, float, uint16_t> v) {
-    pushedValue4 = v;
-    pushCount4 ++;
+  auto pushed_value4 = std::make_tuple<int, char, float, int>(-1, 'z', 9.999f, 1000);
+  int push_count4 = 0;
+  auto pull4 = combined4([&pushed_value4, &push_count4](std::tuple<int, char, float, uint16_t> v) {
+    pushed_value4 = v;
+    push_count4 ++;
   });
   pull4();
-  TEST_ASSERT_EQUAL_MESSAGE(1, std::get<0>(pushedValue4), "Should have combined the first value from source A");
-  TEST_ASSERT_EQUAL_MESSAGE('a', std::get<1>(pushedValue4), "Should have combined the first value from source B");
-  TEST_ASSERT_EQUAL_FLOAT_MESSAGE(2.0f, std::get<2>(pushedValue4), "Should have combined the first value from source C");
-  TEST_ASSERT_EQUAL_MESSAGE(3, std::get<3>(pushedValue4), "Should have combined the first value from source D");
-  TEST_ASSERT_EQUAL_MESSAGE(1, pushCount4, "Should only have pushed one value for each pull");
+  TEST_ASSERT_EQUAL_MESSAGE(1, std::get<0>(pushed_value4), "Should have combined the first value from source A");
+  TEST_ASSERT_EQUAL_MESSAGE('a', std::get<1>(pushed_value4), "Should have combined the first value from source B");
+  TEST_ASSERT_EQUAL_FLOAT_MESSAGE(2.0f, std::get<2>(pushed_value4), "Should have combined the first value from source C");
+  TEST_ASSERT_EQUAL_MESSAGE(3, std::get<3>(pushed_value4), "Should have combined the first value from source D");
+  TEST_ASSERT_EQUAL_MESSAGE(1, push_count4, "Should only have pushed one value for each pull");
 }
 
 int main(int argc, char **argv) {

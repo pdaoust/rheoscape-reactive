@@ -7,18 +7,18 @@
 namespace rheo::operators {
 
   // Named callable for dedupe's push handler
-  // Uses shared_ptr for state so copies share the same lastSeenValue
+  // Uses shared_ptr for state so copies share the same last_seen_value
   template<typename T>
   struct dedupe_push_handler {
     push_fn<T> push;
-    std::shared_ptr<std::optional<T>> lastSeenValue;
+    std::shared_ptr<std::optional<T>> last_seen_value;
 
     dedupe_push_handler(push_fn<T> push)
-      : push(push), lastSeenValue(std::make_shared<std::optional<T>>(std::nullopt)) {}
+      : push(push), last_seen_value(std::make_shared<std::optional<T>>(std::nullopt)) {}
 
     RHEO_NOINLINE void operator()(T value) const {
-      if (!lastSeenValue->has_value() || lastSeenValue->value() != value) {
-        lastSeenValue->emplace(value);
+      if (!last_seen_value->has_value() || last_seen_value->value() != value) {
+        last_seen_value->emplace(value);
         push(value);
       }
     }

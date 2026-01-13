@@ -9,20 +9,20 @@ using namespace rheo::sources;
 
 void test_tap_calls_tap_function() {
   auto source = constant(5);
-  int tappedValue = 0;
-  auto tapped = tap(source, [&tappedValue](source_fn<int> s) { s([&tappedValue](int v) { tappedValue = v; }); });
+  int tapped_value = 0;
+  auto tapped = tap(source, [&tapped_value](source_fn<int> s) { s([&tapped_value](int v) { tapped_value = v; }); });
   auto pull = tapped([](int _){});
   pull();
-  TEST_ASSERT_EQUAL_MESSAGE(5, tappedValue, "Should have passed pushed value to tap function");
+  TEST_ASSERT_EQUAL_MESSAGE(5, tapped_value, "Should have passed pushed value to tap function");
 }
 
 void test_tap_passes_on_pushed_value() {
   auto source = constant(5);
   auto tapped = tap(source, [](source_fn<int> s){ s([](int _){}); });
-  int pushedValue = 0;
-  auto pull = tapped([&pushedValue](int v){ pushedValue = v; });
+  int pushed_value = 0;
+  auto pull = tapped([&pushed_value](int v){ pushed_value = v; });
   pull();
-  TEST_ASSERT_EQUAL_MESSAGE(5, pushedValue, "Should have passed pushed value to downstream");
+  TEST_ASSERT_EQUAL_MESSAGE(5, pushed_value, "Should have passed pushed value to downstream");
 }
 
 int main(int argc, char** argv) {

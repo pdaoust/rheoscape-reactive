@@ -35,8 +35,8 @@ namespace rheo {
       : _value(value), _status(EndableStatus::Indeterminate)
       { }
 
-      Endable(const T value, const bool isLast)
-      : _value(value), _status(isLast ? EndableStatus::Last : EndableStatus::NotLast)
+      Endable(const T value, const bool is_last)
+      : _value(value), _status(is_last ? EndableStatus::Last : EndableStatus::NotLast)
       { }
 
       Endable()
@@ -52,18 +52,18 @@ namespace rheo {
         return _status;
       }
 
-      bool hasValue() const {
+      bool has_value() const {
         return _status != EndableStatus::Ended;
       }
 
       T value() {
-        if (!hasValue()) {
+        if (!has_value()) {
           throw endable_bad_get_value_access();
         }
         return _value;
       }
       
-      EndableIsLast isLast() const {
+      EndableIsLast is_last() const {
         switch (_status) {
           case EndableStatus::Last: return EndableIsLast::Yes;
           case EndableStatus::NotLast: return EndableIsLast::No;

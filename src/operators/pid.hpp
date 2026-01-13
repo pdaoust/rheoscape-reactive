@@ -19,7 +19,7 @@ namespace rheo::operators {
 
   template <typename TProc, typename TTime, typename TKp, typename TKi, typename TKd>
   struct PidData {
-    TProc processVariable;
+    TProc process_variable;
     TProc setpoint;
     TTime timestamp;
     PidWeights<TKp, TKi, TKd> weights;
@@ -72,51 +72,51 @@ namespace rheo::operators {
     typename TD
   >
   source_fn<TCtl> pid(
-    source_fn<TProc> processVariableSource,
-    source_fn<TProc> setpointSource,
-    source_fn<TTime> clockSource,
-    source_fn<PidWeights<TKp, TKi, TKd>> weightsSource,
-    std::optional<Range<TCtl>> clampRange = std::nullopt
+    source_fn<TProc> process_variable_source,
+    source_fn<TProc> setpoint_source,
+    source_fn<TTime> clock_source,
+    source_fn<PidWeights<TKp, TKi, TKd>> weights_source,
+    std::optional<Range<TCtl>> clamp_range = std::nullopt
   ) {
-    source_fn<PidData<TProc, TTime, TKp, TKi, TKd>> combinedSource = combine(
-      [](TProc processVariable, TProc setpoint, TTime timestamp, PidWeights<TKp, TKi, TKd> weights) {
-        return PidData<TProc, TTime, TKp, TKi, TKd> { processVariable, setpoint, timestamp, weights };
+    source_fn<PidData<TProc, TTime, TKp, TKi, TKd>> combined_source = combine(
+      [](TProc process_variable, TProc setpoint, TTime timestamp, PidWeights<TKp, TKi, TKd> weights) {
+        return PidData<TProc, TTime, TKp, TKi, TKd> { process_variable, setpoint, timestamp, weights };
       },
-      processVariableSource,
-      setpointSource,
-      clockSource,
-      weightsSource
+      process_variable_source,
+      setpoint_source,
+      clock_source,
+      weights_source
     );
 
-    source_fn<PidState<TP, TI, TCtl, TTime>> calculatedSource = scan(
-      combinedSource,
+    source_fn<PidState<TP, TI, TCtl, TTime>> calculated_source = scan(
+      combined_source,
       PidState<TP, TI, TCtl, TTime> { },
-      [clampRange](PidState<TP, TI, TCtl, TTime> prevState, PidData<TProc, TTime, TKp, TKi, TKd> values) {
+      [clamp_range](PidState<TP, TI, TCtl, TTime> prev_state, PidData<TProc, TTime, TKp, TKi, TKd> values) {
         // Error is delta between desired value and measured value.
         // Error = proportional term
-        TP error = values.setpoint - values.processVariable;
-        TTime timeDelta = values.timestamp - prevState.timestamp;
-        TI integral = prevState.integral + error * timeDelta;
-        TD derivative = (error - prevState.error) / timeDelta;
+        TP error = values.setpoint - values.process_variable;
+        TTime time_delta = values.timestamp - prev_state.timestamp;
+        TI integral = prev_state.integral + error * time_delta;
+        TD derivative = (error - prev_state.error) / time_delta;
         TCtl control = values.weights.Kp * error + values.weights.Ki * integral + values.weights.Kd * derivative;
 
         // Clamp the control variable and disable integration
         // when the control variable goes out of range
         // to prevent integrator windup.
-        if (clampRange.has_value()) {
-          if (control > clampRange.value().max) {
-            control = clampRange.value().max;
-            integral = prevState.integral;
-          } else if (control < clampRange.value().min) {
-            control = clampRange.value().min;
-            integral = prevState.integral;
+        if (clamp_range.has_value()) {
+          if (control > clamp_range.value().max) {
+            control = clamp_range.value().max;
+            integral = prev_state.integral;
+          } else if (control < clamp_range.value().min) {
+            control = clamp_range.value().min;
+            integral = prev_state.integral;
           }
         }
         return PidState<TP, TI, TCtl, TTime> { error, integral, control, values.timestamp };
       }
     );
 
-    return map(calculatedSource, [](PidState<TP, TI, TCtl, TTime> value) { return value.control; });
+    return map(calculated_source, [](PidState<TP, TI, TCtl, TTime> value) { return value.control; });
   }
 
   template <
@@ -132,73 +132,73 @@ namespace rheo::operators {
     typename TD
   >
   pipe_fn<TCtl, TProc> pid(
-    source_fn<TProc> setpointSource,
-    source_fn<TTime> clockSource,
-    source_fn<PidWeights<TKp, TKi, TKd>> weightsSource,
-    std::optional<Range<TCtl>> clampRange = std::nullopt
+    source_fn<TProc> setpoint_source,
+    source_fn<TTime> clock_source,
+    source_fn<PidWeights<TKp, TKi, TKd>> weights_source,
+    std::optional<Range<TCtl>> clamp_range = std::nullopt
   ) {
-    return [setpointSource, clockSource, weightsSource](source_fn<TProc> processVariableSource) {
-      return pid<TCtl, TProc, TTime, TInterval, TKp, TKi, TKd, TP, TI, TD>(processVariableSource, setpointSource, clockSource, weightsSource);
+    return [setpoint_source, clock_source, weights_source](source_fn<TProc> process_variable_source) {
+      return pid<TCtl, TProc, TTime, TInterval, TKp, TKi, TKd, TP, TI, TD>(process_variable_source, setpoint_source, clock_source, weights_source);
     };
   }
 
   template <typename TCalc, typename TTime>
   source_fn<TCalc> pid_scalar(
-    source_fn<TCalc> processVariableSource,
-    source_fn<TCalc> setpointSource,
-    source_fn<TTime> clockSource,
-    source_fn<PidWeights<TCalc, TCalc, TCalc>> weightsSource,
-    std::optional<Range<TCalc>> clampRange = std::nullopt
+    source_fn<TCalc> process_variable_source,
+    source_fn<TCalc> setpoint_source,
+    source_fn<TTime> clock_source,
+    source_fn<PidWeights<TCalc, TCalc, TCalc>> weights_source,
+    std::optional<Range<TCalc>> clamp_range = std::nullopt
   ) {
-    return pid<TCalc, TCalc, TTime, TTime, TCalc, TCalc, TCalc, TCalc, TCalc, TCalc>(processVariableSource, setpointSource, clockSource, weightsSource, clampRange);
+    return pid<TCalc, TCalc, TTime, TTime, TCalc, TCalc, TCalc, TCalc, TCalc, TCalc>(process_variable_source, setpoint_source, clock_source, weights_source, clamp_range);
   }
 
   template <typename TTime>
-  using au_TInterval = decltype(std::declval<TTime>() - std::declval<TTime>());
+  using au__t_interval = decltype(std::declval<TTime>() - std::declval<TTime>());
 
   template <typename TProc>
-  using au_TP = decltype(std::declval<TProc>() - std::declval<TProc>());
+  using au__t_p = decltype(std::declval<TProc>() - std::declval<TProc>());
 
   template <typename TProc, typename TTime>
-  using au_TI = decltype(std::declval<au_TP<TProc>>() * std::declval<au_TInterval<TTime>>());
+  using au__t_i = decltype(std::declval<au__t_p<TProc>>() * std::declval<au__t_interval<TTime>>());
 
   template <typename TProc, typename TTime>
-  using au_TD = decltype(std::declval<au_TP<TProc>>() / std::declval<au_TInterval<TTime>>());
+  using au__t_d = decltype(std::declval<au__t_p<TProc>>() / std::declval<au__t_interval<TTime>>());
 
   template <typename TCtl, typename TProc>
-  using au_TKp = decltype(std::declval<TCtl>() / std::declval<au_TP<TProc>>());
+  using au__t_kkp = decltype(std::declval<TCtl>() / std::declval<au__t_p<TProc>>());
 
   template <typename TCtl, typename TProc, typename TTime>
-  using au_TKi = decltype(std::declval<TCtl>() / std::declval<au_TI<TProc, TTime>>());
+  using au__t_kki = decltype(std::declval<TCtl>() / std::declval<au__t_i<TProc, TTime>>());
 
   template <typename TCtl, typename TProc, typename TTime>
-  using au_TKd = decltype(std::declval<TCtl>() / std::declval<au_TD<TProc, TTime>>());
+  using au__t_kd = decltype(std::declval<TCtl>() / std::declval<au__t_d<TProc, TTime>>());
 
   template <typename TCtl, typename TProc, typename TTime>
   source_fn<TCtl> pid_au(
-    source_fn<TProc> processVariableSource,
-    source_fn<TProc> setpointSource,
-    source_fn<TTime> clockSource,
-    source_fn<PidWeights<au_TKp<TCtl, TProc>, au_TKi<TCtl, TProc, TTime>, au_TKd<TCtl, TProc, TTime>>> weightsSource,
-    std::optional<Range<TCtl>> clampRange = std::nullopt
+    source_fn<TProc> process_variable_source,
+    source_fn<TProc> setpoint_source,
+    source_fn<TTime> clock_source,
+    source_fn<PidWeights<au__t_kp<TCtl, TProc>, au__t_ki<TCtl, TProc, TTime>, au__t_kd<TCtl, TProc, TTime>>> weights_source,
+    std::optional<Range<TCtl>> clamp_range = std::nullopt
   ) {
     return pid<
       TCtl,
       TProc,
       TTime,
-      au_TInterval<TTime>,
-      au_TKp<TCtl, TProc>,
-      au_TKi<TCtl, TProc, TTime>,
-      au_TKd<TCtl, TProc, TTime>,
-      au_TP<TProc>,
-      au_TI<TProc, TTime>,
-      au_TD<TProc, TTime>
+      au__t_interval<TTime>,
+      au__t_kp<TCtl, TProc>,
+      au__t_ki<TCtl, TProc, TTime>,
+      au__t_kd<TCtl, TProc, TTime>,
+      au__t_p<TProc>,
+      au__t_i<TProc, TTime>,
+      au__t_d<TProc, TTime>
     >(
-      processVariableSource,
-      setpointSource,
-      clockSource,
-      weightsSource,
-      clampRange
+      process_variable_source,
+      setpoint_source,
+      clock_source,
+      weights_source,
+      clamp_range
     );
   }
 

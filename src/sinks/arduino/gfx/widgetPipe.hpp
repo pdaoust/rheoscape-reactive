@@ -8,15 +8,15 @@
 namespace rheo::sinks::arduino::gfx {
 
   template <typename TCanvas, typename THints>
-  source_fn<std::vector<GfxCommand<TCanvas>>> _widgetPipe(
-    source_fn<std::string> textSource,
-    source_fn<THints> hintsSource,
-    source_fn<Coords> coordsSource,
+  source_fn<std::vector<GfxCommand<TCanvas>>> _widget_pipe(
+    source_fn<std::string> text_source,
+    source_fn<THints> hints_source,
+    source_fn<Coords> coords_source,
   ) {
     return combine3(
-      textSource,
-      hintsSource,
-      coordsSource,
+      text_source,
+      hints_source,
+      coords_source,
       (combine3_fn<std::vector<GfxCommand<GFXcanvas1>>, std::string, TextHints, Coords>)[](std::string text, TextHints hints, Coords coords) {
         std::vector<GfxCommand<GFXcanvas1>> commands = {
           [text, hints, coords](GFXcanvas1& canvas) {

@@ -17,15 +17,15 @@ namespace rheo::logging {
   #define LOG_LEVEL_LABEL(l) (l == rheo::logging::LOG_LEVEL_ERROR ? "ERROR" : l == rheo::logging::LOG_LEVEL_WARN ? "WARN" : l == rheo::logging::LOG_LEVEL_INFO ? "INFO" : l == rheo::logging::LOG_LEVEL_DEBUG ? "DEBUG" : l == rheo::logging::LOG_LEVEL_TRACE ? "TRACE" : "")
 
   namespace {
-    static std::vector<std::function<void(uint8_t, std::optional<std::string>, std::string)>> _logSubscribers;
+    static std::vector<std::function<void(uint8_t, std::optional<std::string>, std::string)>> _log_subscribers;
   }
 
-  void registerSubscriber(std::function<void(uint8_t, std::optional<std::string>, std::string)> subscriber) {
-    _logSubscribers.push_back(subscriber);
+  void register_subscriber(std::function<void(uint8_t, std::optional<std::string>, std::string)> subscriber) {
+    _log_subscribers.push_back(subscriber);
   }
 
   void log(uint8_t level, std::optional<std::string> topic, std::string message) {
-    for (auto subscriber: _logSubscribers) {
+    for (auto subscriber: _log_subscribers) {
       subscriber(level, topic, message);
     }
   }

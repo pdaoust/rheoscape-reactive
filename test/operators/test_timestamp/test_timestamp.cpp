@@ -2,7 +2,7 @@
 #include <functional>
 #include <operators/timestamp.hpp>
 #include <operators/unwrap.hpp>
-#include <sources/fromClock.hpp>
+#include <sources/from_clock.hpp>
 #include <sources/sequence.hpp>
 #include <types/mock_clock.hpp>
 
@@ -11,14 +11,14 @@ using namespace rheo::operators;
 using namespace rheo::sources;
 
 void test_timestamp_timestamps() {
-  auto numbersSource = unwrapEndable(sequence(0, 10, 1));
-  auto clockSource = fromClock<mock_clock_ulong_millis>();
-  auto timestamped = timestamp(numbersSource, clockSource);
-  int pushedValue = -1;
+  auto numbers_source = unwrap_endable(sequence(0, 10, 1));
+  auto clock_source = from_clock<mock_clock_ulong_millis>();
+  auto timestamped = timestamp(numbers_source, clock_source);
+  int pushed_value = -1;
   mock_clock_ulong_millis::time_point timestamp;
   auto pull = timestamped(
-    [&pushedValue, &timestamp](TaggedValue<int, mock_clock_ulong_millis::time_point> value) {
-      pushedValue = value.value;
+    [&pushed_value, &timestamp](TaggedValue<int, mock_clock_ulong_millis::time_point> value) {
+      pushed_value = value.value;
       timestamp = value.tag;
     }
   );
@@ -26,7 +26,7 @@ void test_timestamp_timestamps() {
   for (int i = 0; i <= 10; i ++) {
     mock_clock_ulong_millis::tick();
     pull();
-    TEST_ASSERT_EQUAL_MESSAGE(i, pushedValue, "Should push a value");
+    TEST_ASSERT_EQUAL_MESSAGE(i, pushed_value, "Should push a value");
     TEST_ASSERT_EQUAL_MESSAGE(i + 1, timestamp.time_since_epoch().count(), "should push the right timestamp");
   }
 }

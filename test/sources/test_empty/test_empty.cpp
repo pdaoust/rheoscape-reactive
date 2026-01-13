@@ -4,13 +4,13 @@
 using namespace rheo::sources;
 
 void test_empty_never_pushes() {
-  int pushedCount = 0;
+  int pushed_count = 0;
   auto pull = empty<int>(
-    [&pushedCount](int v) { pushedCount ++; }
+    [&pushed_count](int v) { pushed_count ++; }
   );
   for (int i = 0; i < 3; i ++) {
     pull();
-    TEST_ASSERT_EQUAL_MESSAGE(0, pushedCount, "should never push");
+    TEST_ASSERT_EQUAL_MESSAGE(0, pushed_count, "should never push");
   }
 }
 

@@ -10,14 +10,14 @@ namespace rheo::operators {
   template<typename T>
   struct latch_push_handler {
     push_fn<T> push;
-    mutable std::optional<T> lastSeenValue = std::nullopt;
+    mutable std::optional<T> last_seen_value = std::nullopt;
 
     RHEO_NOINLINE void operator()(std::optional<T> value) const {
       if (value.has_value()) {
-        lastSeenValue = value;
+        last_seen_value = value;
       }
-      if (lastSeenValue.has_value()) {
-        push(lastSeenValue.value());
+      if (last_seen_value.has_value()) {
+        push(last_seen_value.value());
       }
     }
   };
@@ -38,11 +38,11 @@ namespace rheo::operators {
   // PATTERN NOTE: This operator intentionally has no pipe factory (no zero-argument
   // latch() overload) because latch() with a source argument IS already a pipe
   // function - it takes source_fn<optional<T>> and returns source_fn<T>. You can
-  // use it directly with the pipe operator: optionalSource | latch
+  // use it directly with the pipe operator: optional_source | latch
   //
   // If you only want to push non-empty values
   // rather than remembering the last non-empty value and pushing it when pulled,
-  // use `filter<std::optional<T>>(source, notEmpty)`
+  // use `filter<std::optional<T>>(source, not_empty)`
   template <typename T>
   RHEO_INLINE source_fn<T> latch(source_fn<std::optional<T>> source) {
     return latch_source_binder<T>{source};

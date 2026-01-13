@@ -11,27 +11,27 @@ using namespace rheo::sources;
 void test_take_takes() {
   auto source = constant(5);
   auto taker = take(source, 8);
-  bool didEnd = false;
-  int pushedValue = 0;
-  int pushedCount = 0;
+  bool did_end = false;
+  int pushed_value = 0;
+  int pushed_count = 0;
   auto pull = taker(
-    [&didEnd, &pushedValue, &pushedCount](auto v) {
-      pushedCount ++;
-      if (v.hasValue()) {
-        pushedValue = v.value();
+    [&did_end, &pushed_value, &pushed_count](auto v) {
+      pushed_count ++;
+      if (v.has_value()) {
+        pushed_value = v.value();
       } else {
-        didEnd = true;
+        did_end = true;
       }
     }
   );
   for (int i = 1; i <= 8; i ++) {
     pull();
-    TEST_ASSERT_EQUAL_MESSAGE(i, pushedCount, "should push");
-    TEST_ASSERT_EQUAL_MESSAGE(5, pushedValue, "should push correct value");
+    TEST_ASSERT_EQUAL_MESSAGE(i, pushed_count, "should push");
+    TEST_ASSERT_EQUAL_MESSAGE(5, pushed_value, "should push correct value");
   }
   pull();
-  TEST_ASSERT_EQUAL_MESSAGE(9, pushedCount, "should push ended value after take is finished");
-  TEST_ASSERT_TRUE_MESSAGE(didEnd, "should end after take");
+  TEST_ASSERT_EQUAL_MESSAGE(9, pushed_count, "should push ended value after take is finished");
+  TEST_ASSERT_TRUE_MESSAGE(did_end, "should end after take");
 }
 
 int main(int argc, char **argv) {

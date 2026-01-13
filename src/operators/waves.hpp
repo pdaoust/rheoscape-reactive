@@ -18,38 +18,38 @@ namespace rheo::operators {
   // or errors that come from C++'s weird behaviour of giving negative modulos
   // if one operand is negative.
   template <typename TInput, typename MapFn>
-  auto wave(source_fn<TInput> inputSource, source_fn<TInput> periodSource, source_fn<TInput> phaseShiftSource, MapFn&& waveFunction)
+  auto wave(source_fn<TInput> input_source, source_fn<TInput> period_source, source_fn<TInput> phase_shift_source, MapFn&& wave_function)
   -> source_fn<return_of<std::decay_t<MapFn>>> {
     using TFloat = return_of<std::decay_t<MapFn>>;
     
     return map(
-      combine(std::make_tuple<TInput, TInput, TInput>, inputSource, periodSource, phaseShiftSource),
-      [waveFunction = std::forward<MapFn>(waveFunction)](std::tuple<TInput, TInput, TInput> value) {
+      combine(std::make_tuple<TInput, TInput, TInput>, input_source, period_source, phase_shift_source),
+      [wave_function = std::forward<MapFn>(wave_function)](std::tuple<TInput, TInput, TInput> value) {
         TInput input = std::get<0>(value);
         TInput period = std::get<1>(value);
-        TInput phaseShift = std::get<2>(value);
-        TFloat inputNormalised = (TFloat)((input + phaseShift) % period) / (TFloat)period;
-        return waveFunction(inputNormalised);
+        TInput phase_shift = std::get<2>(value);
+        TFloat input_normalised = (TFloat)((input + phase_shift) % period) / (TFloat)period;
+        return wave_function(input_normalised);
       }
     );
   }
 
   template <typename TFloat = float, typename TInput>
-  source_fn<TFloat> sineWave(source_fn<TInput> inputSource, source_fn<TInput> periodSource, source_fn<TInput> phaseShiftSource) {
-    return wave(inputSource, periodSource, phaseShiftSource, [](TFloat input) { return sin((TFloat)input * M_PI * 2); });
+  source_fn<TFloat> sine_wave(source_fn<TInput> input_source, source_fn<TInput> period_source, source_fn<TInput> phase_shift_source) {
+    return wave(input_source, period_source, phase_shift_source, [](TFloat input) { return sin((TFloat)input * M_PI * 2); });
   }
 
   template <typename TFloat = float, typename TInput>
-  source_fn<TFloat> sawtoothWave(source_fn<TInput> inputSource, source_fn<TInput> periodSource, source_fn<TInput> phaseShiftSource) {
-    return wave(inputSource, periodSource, phaseShiftSource, [](TFloat input) { return input * 2 - 1; });
+  source_fn<TFloat> sawtooth_wave(source_fn<TInput> input_source, source_fn<TInput> period_source, source_fn<TInput> phase_shift_source) {
+    return wave(input_source, period_source, phase_shift_source, [](TFloat input) { return input * 2 - 1; });
   }
 
   template <typename TFloat = float, typename TInput>
-  source_fn<TFloat> triangleWave(source_fn<TInput> inputSource, source_fn<TInput> periodSource, source_fn<TInput> phaseShiftSource) {
+  source_fn<TFloat> triangle_wave(source_fn<TInput> input_source, source_fn<TInput> period_source, source_fn<TInput> phase_shift_source) {
     return wave(
-      inputSource,
-      periodSource,
-      phaseShiftSource,
+      input_source,
+      period_source,
+      phase_shift_source,
       [](TFloat input) {
         input = input * 4;
         if (input < 1) {
@@ -64,12 +64,12 @@ namespace rheo::operators {
   }
 
   template <typename TFloat = float, typename TInput>
-  source_fn<TFloat> pwmWave(source_fn<TInput> inputSource, source_fn<TInput> periodSource, source_fn<TInput> phaseShiftSource, source_fn<TFloat> dutySource) {
+  source_fn<TFloat> pwm_wave(source_fn<TInput> input_source, source_fn<TInput> period_source, source_fn<TInput> phase_shift_source, source_fn<TFloat> duty_source) {
     return map(
       combine(
         std::make_tuple<TFloat, TFloat>,
-        wave(inputSource, periodSource, phaseShiftSource, [](TFloat v) { return v; }),
-        dutySource
+        wave(input_source, period_source, phase_shift_source, [](TFloat v) { return v; }),
+        duty_source
       ),
       [](std::tuple<TFloat, TFloat> value) {
         return std::get<0>(value) < std::get<1>(value)
@@ -80,8 +80,8 @@ namespace rheo::operators {
   }
 
   template <typename TFloat = float, typename TInput>
-  source_fn<TFloat> squareWave(source_fn<TInput> inputSource, source_fn<TInput> periodSource, source_fn<TInput> phaseShiftSource) {
-    return pwmWave(inputSource, periodSource, phaseShiftSource, rheo::sources::constant((TFloat)0.5));
+  source_fn<TFloat> square_wave(source_fn<TInput> input_source, source_fn<TInput> period_source, source_fn<TInput> phase_shift_source) {
+    return pwm_wave(input_source, period_source, phase_shift_source, rheo::sources::constant((TFloat)0.5));
   }
 
 }

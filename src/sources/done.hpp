@@ -10,12 +10,12 @@ namespace rheo::sources {
   template <typename T>
   struct done_pull_handler {
     push_fn<Endable<T>> push;
-    mutable bool isDone = false;
+    mutable bool is_done = false;
 
     RHEO_NOINLINE void operator()() const {
-      if (!isDone) {
+      if (!is_done) {
         push(Endable<T>());
-        isDone = true;
+        is_done = true;
       }
     }
   };

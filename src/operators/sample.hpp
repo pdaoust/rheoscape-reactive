@@ -12,115 +12,115 @@ namespace rheo::operators {
   // This source ends if either stream ends.
 
   template <typename TEvent, typename TSample, typename TOut, typename CombineFn>
-  struct sampleAndMap_sample_push_handler {
+  struct sample_and_map_sample_push_handler {
     CombineFn combiner;
     push_fn<TOut> push;
-    std::shared_ptr<std::optional<TEvent>> lastEventValue;
+    std::shared_ptr<std::optional<TEvent>> last_event_value;
 
-    RHEO_NOINLINE void operator()(TSample sampleValue) const {
-      if (lastEventValue->has_value()) {
-        push(combiner(lastEventValue->value(), sampleValue));
+    RHEO_NOINLINE void operator()(TSample sample_value) const {
+      if (last_event_value->has_value()) {
+        push(combiner(last_event_value->value(), sample_value));
         // Clear the event value out in case the sample source pushes something.
         // This prevents us from pushing a sample that _isn't_ sampled on an event.
-        lastEventValue->reset();
+        last_event_value->reset();
       }
     }
   };
 
   template <typename TEvent>
-  struct sampleAndMap_event_push_handler {
-    std::shared_ptr<std::optional<TEvent>> lastEventValue;
-    pull_fn pullSample;
+  struct sample_and_map_event_push_handler {
+    std::shared_ptr<std::optional<TEvent>> last_event_value;
+    pull_fn pull_sample;
 
-    RHEO_NOINLINE void operator()(TEvent eventValue) const {
-      lastEventValue->emplace(eventValue);
-      pullSample();
+    RHEO_NOINLINE void operator()(TEvent event_value) const {
+      last_event_value->emplace(event_value);
+      pull_sample();
     }
   };
 
   template <typename TEvent, typename TSample, typename TOut, typename CombineFn>
-  struct sampleAndMap_source_binder {
-    source_fn<TEvent> eventSource;
-    source_fn<TSample> sampleSource;
+  struct sample_and_map_source_binder {
+    source_fn<TEvent> event_source;
+    source_fn<TSample> sample_source;
     CombineFn combiner;
 
     RHEO_NOINLINE pull_fn operator()(push_fn<TOut> push) const {
-      auto lastEventValue = std::make_shared<std::optional<TEvent>>(std::nullopt);
+      auto last_event_value = std::make_shared<std::optional<TEvent>>(std::nullopt);
 
-      pull_fn pullSample = sampleSource(sampleAndMap_sample_push_handler<TEvent, TSample, TOut, CombineFn>{
+      pull_fn pull_sample = sample_source(sample_and_map_sample_push_handler<TEvent, TSample, TOut, CombineFn>{
         combiner,
         std::move(push),
-        lastEventValue
+        last_event_value
       });
 
-      return eventSource(sampleAndMap_event_push_handler<TEvent>{
-        lastEventValue,
-        std::move(pullSample)
+      return event_source(sample_and_map_event_push_handler<TEvent>{
+        last_event_value,
+        std::move(pull_sample)
       });
     }
   };
 
   template <typename TEvent, typename TSample, typename CombineFn>
-  auto sampleAndMap(
-    source_fn<TEvent> eventSource,
-    source_fn<TSample> sampleSource,
+  auto sample_and_map(
+    source_fn<TEvent> event_source,
+    source_fn<TSample> sample_source,
     CombineFn combiner
   ) -> source_fn<return_of<CombineFn>> {
     using TOut = return_of<CombineFn>;
-    return sampleAndMap_source_binder<TEvent, TSample, TOut, CombineFn>{
-      std::move(eventSource),
-      std::move(sampleSource),
+    return sample_and_map_source_binder<TEvent, TSample, TOut, CombineFn>{
+      std::move(event_source),
+      std::move(sample_source),
       std::move(combiner)
     };
   }
 
   template <typename TEvent, typename TSample, typename CombineFn>
-  auto sampleAndMap(
-    source_fn<TSample> sampleSource,
+  auto sample_and_map(
+    source_fn<TSample> sample_source,
     CombineFn combiner
   ) -> pipe_fn<return_of<CombineFn>, TEvent> {
-    return [sampleSource, combiner](source_fn<TEvent> eventSource) {
-      return sampleAndMap(eventSource, sampleSource, combiner);
+    return [sample_source, combiner](source_fn<TEvent> event_source) {
+      return sample_and_map(event_source, sample_source, combiner);
     };
   }
 
   template <typename TOut, typename TSample, typename TEvent>
-  pipe_fn<TOut, TSample> sampleAndMapEvery(
-    source_fn<TEvent> eventSource,
+  pipe_fn<TOut, TSample> sample_and_map_every(
+    source_fn<TEvent> event_source,
     combine2_fn<TOut, TSample, TEvent> combiner = [](TSample sample, TEvent event) { return sample; }
   ) {
-    return [eventSource, combiner](source_fn<TSample> sampleSource) {
-      return sample(eventSource, sampleSource, combiner);
+    return [event_source, combiner](source_fn<TSample> sample_source) {
+      return sample(event_source, sample_source, combiner);
     };
   }
 
   template <typename TEvent, typename TSample>
   source_fn<TSample> sample(
-    source_fn<TEvent> eventSource,
-    source_fn<TSample> sampleSource
+    source_fn<TEvent> event_source,
+    source_fn<TSample> sample_source
   ) {
-    return sampleAndMap(
-      eventSource,
-      sampleSource,
+    return sample_and_map(
+      event_source,
+      sample_source,
       [](TEvent event, TSample sample) { return sample; }
     );
   }
 
   template <typename TEvent, typename TSample>
   pipe_fn<TSample, TEvent> sample(
-    source_fn<TSample> sampleSource
+    source_fn<TSample> sample_source
   ) {
-    return [sampleSource](source_fn<TEvent> eventSource) {
-      return sample(eventSource, sampleSource);
+    return [sample_source](source_fn<TEvent> event_source) {
+      return sample(event_source, sample_source);
     };
   }
 
   template <typename TSample, typename TEvent>
-  pipe_fn<TSample, TSample> sampleEvery(
-    source_fn<TEvent> eventSource
+  pipe_fn<TSample, TSample> sample_every(
+    source_fn<TEvent> event_source
   ) {
-    return [eventSource](source_fn<TSample> sampleSource) {
-      return sample(eventSource, sampleSource);
+    return [event_source](source_fn<TSample> sample_source) {
+      return sample(event_source, sample_source);
     };
   }
 

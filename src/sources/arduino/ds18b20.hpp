@@ -22,14 +22,14 @@ namespace rheo::sources::arduino::ds18b20 {
   // Use std::array for copyable address storage
   using Address = std::array<uint8_t, 8>;
 
-  inline void intToDeviceAddress(uint64_t address, DeviceAddress deviceAddress) {
+  inline void int_to_device_address(uint64_t address, DeviceAddress device_address) {
     for (uint8_t i = 0; i < 8; i++) {
-      deviceAddress[i] = address & 0xFF;
+      device_address[i] = address & 0xFF;
       address >>= 8;
     }
   }
 
-  inline Address deviceAddressToArray(const DeviceAddress& address) {
+  inline Address device_address_to_array(const DeviceAddress& address) {
     Address result;
     for (uint8_t i = 0; i < 8; i++) {
       result[i] = address[i];
@@ -39,7 +39,7 @@ namespace rheo::sources::arduino::ds18b20 {
 
   // Mutable state for the pull handler
   struct ds18b20_state {
-    unsigned long lastRead;
+    unsigned long last_read;
   };
 
   // A source function factory for a single DS18B20 sensor.
@@ -66,13 +66,13 @@ namespace rheo::sources::arduino::ds18b20 {
       // But because I know I'm on the Arduino platform,
       // we'll just use the millis clock.
       unsigned long now = millis();
-      if (now - state->lastRead > sensor->millisToWaitForConversion(resolution)) {
-        state->lastRead = now;
-        float tempC = sensor->getTempC(address.data());
-        if (tempC == DEVICE_DISCONNECTED_C) {
+      if (now - state->last_read > sensor->millisToWaitForConversion(resolution)) {
+        state->last_read = now;
+        float temp_c = sensor->getTempC(address.data());
+        if (temp_c == DEVICE_DISCONNECTED_C) {
           push(std::nullopt);
         } else {
-          push(au::celsius_pt(tempC));
+          push(au::celsius_pt(temp_c));
         }
         sensor->requestTemperaturesByAddress(address.data());
       }
@@ -95,14 +95,14 @@ namespace rheo::sources::arduino::ds18b20 {
   };
 
   source_fn<std::optional<au::QuantityPoint<au::Celsius, float>>> ds18b20(DeviceAddress address, DallasTemperature* sensor, int resolution) {
-    return ds18b20_source_binder{deviceAddressToArray(address), sensor, resolution};
+    return ds18b20_source_binder{device_address_to_array(address), sensor, resolution};
   }
 
   // A source function factory with a much nicer way of specifying a device address --
   // a 64-bit integer, which you can give as a hex value!
   source_fn<std::optional<au::QuantityPoint<au::Celsius, float>>> ds18b20(uint64_t address, DallasTemperature* sensor, Resolution resolution) {
     DeviceAddress address2;
-    intToDeviceAddress(address, address2);
+    int_to_device_address(address, address2);
     return ds18b20(address2, sensor, static_cast<int>(resolution));
   }
 

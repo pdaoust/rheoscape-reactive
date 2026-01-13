@@ -17,55 +17,55 @@ namespace rheo::operators {
   struct debounce_push_handler {
     TInterval interval;
     push_fn<T> push;
-    std::shared_ptr<Wrapper<bool>> didPull;
-    mutable std::optional<TaggedValue<T, TTime>> testingNewState;
-    mutable std::optional<T> currentState;
-    mutable bool currentStateHasBeenPushed;
+    std::shared_ptr<Wrapper<bool>> did_pull;
+    mutable std::optional<TaggedValue<T, TTime>> testing_new_state;
+    mutable std::optional<T> current_state;
+    mutable bool current_state_has_been_pushed;
 
     RHEO_NOINLINE void operator()(TaggedValue<T, TTime> value) const {
-      if (testingNewState.has_value()
+      if (testing_new_state.has_value()
           // NOTE: This equation has to be this way
           // to guard against wraparound for unsigned time representations.
           // https://arduino.stackexchange.com/a/12588
-          && value.tag - testingNewState.value().tag >= interval) {
+          && value.tag - testing_new_state.value().tag >= interval) {
         // The debounce period has settled down.
         // Has it held the new state value to the end of the settling period?
-        if (value.value == testingNewState.value().value) {
+        if (value.value == testing_new_state.value().value) {
           // Yup, this is now the new state.
-          currentState = std::optional(value.value);
+          current_state = std::optional(value.value);
         }
         // Reset the testing value in preparation for the next state change.
-        testingNewState = std::nullopt;
+        testing_new_state = std::nullopt;
       }
 
       // If the new value isn't the same as the current state,
       // or if there is no current or testing states yet,
       // start a new debounce test period.
       if (
-        (!currentState.has_value() || currentState.value() != value.value)
-        && !testingNewState.has_value()
+        (!current_state.has_value() || current_state.value() != value.value)
+        && !testing_new_state.has_value()
       ) {
-        testingNewState = std::optional(value);
+        testing_new_state = std::optional(value);
       }
 
       // Guard against initial non-state.
-      if (currentState.has_value() && (!currentStateHasBeenPushed || didPull->value)) {
+      if (current_state.has_value() && (!current_state_has_been_pushed || did_pull->value)) {
         // Push the current, not-bouncy state, whatever it is.
-        push(currentState.value());
-        currentStateHasBeenPushed = true;
+        push(current_state.value());
+        current_state_has_been_pushed = true;
       }
     }
   };
 
   template <typename T, typename TTime, typename TInterval>
   struct debounce_pull_handler {
-    std::shared_ptr<Wrapper<bool>> didPull;
-    pull_fn innerPull;
+    std::shared_ptr<Wrapper<bool>> did_pull;
+    pull_fn inner_pull;
 
     RHEO_NOINLINE void operator()() const {
-      didPull->value = true;
-      innerPull();
-      didPull->value = false;
+      did_pull->value = true;
+      inner_pull();
+      did_pull->value = false;
     }
   };
 
@@ -79,33 +79,33 @@ namespace rheo::operators {
       // if the push happens as a consequence of a pull.
       // It doesn't make sense for a push stream to force a debounced value to get emitted
       // for every single bouncy new value that's getting discarded.
-      auto didPull = make_wrapper_shared(false);
+      auto did_pull = make_wrapper_shared(false);
 
-      pull_fn innerPull = timestamped(debounce_push_handler<T, TTime, TInterval>{
+      pull_fn inner_pull = timestamped(debounce_push_handler<T, TTime, TInterval>{
         interval,
         std::move(push),
-        didPull,
+        did_pull,
         std::nullopt,
         std::nullopt,
         false
       });
 
-      return debounce_pull_handler<T, TTime, TInterval>{didPull, std::move(innerPull)};
+      return debounce_pull_handler<T, TTime, TInterval>{did_pull, std::move(inner_pull)};
     }
   };
 
   template <typename T, typename TTime, typename TInterval>
-  source_fn<T> debounce(source_fn<T> source, source_fn<TTime> clockSource, TInterval interval) {
+  source_fn<T> debounce(source_fn<T> source, source_fn<TTime> clock_source, TInterval interval) {
     return debounce_source_binder<T, TTime, TInterval>{
-      timestamp(source, clockSource),
+      timestamp(source, clock_source),
       interval
     };
   }
 
   template <typename T, typename TTime, typename TInterval>
-  pipe_fn<T, T> debounce(source_fn<TTime> clockSource, TInterval interval) {
-    return [clockSource, interval](source_fn<T> source) {
-      return debounce(source, clockSource, interval);
+  pipe_fn<T, T> debounce(source_fn<TTime> clock_source, TInterval interval) {
+    return [clock_source, interval](source_fn<T> source) {
+      return debounce(source, clock_source, interval);
     };
   }
 

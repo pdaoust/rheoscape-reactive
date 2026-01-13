@@ -6,10 +6,10 @@
 using namespace std::string_literals;
 using namespace rheo;
 
-void test_Fallible_has_value() {
+void test__fallible_has_value() {
   auto v = Fallible<int, std::string>(3);
-  TEST_ASSERT_TRUE_MESSAGE(v.isOk(), "Non-error fallible should be OK");
-  TEST_ASSERT_FALSE_MESSAGE(v.isError(), "Non-error fallible should not be an error");
+  TEST_ASSERT_TRUE_MESSAGE(v.is_ok(), "Non-error fallible should be OK");
+  TEST_ASSERT_FALSE_MESSAGE(v.is_error(), "Non-error fallible should not be an error");
   TEST_ASSERT_EQUAL_MESSAGE(3, v.value(), "Fallible should have the correct value");
   try {
     auto err = v.error();
@@ -17,10 +17,10 @@ void test_Fallible_has_value() {
   } catch (fallible_bad_get_error_access e) {}
 }
 
-void test_Fallible_has_error() {
+void test__fallible_has_error() {
   auto v = Fallible<int, std::string>("Error: it failed!"s);
-  TEST_ASSERT_FALSE_MESSAGE(v.isOk(), "Error fallible should not be OK");
-  TEST_ASSERT_TRUE_MESSAGE(v.isError(), "Error fallible should be an error");
+  TEST_ASSERT_FALSE_MESSAGE(v.is_ok(), "Error fallible should not be OK");
+  TEST_ASSERT_TRUE_MESSAGE(v.is_error(), "Error fallible should be an error");
   TEST_ASSERT_EQUAL_STRING_MESSAGE("Error: it failed!", v.error().c_str(), "Fallible should have the correct error value");
   try {
     auto value = v.value();
@@ -30,7 +30,7 @@ void test_Fallible_has_error() {
 
 int main(int argc, char **argv) {
   UNITY_BEGIN();
-  RUN_TEST(test_Fallible_has_value);
-  RUN_TEST(test_Fallible_has_error);
+  RUN_TEST(test__fallible_has_value);
+  RUN_TEST(test__fallible_has_error);
   UNITY_END();
 }

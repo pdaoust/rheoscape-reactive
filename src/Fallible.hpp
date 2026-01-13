@@ -21,14 +21,14 @@ namespace rheo {
   template <typename T, typename TErr>
   class Fallible {
     private:
-      bool _hasValue;
+      bool _has_value;
       union {
         T _value;
         TErr _error;
       };
-    
+
     void destroy() {
-        if (_hasValue) {
+        if (_has_value) {
             _value.~T();
         } else {
             _error.~TErr();
@@ -37,23 +37,23 @@ namespace rheo {
 
     public:
       // Constructor for success case.
-      Fallible(const T& value) : _hasValue(true), _value(value) {}
-      Fallible(T&& value) : _hasValue(true), _value(std::move(value)) {}
-    
+      Fallible(const T& value) : _has_value(true), _value(value) {}
+      Fallible(T&& value) : _has_value(true), _value(std::move(value)) {}
+
       // Constructor for error case - explicit constructors to avoid ambiguity
-      Fallible(const TErr& error) : _hasValue(false), _error(error) {}
-      Fallible(TErr&& error) : _hasValue(false), _error(std::move(error)) {}
-    
+      Fallible(const TErr& error) : _has_value(false), _error(error) {}
+      Fallible(TErr&& error) : _has_value(false), _error(std::move(error)) {}
+
       // Or alternatively, use tagged constructors for clarity:
       struct ErrorTag {};
       static constexpr ErrorTag error_tag{};
-    
+
       template<typename E>
-      Fallible(ErrorTag, E&& error) : _hasValue(false), _error(std::forward<E>(error)) {}
+      Fallible(ErrorTag, E&& error) : _has_value(false), _error(std::forward<E>(error)) {}
 
       // Copy constructor
-      Fallible(const Fallible& other) : _hasValue(other._hasValue) {
-        if (_hasValue) {
+      Fallible(const Fallible& other) : _has_value(other._has_value) {
+        if (_has_value) {
           new(&_value) T(other._value);
         } else {
           new(&_error) TErr(other._error);
@@ -61,8 +61,8 @@ namespace rheo {
       }
 
       // Move constructor
-      Fallible(Fallible&& other) noexcept : _hasValue(other._hasValue) {
-        if (_hasValue) {
+      Fallible(Fallible&& other) noexcept : _has_value(other._has_value) {
+        if (_has_value) {
           new(&_value) T(std::move(other._value));
         } else {
           new(&_error) TErr(std::move(other._error));
@@ -72,36 +72,36 @@ namespace rheo {
       // Copy assignment operator
       Fallible& operator=(const Fallible& other) {
         if (this == &other) { return *this; };
-        
+
         // Destroy current object
         destroy();
-        
+
         // Copy construct new object
-        _hasValue = other._hasValue;
-        if (_hasValue) {
+        _has_value = other._has_value;
+        if (_has_value) {
           new(&_value) T(other._value);
         } else {
           new(&_error) TErr(other._error);
         }
-        
+
         return *this;
       }
 
       // Move assignment operator
       Fallible& operator=(Fallible&& other) noexcept {
         if (this == &other) return *this;
-        
+
         // Destroy current object
         destroy();
-        
+
         // Move construct new object
-        _hasValue = other._hasValue;
-        if (_hasValue) {
+        _has_value = other._has_value;
+        if (_has_value) {
           new(&_value) T(std::move(other._value));
         } else {
           new(&_error) TErr(std::move(other._error));
         }
-        
+
         return *this;
       }
 
@@ -109,38 +109,38 @@ namespace rheo {
       ~Fallible() {
         destroy();
       }
-    
-      bool isOk() {
-        return _hasValue;
+
+      bool is_ok() {
+        return _has_value;
       }
 
-      bool isError() {
-        return !_hasValue;
+      bool is_error() {
+        return !_has_value;
       }
 
       T& value() {
-        if (!isOk()) {
+        if (!is_ok()) {
           throw fallible_bad_get_value_access();
         }
         return _value;
       }
 
       const T& value() const {
-        if (!isOk()) {
+        if (!is_ok()) {
           throw fallible_bad_get_value_access();
         }
         return _value;
       }
 
       TErr& error() {
-        if (!isError()) {
+        if (!is_error()) {
           throw fallible_bad_get_error_access();
         }
         return _error;
       }
-    
+
       const TErr& error() const {
-        if (!isError()) {
+        if (!is_error()) {
           throw fallible_bad_get_error_access();
         }
         return _error;
@@ -148,10 +148,10 @@ namespace rheo {
   };
 
   template <typename T, typename TErr>
-  filter_map_fn<T, Fallible<T, TErr>> filterMapToInfallible() {
+  filter_map_fn<T, Fallible<T, TErr>> filter_map_to_infallible() {
     return [](Fallible<T, TErr> value) {
-      if (value._hasValue) {
-        return std::optional<T>(value.getValue());
+      if (value._has_value) {
+        return std::optional<T>(value.get_value());
       }
       return (std::optional<T>)std::nullopt;
     };

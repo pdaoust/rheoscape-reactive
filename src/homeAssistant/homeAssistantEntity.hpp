@@ -11,12 +11,12 @@
   #include <IJson.h>
 #endif
 #include <MQTTRemote.h>
-#include <homeAssistant/types.hpp>
+#include <home_assistant/types.hpp>
 
-namespace rheo::homeAssistant {
+namespace rheo::home_assistant {
 
   template <typename T>
-  pullable_sink_fn<T> homeAssistantEntity(
+  pullable_sink_fn<T> home_assistant_entity(
     source_fn<T> source,
     Entity entity,
     MQTTRemote mqtt

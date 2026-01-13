@@ -20,20 +20,20 @@ namespace rheo::operators {
   // Named callable for cache's push handler
   template<typename T>
   struct cache_push_handler {
-    std::shared_ptr<push_fn<T>> sharedPush;
-    std::shared_ptr<std::optional<T>> lastSeenValue;
-    std::shared_ptr<bool> isWithinPull;
-    std::shared_ptr<bool> didPushWithinPull;
+    std::shared_ptr<push_fn<T>> shared_push;
+    std::shared_ptr<std::optional<T>> last_seen_value;
+    std::shared_ptr<bool> is_within_pull;
+    std::shared_ptr<bool> did_push_within_pull;
 
     RHEO_NOINLINE void operator()(T value) const {
-      lastSeenValue->emplace(value);
-      (*sharedPush)(value);
+      last_seen_value->emplace(value);
+      (*shared_push)(value);
 
-      if (*isWithinPull) {
+      if (*is_within_pull) {
         // This is being called as a direct consequence of a pull.
         // Set the flag that says that the push callback was called synchronously
         // so the pull function knows not to push the cached value.
-        *didPushWithinPull = true;
+        *did_push_within_pull = true;
       }
     }
   };
@@ -41,33 +41,33 @@ namespace rheo::operators {
   // Named callable for cache's pull function
   template<typename T>
   struct cache_pull_function {
-    std::shared_ptr<push_fn<T>> sharedPush;
+    std::shared_ptr<push_fn<T>> shared_push;
     pull_fn pull;
-    std::shared_ptr<std::optional<T>> lastSeenValue;
-    std::shared_ptr<bool> isWithinPull;
-    std::shared_ptr<bool> didPushWithinPull;
+    std::shared_ptr<std::optional<T>> last_seen_value;
+    std::shared_ptr<bool> is_within_pull;
+    std::shared_ptr<bool> did_push_within_pull;
 
     RHEO_NOINLINE void operator()() const {
       // Set the flag that tells the upstream push callback
       // that it is being pushed because of a pull.
-      *isWithinPull = true;
+      *is_within_pull = true;
       pull();
 
       // This assumes the upstream source is synchronous -- that is,
       // it has already called the push callback when we called `pull()`
       // (if it has a value to push, of course --
       // if it doesn't, that's the whole point of this operator).
-      if (*didPushWithinPull) {
+      if (*did_push_within_pull) {
         // Reset the flag for next pull.
-        *didPushWithinPull = false;
-      } else if (lastSeenValue->has_value()) {
+        *did_push_within_pull = false;
+      } else if (last_seen_value->has_value()) {
         // No sync push happened because of pull.
         // Push the cached value instead.
-        (*sharedPush)(lastSeenValue->value());
+        (*shared_push)(last_seen_value->value());
       }
 
       // Reset the flag, in case the push (or an unrelated push) is coming in async.
-      *isWithinPull = false;
+      *is_within_pull = false;
     }
   };
 
@@ -77,14 +77,14 @@ namespace rheo::operators {
     source_fn<T> source;
 
     RHEO_NOINLINE pull_fn operator()(push_fn<T> push) const {
-      auto sharedPush = std::make_shared<push_fn<T>>(push);
-      auto lastSeenValue = std::make_shared<std::optional<T>>(std::nullopt);
-      auto isWithinPull = std::make_shared<bool>(false);
-      auto didPushWithinPull = std::make_shared<bool>(false);
+      auto shared_push = std::make_shared<push_fn<T>>(push);
+      auto last_seen_value = std::make_shared<std::optional<T>>(std::nullopt);
+      auto is_within_pull = std::make_shared<bool>(false);
+      auto did_push_within_pull = std::make_shared<bool>(false);
 
-      pull_fn pull = source(cache_push_handler<T>{sharedPush, lastSeenValue, isWithinPull, didPushWithinPull});
+      pull_fn pull = source(cache_push_handler<T>{shared_push, last_seen_value, is_within_pull, did_push_within_pull});
 
-      return cache_pull_function<T>{sharedPush, pull, lastSeenValue, isWithinPull, didPushWithinPull};
+      return cache_pull_function<T>{shared_push, pull, last_seen_value, is_within_pull, did_push_within_pull};
     }
   };
 

@@ -35,10 +35,10 @@ namespace rheo {
   template <typename T>
   struct state_source_binder {
     State<T>* state;
-    bool initialPush;
+    bool initial_push;
 
     RHEO_NOINLINE pull_fn operator()(push_fn<T> push) const {
-      return state->addSink(std::move(push), initialPush);
+      return state->add_sink(std::move(push), initial_push);
     }
   };
 
@@ -51,8 +51,8 @@ namespace rheo {
     public:
       State() {}
 
-      State(T initial, bool initialPush = true) {
-        set(initial, initialPush);
+      State(T initial, bool initial_push = true) {
+        set(initial, initial_push);
       }
 
       void set(T value, bool push = true) {
@@ -73,9 +73,9 @@ namespace rheo {
       }
 
       // This can be used as-is as a source function.
-      pull_fn addSink(push_fn<T> push, bool initialPush = true) {
+      pull_fn add_sink(push_fn<T> push, bool initial_push = true) {
         _sinks.push_back(push);
-        if (initialPush) {
+        if (initial_push) {
           if (_value.has_value()) {
             // Push the initial value.
             push(_value.value());
@@ -88,8 +88,8 @@ namespace rheo {
         return state_pull_handler<T>{this, std::move(push)};
       }
 
-      source_fn<T> sourceFn(bool initialPush = true) {
-        return state_source_binder<T>{this, initialPush};
+      source_fn<T> get_source_fn(bool initial_push = true) {
+        return state_source_binder<T>{this, initial_push};
       }
   };
 

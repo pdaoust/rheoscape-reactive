@@ -38,8 +38,8 @@ namespace rheo::sinks::arduino::gfx {
 
   struct ShapeHints {
     Coords origin;
-    std::optional<uint16_t> borderColor;
-    std::optional<uint16_t> fillColor;
+    std::optional<uint16_t> border_color;
+    std::optional<uint16_t> fill_color;
   };
 
   struct CircleHints : ShapeHints {
@@ -48,7 +48,7 @@ namespace rheo::sinks::arduino::gfx {
 
   struct RectHints : ShapeHints {
     Dimensions dims;
-    int8_t cornerR;
+    int8_t corner_r;
   };
 
   struct TextHints {

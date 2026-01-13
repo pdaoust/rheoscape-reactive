@@ -13,8 +13,8 @@ namespace rheo::ui::lvgl {
   template <typename T>
   WidgetPullAndEventSource spinbox(
     lv_obj_t* spinbox,
-    source_fn<T> dataSource,
-    source_fn<std::vector<StyleAndSelector>> styleSource
+    source_fn<T> data_source,
+    source_fn<std::vector<StyleAndSelector>> style_source
   ) {
     return _widget<T>(
       spinbox,
@@ -22,8 +22,8 @@ namespace rheo::ui::lvgl {
         Serial.println("About to set value of spinbox");
         //lv_spinbox_set_value(spinbox, (int32_t)data);
       },
-      dataSource,
-      styleSource
+      data_source,
+      style_source
     );
   }
 

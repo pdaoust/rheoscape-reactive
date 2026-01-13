@@ -10,16 +10,16 @@ namespace rheo::ui::lvgl {
 
   WidgetPullAndEventSource label(
     lv_obj_t* label,
-    source_fn<std::string> dataSource,
-    source_fn<std::vector<StyleAndSelector>> styleSource
+    source_fn<std::string> data_source,
+    source_fn<std::vector<StyleAndSelector>> style_source
   ) {
     return _widget<std::string>(
       label,
       [](std::string text, lv_obj_t* label) {
         lv_label_set_text(label, text.c_str());
       },
-      dataSource,
-      styleSource
+      data_source,
+      style_source
     );
   }
 

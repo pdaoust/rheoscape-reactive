@@ -1,24 +1,17 @@
 #include <unity.h>
 #include <types/State.hpp>
 
-void test_State_updates() {
-  rheo::State<int> myState(11);
-  TEST_ASSERT_EQUAL_MESSAGE(11, myState.get(), "Should be 11");
-  myState.set(15);
-  TEST_ASSERT_EQUAL_MESSAGE(15, myState.get(), "Should now be 15");
+void test__state_updates() {
+  rheo::State<int> my_state(11);
+  TEST_ASSERT_EQUAL_MESSAGE(11, my_state.get(), "Should be 11");
+  my_state.set(15);
+  TEST_ASSERT_EQUAL_MESSAGE(15, my_state.get(), "Should now be 15");
 }
 
-void test_State_ends() {
-  rheo::State<int> myState;
-  TEST_ASSERT_FALSE_MESSAGE(myState.isEnded(), "Shouldn't be ended yet");
-  myState.end();
-  TEST_ASSERT_TRUE_MESSAGE(myState.isEnded(), "Should be ended now");
-}
-
-void test_State_throws_exception_when_unset() {
-  rheo::State<int> myState;
+void test__state_throws_exception_when_unset() {
+  rheo::State<int> my_state;
   try {
-    myState.get();
+    my_state.get();
     TEST_FAIL_MESSAGE("Should've thrown exception");
   } catch (rheo::bad_state_unset_access e) {
     TEST_PASS_MESSAGE(e.what());
@@ -26,67 +19,43 @@ void test_State_throws_exception_when_unset() {
   TEST_FAIL_MESSAGE("Didn't throw the right kind of exception at all");
 }
 
-void test_State_throws_exception_when_ended() {
-  rheo::State<int> myState(11);
-  myState.end();
-  try {
-    myState.get();
-    TEST_FAIL_MESSAGE("Should've thrown exception");
-  } catch (rheo::bad_state_ended_access e) {
-    TEST_PASS_MESSAGE(e.what());
-  }
-  TEST_FAIL_MESSAGE("Didn't throw the right kind of exception at all");
+void test__state_pushes_value_when_set() {
+  rheo::State<int> my_state;
+  int pushed_value = 0;
+  my_state.add_sink([&pushed_value](int v) { pushed_value = v; }, [](){});
+  TEST_ASSERT_EQUAL_MESSAGE(0, pushed_value, "Should be 0 before a my_state is set");
+  my_state.set(11);
+  TEST_ASSERT_EQUAL_MESSAGE(11, pushed_value, "Should be 11 after setting");
 }
 
-void test_State_pushes_value_when_set() {
-  rheo::State<int> myState;
-  int pushedValue = 0;
-  myState.addSink([&pushedValue](int v) { pushedValue = v; }, [](){});
-  TEST_ASSERT_EQUAL_MESSAGE(0, pushedValue, "Should be 0 before a myState is set");
-  myState.set(11);
-  TEST_ASSERT_EQUAL_MESSAGE(11, pushedValue, "Should be 11 after setting");
+void test__state_pushes_state_to_new_subscriber() {
+  rheo::State<int> my_state(11);
+  int pushed_value = 0;
+  my_state.add_sink([&pushed_value](int v) { pushed_value = v; }, [](){});
+  TEST_ASSERT_EQUAL_MESSAGE(11, pushed_value, "New subscriber 1 should immediately get initial my_state");
+  my_state.set(15);
+  int pushed_value2 = 0;
+  my_state.add_sink([&pushed_value2](int v) { pushed_value2 = v; }, [](){});
+  TEST_ASSERT_EQUAL_MESSAGE(15, pushed_value2, "New subscriber 2 should immediately get new my_state");
 }
 
-void test_State_pushes_state_to_new_subscriber() {
-  rheo::State<int> myState(11);
-  int pushedValue = 0;
-  myState.addSink([&pushedValue](int v) { pushedValue = v; }, [](){});
-  TEST_ASSERT_EQUAL_MESSAGE(11, pushedValue, "New subscriber 1 should immediately get initial myState");
-  myState.set(15);
-  int pushedValue2 = 0;
-  myState.addSink([&pushedValue2](int v) { pushedValue2 = v; }, [](){});
-  TEST_ASSERT_EQUAL_MESSAGE(15, pushedValue2, "New subscriber 2 should immediately get new myState");
-}
-
-void test_State_sends_end_signal() {
-  rheo::State<int> myState;
-  bool didEnd = false;
-  myState.addSink([](int _){}, [&didEnd]() { didEnd = true; });
-  TEST_ASSERT_FALSE_MESSAGE(didEnd, "Subscriber shouldn't get end signal yet");
-  myState.end();
-  TEST_ASSERT_TRUE_MESSAGE(didEnd, "Subscriber should get end signal when myState ends");
-}
-
-void test_State_can_be_pulled() {
-  rheo::State<int> myState(11);
-  int pushedCount = 0;
-  auto pull = myState.addSink([&pushedCount](int _) { pushedCount ++; }, [](){});
-  TEST_ASSERT_EQUAL_MESSAGE(1, pushedCount, "should have been pushed on subscribe");
+void test__state_can_be_pulled() {
+  rheo::State<int> my_state(11);
+  int pushed_count = 0;
+  auto pull = my_state.add_sink([&pushed_count](int _) { pushed_count ++; }, [](){});
+  TEST_ASSERT_EQUAL_MESSAGE(1, pushed_count, "should have been pushed on subscribe");
   pull();
-  TEST_ASSERT_EQUAL_MESSAGE(2, pushedCount, "should have been pushed on first pull");
+  TEST_ASSERT_EQUAL_MESSAGE(2, pushed_count, "should have been pushed on first pull");
   pull();
-  TEST_ASSERT_EQUAL_MESSAGE(3, pushedCount, "should have been pushed on second pull");
+  TEST_ASSERT_EQUAL_MESSAGE(3, pushed_count, "should have been pushed on second pull");
 }
 
 int main(int argc, char **argv) {
   UNITY_BEGIN();
-  RUN_TEST(test_State_updates);
-  RUN_TEST(test_State_ends);
-  RUN_TEST(test_State_throws_exception_when_unset);
-  RUN_TEST(test_State_throws_exception_when_ended);
-  RUN_TEST(test_State_pushes_value_when_set);
-  RUN_TEST(test_State_pushes_state_to_new_subscriber);
-  RUN_TEST(test_State_sends_end_signal);
-  RUN_TEST(test_State_can_be_pulled);
+  RUN_TEST(test__state_updates);
+  RUN_TEST(test__state_throws_exception_when_unset);
+  RUN_TEST(test__state_pushes_value_when_set);
+  RUN_TEST(test__state_pushes_state_to_new_subscriber);
+  RUN_TEST(test__state_can_be_pulled);
   UNITY_END();
 }

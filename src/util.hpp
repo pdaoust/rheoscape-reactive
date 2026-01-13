@@ -21,25 +21,25 @@ namespace rheo {
   }
 
   // Taken from https://stackoverflow.com/questions/2342162/stdstring-formatting-like-sprintf/49812018#49812018
-  const std::string string_format(const char * const zcFormat, ...) {
+  const std::string string_format(const char * const zc_format, ...) {
     // initialize use of the variable argument array
-    va_list vaArgs;
-    va_start(vaArgs, zcFormat);
+    va_list va_args;
+    va_start(va_args, zc_format);
 
     // reliably acquire the size
     // from a copy of the variable argument array
     // and a functionally reliable call to mock the formatting
-    va_list vaArgsCopy;
-    va_copy(vaArgsCopy, vaArgs);
-    const int iLen = std::vsnprintf(NULL, 0, zcFormat, vaArgsCopy);
-    va_end(vaArgsCopy);
+    va_list va_args_copy;
+    va_copy(va_args_copy, va_args);
+    const int i_len = std::vsnprintf(NULL, 0, zc_format, va_args_copy);
+    va_end(va_args_copy);
 
     // return a formatted string without risking memory mismanagement
     // and without assuming any compiler or platform specific behavior
-    std::vector<char> zc(iLen + 1);
-    std::vsnprintf(zc.data(), zc.size(), zcFormat, vaArgs);
-    va_end(vaArgs);
-    return std::string(zc.data(), iLen);
+    std::vector<char> zc(i_len + 1);
+    std::vsnprintf(zc.data(), zc.size(), zc_format, va_args);
+    va_end(va_args);
+    return std::string(zc.data(), i_len);
   }
 
 }

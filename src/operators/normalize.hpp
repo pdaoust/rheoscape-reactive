@@ -8,7 +8,7 @@
 namespace rheo::operators {
 
   template <typename TIn, typename TOut>
-  source_fn<TOut> normalize(source_fn<TIn> source, source_fn<Range<TIn>> fromSource, source_fn<Range<TOut>> toSource) {
+  source_fn<TOut> normalize(source_fn<TIn> source, source_fn<Range<TIn>> from_source, source_fn<Range<TOut>> to_source) {
     return combine(
       [](TIn value, Range<TIn> from, Range<TOut> to) {
         if (value <= from.min) {
@@ -20,15 +20,15 @@ namespace rheo::operators {
         }
       },
       source,
-      fromSource,
-      toSource
+      from_source,
+      to_source
     );
   }
 
   template <typename TIn, typename TOut>
-  pipe_fn<TIn, TOut> normalize(source_fn<Range<TIn>> fromSource, source_fn<Range<TOut>> toSource) {
-    return [fromSource, toSource](source_fn<TIn> source) {
-      return normalize(source, fromSource, toSource);
+  pipe_fn<TIn, TOut> normalize(source_fn<Range<TIn>> from_source, source_fn<Range<TOut>> to_source) {
+    return [from_source, to_source](source_fn<TIn> source) {
+      return normalize(source, from_source, to_source);
     };
   }
 

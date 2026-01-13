@@ -179,7 +179,7 @@ namespace rheo {
   // Ergonomic chaining of source and sink using the `|` operator.
   // This lets you go:
   //
-  //   let stringifiedSquaredStream = constant(3)
+  //   let stringified_squared_stream = constant(3)
   //     | map([](int v) { return v * v; })
   //     | filter([](int v) { return v > 5; }); // always true for a stream of nines
   //     | map([](int v) { return fmt::format("{}", v); })
@@ -322,7 +322,7 @@ namespace rheo {
       std::invocable<F, TAcc, TIn> &&
       std::convertible_to<std::invoke_result_t<F, TAcc, TIn>, TAcc>;
 
-    // FilterMapper: Function that returns std::optional<T> (for filterMap operations)
+    // FilterMapper: Function that returns std::optional<T> (for filter_map operations)
     template<typename F, typename TIn>
     concept FilterMapper =
       std::invocable<F, TIn> &&

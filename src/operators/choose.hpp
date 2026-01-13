@@ -19,14 +19,14 @@ namespace rheo::operators {
   template <typename TKey, typename TVal>
   struct choose_value_push_handler {
     push_fn<TVal> push;
-    std::shared_ptr<std::optional<TKey>> switchState;
+    std::shared_ptr<std::optional<TKey>> switch_state;
     TKey key;
 
     RHEO_NOINLINE void operator()(TVal value) const {
       // You'd think this is unnecessary, because this source fn's pull fn
       // guards against the wrong source being pulled.
       // Ah, but what about sources that do their own pushing?
-      if (switchState->has_value() && switchState->value() == key) {
+      if (switch_state->has_value() && switch_state->value() == key) {
         push(value);
       }
     }
@@ -34,59 +34,59 @@ namespace rheo::operators {
 
   template <typename TKey>
   struct choose_switch_push_handler {
-    std::shared_ptr<std::optional<TKey>> switchState;
+    std::shared_ptr<std::optional<TKey>> switch_state;
 
     RHEO_NOINLINE void operator()(TKey key) const {
-      switchState->emplace(key);
+      switch_state->emplace(key);
     }
   };
 
   template <typename TKey>
   struct choose_pull_handler {
-    std::shared_ptr<std::optional<TKey>> switchState;
-    std::shared_ptr<std::map<TKey, pull_fn>> pullValueFns;
-    pull_fn pullSwitchSource;
+    std::shared_ptr<std::optional<TKey>> switch_state;
+    std::shared_ptr<std::map<TKey, pull_fn>> pull_value_fns;
+    pull_fn pull_switch_source;
 
     RHEO_NOINLINE void operator()() const {
       // Pull this one first to give us a better chance of getting a desired switch state.
-      pullSwitchSource();
+      pull_switch_source();
       // Only pull the value source that's switched on.
-      if (switchState->has_value() && pullValueFns->count(switchState->value())) {
-        pullValueFns->at(switchState->value())();
+      if (switch_state->has_value() && pull_value_fns->count(switch_state->value())) {
+        pull_value_fns->at(switch_state->value())();
       }
     }
   };
 
   template <typename TKey, typename TVal>
   struct choose_source_binder {
-    std::map<TKey, source_fn<TVal>> valueSourceMap;
-    source_fn<TKey> switchSource;
+    std::map<TKey, source_fn<TVal>> value_source_map;
+    source_fn<TKey> switch_source;
 
     RHEO_NOINLINE pull_fn operator()(push_fn<TVal> push) const {
-      auto switchState = std::make_shared<std::optional<TKey>>();
-      auto pullValueFns = std::make_shared<std::map<TKey, pull_fn>>();
+      auto switch_state = std::make_shared<std::optional<TKey>>();
+      auto pull_value_fns = std::make_shared<std::map<TKey, pull_fn>>();
 
-      for (std::pair<TKey, source_fn<TVal>> const& pair : valueSourceMap) {
-        pullValueFns->insert_or_assign(
+      for (std::pair<TKey, source_fn<TVal>> const& pair : value_source_map) {
+        pull_value_fns->insert_or_assign(
           pair.first,
-          pair.second(choose_value_push_handler<TKey, TVal>{push, switchState, pair.first})
+          pair.second(choose_value_push_handler<TKey, TVal>{push, switch_state, pair.first})
         );
       }
 
-      pull_fn pullSwitchSource = switchSource(choose_switch_push_handler<TKey>{switchState});
+      pull_fn pull_switch_source = switch_source(choose_switch_push_handler<TKey>{switch_state});
 
-      return choose_pull_handler<TKey>{switchState, pullValueFns, std::move(pullSwitchSource)};
+      return choose_pull_handler<TKey>{switch_state, pull_value_fns, std::move(pull_switch_source)};
     }
   };
 
   template <typename TKey, typename TVal>
   source_fn<TVal> choose(
-    std::map<TKey, source_fn<TVal>> valueSourceMap,
-    source_fn<TKey> switchSource
+    std::map<TKey, source_fn<TVal>> value_source_map,
+    source_fn<TKey> switch_source
   ) {
     return choose_source_binder<TKey, TVal>{
-      std::move(valueSourceMap),
-      std::move(switchSource)
+      std::move(value_source_map),
+      std::move(switch_source)
     };
   }
 
@@ -96,9 +96,9 @@ namespace rheo::operators {
 
   // A pipe that uses a switch source to switch the given value source.
   template <typename TKey, typename TVal>
-  pipe_fn<TKey, TVal> chooseAmong(std::map<TKey, source_fn<TVal>> valueSourceMap) {
-    return [valueSourceMap = std::move(valueSourceMap)](source_fn<TKey> switchSource) {
-      return choose(std::move(valueSourceMap), std::move(switchSource));
+  pipe_fn<TKey, TVal> choose_among(std::map<TKey, source_fn<TVal>> value_source_map) {
+    return [value_source_map = std::move(value_source_map)](source_fn<TKey> switch_source) {
+      return choose(std::move(value_source_map), std::move(switch_source));
     };
   }
 

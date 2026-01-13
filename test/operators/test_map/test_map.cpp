@@ -9,13 +9,13 @@ using namespace rheo::operators;
 using namespace rheo::sources;
 
 void test_map_maps() {
-  auto someNumbers = unwrapEndable(sequence(-3, 3, 1));
-  auto mapper = map(someNumbers, (map_fn<int, int>)[](int v) { return v * 2; });
-  int pushedValue;
-  pull_fn pull = mapper([&pushedValue](int v) { pushedValue = v; });
+  auto some_numbers = unwrap_endable(sequence(-3, 3, 1));
+  auto mapper = map(some_numbers, (map_fn<int, int>)[](int v) { return v * 2; });
+  int pushed_value;
+  pull_fn pull = mapper([&pushed_value](int v) { pushed_value = v; });
   for (int i = -3; i < 4; i ++) {
     pull();
-    TEST_ASSERT_EQUAL_MESSAGE(i * 2, pushedValue, "");
+    TEST_ASSERT_EQUAL_MESSAGE(i * 2, pushed_value, "");
   }
 }
 

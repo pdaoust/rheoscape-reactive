@@ -21,10 +21,10 @@ namespace rheo::ui::lvgl {
     bool animate;
   };
 
-  WidgetPullAndEventSource pointBar(
+  WidgetPullAndEventSource point_bar(
     lv_obj_t* bar,
-    source_fn<PointBarData> dataSource,
-    source_fn<std::vector<StyleAndSelector>> styleSource
+    source_fn<PointBarData> data_source,
+    source_fn<std::vector<StyleAndSelector>> style_source
   ) {
     return _widget<PointBarData>(
       bar,
@@ -32,15 +32,15 @@ namespace rheo::ui::lvgl {
         lv_bar_set_value(bar, data.value, data.animate ? LV_ANIM_ON : LV_ANIM_OFF);
         lv_bar_set_range(bar, data.range.min, data.range.max);
       },
-      dataSource,
-      styleSource
+      data_source,
+      style_source
     );
   }
 
-  WidgetPullAndEventSource rangeBar(
+  WidgetPullAndEventSource range_bar(
     lv_obj_t* bar,
-    source_fn<RangeBarData> dataSource,
-    source_fn<std::vector<StyleAndSelector>> styleSource
+    source_fn<RangeBarData> data_source,
+    source_fn<std::vector<StyleAndSelector>> style_source
   ) {
     return _widget<RangeBarData>(
       bar,
@@ -49,8 +49,8 @@ namespace rheo::ui::lvgl {
         lv_bar_set_start_value(bar, data.value.min, data.animate ? LV_ANIM_ON : LV_ANIM_OFF);
         lv_bar_set_range(bar, data.range.min, data.range.max);
       },
-      dataSource,
-      styleSource
+      data_source,
+      style_source
     );
   }
 }

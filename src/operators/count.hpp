@@ -28,9 +28,9 @@ namespace rheo::operators {
     }
   };
 
-  // Named callable for tagCount's push handler
+  // Named callable for tag_count's push handler
   template<typename T>
-  struct tagCount_push_handler {
+  struct tag_count_push_handler {
     push_fn<TaggedValue<T, size_t>> push;
     mutable size_t counter = 0;
 
@@ -40,13 +40,13 @@ namespace rheo::operators {
     }
   };
 
-  // Named callable for tagCount's source binder
+  // Named callable for tag_count's source binder
   template<typename T>
-  struct tagCount_source_binder {
+  struct tag_count_source_binder {
     source_fn<T> source;
 
     RHEO_NOINLINE pull_fn operator()(push_fn<TaggedValue<T, size_t>> push) const {
-      return source(tagCount_push_handler<T>{push});
+      return source(tag_count_push_handler<T>{push});
     }
   };
 
@@ -56,8 +56,8 @@ namespace rheo::operators {
   }
 
   template <typename T>
-  RHEO_INLINE source_fn<TaggedValue<T, size_t>> tagCount(source_fn<T> source) {
-    return tagCount_source_binder<T>{source};
+  RHEO_INLINE source_fn<TaggedValue<T, size_t>> tag_count(source_fn<T> source) {
+    return tag_count_source_binder<T>{source};
   }
 
   // Pipe factory for count
@@ -73,17 +73,17 @@ namespace rheo::operators {
     return count_pipe_factory<T>{};
   }
 
-  // Pipe factory for tagCount
+  // Pipe factory for tag_count
   template<typename T>
-  struct tagCount_pipe_factory {
+  struct tag_count_pipe_factory {
     RHEO_NOINLINE source_fn<TaggedValue<T, size_t>> operator()(source_fn<T> source) const {
-      return tagCount(std::move(source));
+      return tag_count(std::move(source));
     }
   };
 
   template <typename T>
-  pipe_fn<TaggedValue<T, size_t>, T> tagCount() {
-    return tagCount_pipe_factory<T>{};
+  pipe_fn<TaggedValue<T, size_t>, T> tag_count() {
+    return tag_count_pipe_factory<T>{};
   }
 
 }

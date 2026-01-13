@@ -50,9 +50,9 @@ namespace rheo::operators {
     };
   }
 
-  // Binary mergeMixed: combines two different-type sources into a variant stream
+  // Binary merge_mixed: combines two different-type sources into a variant stream
   template <typename T1, typename T2>
-  struct mergeMixed_push_handler_1 {
+  struct merge_mixed_push_handler_1 {
     push_fn<std::variant<T1, T2>> push;
 
     RHEO_NOINLINE void operator()(T1 value) const {
@@ -61,7 +61,7 @@ namespace rheo::operators {
   };
 
   template <typename T1, typename T2>
-  struct mergeMixed_push_handler_2 {
+  struct merge_mixed_push_handler_2 {
     push_fn<std::variant<T1, T2>> push;
 
     RHEO_NOINLINE void operator()(T2 value) const {
@@ -70,7 +70,7 @@ namespace rheo::operators {
   };
 
   template <typename T1, typename T2>
-  struct mergeMixed_pull_handler {
+  struct merge_mixed_pull_handler {
     pull_fn pull1;
     pull_fn pull2;
 
@@ -81,28 +81,28 @@ namespace rheo::operators {
   };
 
   template <typename T1, typename T2>
-  struct mergeMixed_source_binder {
+  struct merge_mixed_source_binder {
     source_fn<T1> source1;
     source_fn<T2> source2;
 
     RHEO_NOINLINE pull_fn operator()(push_fn<std::variant<T1, T2>> push) const {
-      pull_fn pull1 = source1(mergeMixed_push_handler_1<T1, T2>{push});
-      pull_fn pull2 = source2(mergeMixed_push_handler_2<T1, T2>{push});
-      return mergeMixed_pull_handler<T1, T2>{std::move(pull1), std::move(pull2)};
+      pull_fn pull1 = source1(merge_mixed_push_handler_1<T1, T2>{push});
+      pull_fn pull2 = source2(merge_mixed_push_handler_2<T1, T2>{push});
+      return merge_mixed_pull_handler<T1, T2>{std::move(pull1), std::move(pull2)};
     }
   };
 
   // Source function factory: merge two different-type sources into variant
   template <typename T1, typename T2>
-  source_fn<std::variant<T1, T2>> mergeMixed(source_fn<T1> source1, source_fn<T2> source2) {
-    return mergeMixed_source_binder<T1, T2>{std::move(source1), std::move(source2)};
+  source_fn<std::variant<T1, T2>> merge_mixed(source_fn<T1> source1, source_fn<T2> source2) {
+    return merge_mixed_source_binder<T1, T2>{std::move(source1), std::move(source2)};
   }
 
-  // Pipe factory: source1 | mergeMixed(source2)
+  // Pipe factory: source1 | merge_mixed(source2)
   template <typename T1, typename T2>
-  pipe_fn<std::variant<T1, T2>, T1> mergeMixed(source_fn<T2> source2) {
+  pipe_fn<std::variant<T1, T2>, T1> merge_mixed(source_fn<T2> source2) {
     return [source2](source_fn<T1> source1) {
-      return mergeMixed(source1, source2);
+      return merge_mixed(source1, source2);
     };
   }
 
