@@ -1,8 +1,8 @@
 #pragma once
 
 #include <functional>
+#include <chrono>
 #include <core_types.hpp>
-#include <types/au_all_units_noio.hpp>
 #include <types/Range.hpp>
 #include <operators/scan.hpp>
 #include <operators/map.hpp>
@@ -10,6 +10,40 @@
 
 namespace rheo::operators {
 
+  // ==========================================================================
+  // Type helpers
+  // ==========================================================================
+
+  // Helper to get interval type from time type
+  // For scalars, interval is same as time type
+  // For time_points, interval is the duration type
+  template <typename TTime>
+  struct interval_type {
+    using type = TTime;
+  };
+
+  template <typename Clock, typename Duration>
+  struct interval_type<std::chrono::time_point<Clock, Duration>> {
+    using type = Duration;
+  };
+
+  template <typename TTime>
+  using interval_type_t = typename interval_type<TTime>::type;
+
+  // Helper to get the delta type when subtracting two values
+  // For most types, T - T = T, but for QuantityPoint, QP - QP = Quantity
+  template <typename T>
+  using delta_type_t = decltype(std::declval<T>() - std::declval<T>());
+
+  // ==========================================================================
+  // Fully-typed PID structures
+  // ==========================================================================
+
+  // PID weights with separate types for each gain
+  // Dimensional analysis:
+  //   TKp: TCtrl / TProcDelta           (control per unit error)
+  //   TKi: TCtrl / TIntegral            (control per unit accumulated error)
+  //   TKd: TCtrl / TDerivative          (control per unit error rate)
   template <typename TKp, typename TKi, typename TKd>
   struct PidWeights {
     TKp Kp;
@@ -17,6 +51,7 @@ namespace rheo::operators {
     TKd Kd;
   };
 
+  // Combined input data for PID calculation
   template <typename TProc, typename TTime, typename TKp, typename TKi, typename TKd>
   struct PidData {
     TProc process_variable;
@@ -25,180 +60,448 @@ namespace rheo::operators {
     PidWeights<TKp, TKi, TKd> weights;
   };
 
-  template <typename TP, typename TI, typename TCtl, typename TTime>
+  // Internal state for PID calculation
+  // TProcDelta: error type (setpoint - process_variable)
+  // TIntegral: accumulated error type (TProcDelta * TFloatInterval)
+  // TCtrl: control output type
+  template <typename TCtrl, typename TProcDelta, typename TIntegral, typename TTime>
   struct PidState {
-    TP error;
-    TI integral;
-    TCtl control;
+    TCtrl control;
+    TProcDelta error;
+    TIntegral integral;
+    TCtrl p_term;
+    TCtrl i_term;
+    TCtrl d_term;
+    bool is_saturated;
     TTime timestamp;
   };
 
+  // Output type for pid_detailed() - exposes all PID internals
+  template <typename TCtrl, typename TProcDelta, typename TIntegral>
+  struct PidOutput {
+    TCtrl control;       // Final control output
+    TCtrl p_term;        // Kp * error
+    TCtrl i_term;        // Ki * integral
+    TCtrl d_term;        // Kd * derivative
+    TProcDelta error;    // setpoint - process_variable
+    TIntegral integral;  // Accumulated integral
+    bool is_saturated;   // True if control was clamped (anti-windup active)
+  };
+
+  // ==========================================================================
+  // Named callables for fully-typed PID
+  // ==========================================================================
+
+  // Named callable for combining PID input sources into PidData
+  template <typename TProc, typename TTime, typename TKp, typename TKi, typename TKd>
+  struct pid_data_combiner {
+    using DataType = PidData<TProc, TTime, TKp, TKi, TKd>;
+    using WeightsType = PidWeights<TKp, TKi, TKd>;
+
+    RHEO_NOINLINE DataType operator()(
+      TProc process_variable,
+      TProc setpoint,
+      TTime timestamp,
+      WeightsType weights
+    ) const {
+      return DataType {
+        process_variable,
+        setpoint,
+        timestamp,
+        weights
+      };
+    }
+  };
+
+  // Named callable for PID calculation (scanner function)
+  // Full type parameterization for unit-safe arithmetic
+  //
+  // TIntervalConverter: converts integral-rep interval to float-rep interval
+  //   e.g., duration<long, milli> -> duration<float>
+  //   or    Quantity<Seconds, int> -> Quantity<Seconds, float>
+  //   This preserves the time dimension while enabling float arithmetic.
   template <
-    // The type of the control variable -- that is, the output.
-    // Should be either a scalar or a unit value
-    // that is the same across TKp * Kp, TKi * Ki, and TKd * Kd.
-    typename TCtl,
-    // The type of the process variable.
-    // If a unit value, it can be either a Quantity or a QuantityPoint.
     typename TProc,
-    // The type of the timestamp.
-    // If using chrono, it should be a std::chrono::time_point.
     typename TTime,
-    // The type of one TTime - another TTime.
-    // If using chrono, it should be a std::chrono::duration
-    // that matches the duration of TTime's clock type param.
-    typename TInterval,
-    // The type of the Kp weight, or proportional coefficient.
-    // If a unit value, it should be TCtl / TP.
+    typename TCtrl,
     typename TKp,
-    // The type of the Ki weight, or integral coefficient.
-    // If a unit value, it should be TCtl / TI.
     typename TKi,
-    // The type of the Kd weight, or derivative coefficient.
-    // If a unit value, it should be TCtl / TD.
     typename TKd,
-    // The type of the error or proportional term.
-    // If a unit value, it should be TProc - TProc,
-    // so if TProc is a QuantityPoint, TP will be a Quantity.
-    typename TP,
-    // The type of the integral term.
-    // If a unit value, it should be TP * TInterval.
-    // This is like saying the accumulated error per time interval.
-    // Calculus, baby!
-    typename TI,
-    // The type of the derivative term.
-    // If a unit value, it should be TP / TInterval.
-    // This is like saying the instantaneous rate of change of the proportional term.
-    typename TD
+    typename TIntervalConverter
   >
-  source_fn<TCtl> pid(
+  struct pid_calculator {
+    // Derived types
+    using TProcDelta = delta_type_t<TProc>;       // Error type: setpoint - pv
+    using TInterval = interval_type_t<TTime>;     // Time delta type (may have integral rep)
+    using TFloatInterval = std::invoke_result_t<TIntervalConverter, TInterval>;  // Float-rep interval
+    using TIntegral = decltype(std::declval<TProcDelta>() * std::declval<TFloatInterval>());   // Error * time
+    using TDerivative = decltype(std::declval<TProcDelta>() / std::declval<TFloatInterval>()); // Error / time
+
+    using StateType = PidState<TCtrl, TProcDelta, TIntegral, TTime>;
+    using DataType = PidData<TProc, TTime, TKp, TKi, TKd>;
+
+    std::optional<Range<TCtrl>> clamp_range;
+    TIntervalConverter interval_converter;
+
+    RHEO_NOINLINE StateType operator()(
+      StateType prev_state,
+      DataType values
+    ) const {
+      // Error is delta between desired value and measured value.
+      TProcDelta error = values.setpoint - values.process_variable;
+
+      // We don't assume perfectly even timestamps, so we calculate the time delta too.
+      TInterval time_delta = values.timestamp - prev_state.timestamp;
+
+      // Convert interval to floating-point representation for arithmetic.
+      // This preserves the time dimension (e.g., seconds) while enabling float math.
+      TFloatInterval dt = interval_converter(time_delta);
+
+      // Compute integral (accumulated error over time) and derivative (error rate).
+      // TIntegral has units like °C·s, TDerivative has units like °C/s
+      TIntegral integral = prev_state.integral + error * dt;
+      TDerivative derivative = (error - prev_state.error) / dt;
+
+      // Calculate individual PID terms
+      // Unit math:
+      //   p_term = Kp * error         : (TCtrl/TProcDelta) * TProcDelta = TCtrl
+      //   i_term = Ki * integral      : (TCtrl/TIntegral) * TIntegral = TCtrl
+      //   d_term = Kd * derivative    : (TCtrl/TDerivative) * TDerivative = TCtrl
+      TCtrl p_term = values.weights.Kp * error;
+      TCtrl i_term = values.weights.Ki * integral;
+      TCtrl d_term = values.weights.Kd * derivative;
+      TCtrl control = p_term + i_term + d_term;
+
+      bool is_saturated = false;
+
+      // Clamp the control variable and disable integration
+      // when the control variable goes out of range
+      // to prevent integrator windup.
+      if (clamp_range.has_value()) {
+        if (control > clamp_range.value().max) {
+          control = clamp_range.value().max;
+          integral = prev_state.integral;
+          i_term = values.weights.Ki * integral;
+          is_saturated = true;
+        } else if (control < clamp_range.value().min) {
+          control = clamp_range.value().min;
+          integral = prev_state.integral;
+          i_term = values.weights.Ki * integral;
+          is_saturated = true;
+        }
+      }
+
+      return StateType {
+        control,
+        error,
+        integral,
+        p_term,
+        i_term,
+        d_term,
+        is_saturated,
+        values.timestamp
+      };
+    }
+  };
+
+  // Named callable for extracting control from PidState
+  template <typename TCtrl, typename TProcDelta, typename TIntegral, typename TTime>
+  struct pid_control_extractor {
+    RHEO_NOINLINE TCtrl operator()(PidState<TCtrl, TProcDelta, TIntegral, TTime> state) const {
+      return state.control;
+    }
+  };
+
+  // Named callable for converting PidState to PidOutput
+  template <typename TCtrl, typename TProcDelta, typename TIntegral, typename TTime>
+  struct pid_output_extractor {
+    using OutputType = PidOutput<TCtrl, TProcDelta, TIntegral>;
+
+    RHEO_NOINLINE OutputType operator()(PidState<TCtrl, TProcDelta, TIntegral, TTime> state) const {
+      return OutputType {
+        state.control,
+        state.p_term,
+        state.i_term,
+        state.d_term,
+        state.error,
+        state.integral,
+        state.is_saturated
+      };
+    }
+  };
+
+  // ==========================================================================
+  // Fully-typed PID source function factories
+  // ==========================================================================
+
+  // Internal helper: creates the combined and calculated source
+  template <
+    typename TProc,
+    typename TTime,
+    typename TCtrl,
+    typename TKp,
+    typename TKi,
+    typename TKd,
+    typename TIntervalConverter
+  >
+  auto pid_calculate(
     source_fn<TProc> process_variable_source,
     source_fn<TProc> setpoint_source,
     source_fn<TTime> clock_source,
     source_fn<PidWeights<TKp, TKi, TKd>> weights_source,
-    std::optional<Range<TCtl>> clamp_range = std::nullopt
+    std::optional<Range<TCtrl>> clamp_range,
+    TIntervalConverter&& interval_converter
   ) {
-    source_fn<PidData<TProc, TTime, TKp, TKi, TKd>> combined_source = combine(
-      [](TProc process_variable, TProc setpoint, TTime timestamp, PidWeights<TKp, TKi, TKd> weights) {
-        return PidData<TProc, TTime, TKp, TKi, TKd> { process_variable, setpoint, timestamp, weights };
-      },
+    using Calculator = pid_calculator<TProc, TTime, TCtrl, TKp, TKi, TKd, std::decay_t<TIntervalConverter>>;
+    using StateType = typename Calculator::StateType;
+    using DataType = typename Calculator::DataType;
+
+    source_fn<DataType> combined_source = combine(
+      pid_data_combiner<TProc, TTime, TKp, TKi, TKd>{},
       process_variable_source,
       setpoint_source,
       clock_source,
       weights_source
     );
 
-    source_fn<PidState<TP, TI, TCtl, TTime>> calculated_source = scan(
+    return scan(
       combined_source,
-      PidState<TP, TI, TCtl, TTime> { },
-      [clamp_range](PidState<TP, TI, TCtl, TTime> prev_state, PidData<TProc, TTime, TKp, TKi, TKd> values) {
-        // Error is delta between desired value and measured value.
-        // Error = proportional term
-        TP error = values.setpoint - values.process_variable;
-        TTime time_delta = values.timestamp - prev_state.timestamp;
-        TI integral = prev_state.integral + error * time_delta;
-        TD derivative = (error - prev_state.error) / time_delta;
-        TCtl control = values.weights.Kp * error + values.weights.Ki * integral + values.weights.Kd * derivative;
-
-        // Clamp the control variable and disable integration
-        // when the control variable goes out of range
-        // to prevent integrator windup.
-        if (clamp_range.has_value()) {
-          if (control > clamp_range.value().max) {
-            control = clamp_range.value().max;
-            integral = prev_state.integral;
-          } else if (control < clamp_range.value().min) {
-            control = clamp_range.value().min;
-            integral = prev_state.integral;
-          }
-        }
-        return PidState<TP, TI, TCtl, TTime> { error, integral, control, values.timestamp };
+      StateType{},
+      Calculator{
+        clamp_range,
+        std::forward<TIntervalConverter>(interval_converter)
       }
     );
-
-    return map(calculated_source, [](PidState<TP, TI, TCtl, TTime> value) { return value.control; });
   }
 
+  // Fully-typed PID controller
+  // Returns just the control output
   template <
-    typename TCtl,
     typename TProc,
     typename TTime,
-    typename TInterval,
+    typename TCtrl,
     typename TKp,
     typename TKi,
     typename TKd,
-    typename TP,
-    typename TI,
-    typename TD
+    typename TIntervalConverter
   >
-  pipe_fn<TCtl, TProc> pid(
+  source_fn<TCtrl> pid(
+    source_fn<TProc> process_variable_source,
     source_fn<TProc> setpoint_source,
     source_fn<TTime> clock_source,
     source_fn<PidWeights<TKp, TKi, TKd>> weights_source,
-    std::optional<Range<TCtl>> clamp_range = std::nullopt
+    std::optional<Range<TCtrl>> clamp_range,
+    TIntervalConverter&& interval_converter
   ) {
-    return [setpoint_source, clock_source, weights_source](source_fn<TProc> process_variable_source) {
-      return pid<TCtl, TProc, TTime, TInterval, TKp, TKi, TKd, TP, TI, TD>(process_variable_source, setpoint_source, clock_source, weights_source);
-    };
+    using Calculator = pid_calculator<TProc, TTime, TCtrl, TKp, TKi, TKd, std::decay_t<TIntervalConverter>>;
+    using TProcDelta = typename Calculator::TProcDelta;
+    using TIntegral = typename Calculator::TIntegral;
+
+    auto calculated_source = pid_calculate<TProc, TTime, TCtrl, TKp, TKi, TKd>(
+      process_variable_source,
+      setpoint_source,
+      clock_source,
+      weights_source,
+      clamp_range,
+      std::forward<TIntervalConverter>(interval_converter)
+    );
+
+    return map(calculated_source, pid_control_extractor<TCtrl, TProcDelta, TIntegral, TTime>{});
   }
 
+  // Fully-typed PID controller with detailed output
+  // Returns PidOutput with all internal terms exposed
+  template <
+    typename TProc,
+    typename TTime,
+    typename TCtrl,
+    typename TKp,
+    typename TKi,
+    typename TKd,
+    typename TIntervalConverter
+  >
+  auto pid_detailed(
+    source_fn<TProc> process_variable_source,
+    source_fn<TProc> setpoint_source,
+    source_fn<TTime> clock_source,
+    source_fn<PidWeights<TKp, TKi, TKd>> weights_source,
+    std::optional<Range<TCtrl>> clamp_range,
+    TIntervalConverter&& interval_converter
+  ) {
+    using Calculator = pid_calculator<TProc, TTime, TCtrl, TKp, TKi, TKd, std::decay_t<TIntervalConverter>>;
+    using TProcDelta = typename Calculator::TProcDelta;
+    using TIntegral = typename Calculator::TIntegral;
+    using OutputType = PidOutput<TCtrl, TProcDelta, TIntegral>;
+
+    auto calculated_source = pid_calculate<TProc, TTime, TCtrl, TKp, TKi, TKd>(
+      process_variable_source,
+      setpoint_source,
+      clock_source,
+      weights_source,
+      clamp_range,
+      std::forward<TIntervalConverter>(interval_converter)
+    );
+
+    return map(calculated_source, pid_output_extractor<TCtrl, TProcDelta, TIntegral, TTime>{});
+  }
+
+  // ==========================================================================
+  // Simplified scalar-only overloads
+  // These use TCalc for all value types, delegating to the fully-typed version
+  // ==========================================================================
+
+  // Simplified PID controller for scalar types with interval converter
+  template <typename TCalc, typename TTime, typename TIntervalConverter>
+  source_fn<TCalc> pid(
+    source_fn<TCalc> process_variable_source,
+    source_fn<TCalc> setpoint_source,
+    source_fn<TTime> clock_source,
+    source_fn<PidWeights<TCalc, TCalc, TCalc>> weights_source,
+    std::optional<Range<TCalc>> clamp_range,
+    TIntervalConverter&& interval_converter
+  ) {
+    return pid<TCalc, TTime, TCalc, TCalc, TCalc, TCalc>(
+      process_variable_source,
+      setpoint_source,
+      clock_source,
+      weights_source,
+      clamp_range,
+      std::forward<TIntervalConverter>(interval_converter)
+    );
+  }
+
+  // Simplified PID controller for pure scalar types (no converter needed)
+  // Assumes TTime - TTime yields something directly usable in arithmetic with TCalc
   template <typename TCalc, typename TTime>
-  source_fn<TCalc> pid_scalar(
+  source_fn<TCalc> pid(
     source_fn<TCalc> process_variable_source,
     source_fn<TCalc> setpoint_source,
     source_fn<TTime> clock_source,
     source_fn<PidWeights<TCalc, TCalc, TCalc>> weights_source,
     std::optional<Range<TCalc>> clamp_range = std::nullopt
   ) {
-    return pid<TCalc, TCalc, TTime, TTime, TCalc, TCalc, TCalc, TCalc, TCalc, TCalc>(process_variable_source, setpoint_source, clock_source, weights_source, clamp_range);
-  }
-
-  template <typename TTime>
-  using au__t_interval = decltype(std::declval<TTime>() - std::declval<TTime>());
-
-  template <typename TProc>
-  using au__t_p = decltype(std::declval<TProc>() - std::declval<TProc>());
-
-  template <typename TProc, typename TTime>
-  using au__t_i = decltype(std::declval<au__t_p<TProc>>() * std::declval<au__t_interval<TTime>>());
-
-  template <typename TProc, typename TTime>
-  using au__t_d = decltype(std::declval<au__t_p<TProc>>() / std::declval<au__t_interval<TTime>>());
-
-  template <typename TCtl, typename TProc>
-  using au__t_kkp = decltype(std::declval<TCtl>() / std::declval<au__t_p<TProc>>());
-
-  template <typename TCtl, typename TProc, typename TTime>
-  using au__t_kki = decltype(std::declval<TCtl>() / std::declval<au__t_i<TProc, TTime>>());
-
-  template <typename TCtl, typename TProc, typename TTime>
-  using au__t_kd = decltype(std::declval<TCtl>() / std::declval<au__t_d<TProc, TTime>>());
-
-  template <typename TCtl, typename TProc, typename TTime>
-  source_fn<TCtl> pid_au(
-    source_fn<TProc> process_variable_source,
-    source_fn<TProc> setpoint_source,
-    source_fn<TTime> clock_source,
-    source_fn<PidWeights<au__t_kp<TCtl, TProc>, au__t_ki<TCtl, TProc, TTime>, au__t_kd<TCtl, TProc, TTime>>> weights_source,
-    std::optional<Range<TCtl>> clamp_range = std::nullopt
-  ) {
-    return pid<
-      TCtl,
-      TProc,
-      TTime,
-      au__t_interval<TTime>,
-      au__t_kp<TCtl, TProc>,
-      au__t_ki<TCtl, TProc, TTime>,
-      au__t_kd<TCtl, TProc, TTime>,
-      au__t_p<TProc>,
-      au__t_i<TProc, TTime>,
-      au__t_d<TProc, TTime>
-    >(
+    using TInterval = interval_type_t<TTime>;
+    return pid<TCalc, TTime>(
       process_variable_source,
       setpoint_source,
       clock_source,
       weights_source,
-      clamp_range
+      clamp_range,
+      [](TInterval t) { return static_cast<TCalc>(t); }
+    );
+  }
+
+  // Simplified pid_detailed for scalar types with interval converter
+  template <typename TCalc, typename TTime, typename TIntervalConverter>
+  source_fn<PidOutput<TCalc, TCalc, TCalc>> pid_detailed(
+    source_fn<TCalc> process_variable_source,
+    source_fn<TCalc> setpoint_source,
+    source_fn<TTime> clock_source,
+    source_fn<PidWeights<TCalc, TCalc, TCalc>> weights_source,
+    std::optional<Range<TCalc>> clamp_range,
+    TIntervalConverter&& interval_converter
+  ) {
+    return pid_detailed<TCalc, TTime, TCalc, TCalc, TCalc, TCalc>(
+      process_variable_source,
+      setpoint_source,
+      clock_source,
+      weights_source,
+      clamp_range,
+      std::forward<TIntervalConverter>(interval_converter)
+    );
+  }
+
+  // Simplified pid_detailed for pure scalar types
+  template <typename TCalc, typename TTime>
+  source_fn<PidOutput<TCalc, TCalc, TCalc>> pid_detailed(
+    source_fn<TCalc> process_variable_source,
+    source_fn<TCalc> setpoint_source,
+    source_fn<TTime> clock_source,
+    source_fn<PidWeights<TCalc, TCalc, TCalc>> weights_source,
+    std::optional<Range<TCalc>> clamp_range = std::nullopt
+  ) {
+    using TInterval = interval_type_t<TTime>;
+    return pid_detailed<TCalc, TTime>(
+      process_variable_source,
+      setpoint_source,
+      clock_source,
+      weights_source,
+      clamp_range,
+      [](TInterval t) { return static_cast<TCalc>(t); }
+    );
+  }
+
+  // ==========================================================================
+  // Pipe versions (simplified scalar-only for ergonomics)
+  // ==========================================================================
+
+  template <typename TCalc, typename TTime, typename TIntervalConverter>
+  pipe_fn<TCalc, TCalc> pid(
+    source_fn<TCalc> setpoint_source,
+    source_fn<TTime> clock_source,
+    source_fn<PidWeights<TCalc, TCalc, TCalc>> weights_source,
+    std::optional<Range<TCalc>> clamp_range,
+    TIntervalConverter&& interval_converter
+  ) {
+    return [
+      setpoint_source,
+      clock_source,
+      weights_source,
+      clamp_range,
+      interval_converter = std::forward<TIntervalConverter>(interval_converter)
+    ](source_fn<TCalc> process_variable_source) {
+      return pid<TCalc, TTime>(
+        process_variable_source, setpoint_source, clock_source, weights_source, clamp_range, interval_converter
+      );
+    };
+  }
+
+  template <typename TCalc, typename TTime>
+  pipe_fn<TCalc, TCalc> pid(
+    source_fn<TCalc> setpoint_source,
+    source_fn<TTime> clock_source,
+    source_fn<PidWeights<TCalc, TCalc, TCalc>> weights_source,
+    std::optional<Range<TCalc>> clamp_range = std::nullopt
+  ) {
+    using TInterval = interval_type_t<TTime>;
+    return pid<TCalc, TTime>(
+      setpoint_source, clock_source, weights_source, clamp_range,
+      [](TInterval t) { return static_cast<TCalc>(t); }
+    );
+  }
+
+  template <typename TCalc, typename TTime, typename TIntervalConverter>
+  pipe_fn<PidOutput<TCalc, TCalc, TCalc>, TCalc> pid_detailed(
+    source_fn<TCalc> setpoint_source,
+    source_fn<TTime> clock_source,
+    source_fn<PidWeights<TCalc, TCalc, TCalc>> weights_source,
+    std::optional<Range<TCalc>> clamp_range,
+    TIntervalConverter&& interval_converter
+  ) {
+    return [
+      setpoint_source,
+      clock_source,
+      weights_source,
+      clamp_range,
+      interval_converter = std::forward<TIntervalConverter>(interval_converter)
+    ](source_fn<TCalc> process_variable_source) {
+      return pid_detailed<TCalc, TTime>(
+        process_variable_source, setpoint_source, clock_source, weights_source, clamp_range, interval_converter
+      );
+    };
+  }
+
+  template <typename TCalc, typename TTime>
+  pipe_fn<PidOutput<TCalc, TCalc, TCalc>, TCalc> pid_detailed(
+    source_fn<TCalc> setpoint_source,
+    source_fn<TTime> clock_source,
+    source_fn<PidWeights<TCalc, TCalc, TCalc>> weights_source,
+    std::optional<Range<TCalc>> clamp_range = std::nullopt
+  ) {
+    using TInterval = interval_type_t<TTime>;
+    return pid_detailed<TCalc, TTime>(
+      setpoint_source, clock_source, weights_source, clamp_range,
+      [](TInterval t) { return static_cast<TCalc>(t); }
     );
   }
 
