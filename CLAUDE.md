@@ -104,6 +104,11 @@ Sources emit streams of data through pipes that transform the data, then eventua
   - `src/**/everything.hpp`:
 - `test`: unit and integration tests
 - Naming conventions: snake_case for functions and primitive types, PascalCase for structs and classes. Private struct and class members start with an underscore.
+- Comments should:
+  - precede the code they're commenting -- no inline comments
+  - use semantic line breaks at clause or phrase boundaries
+  - be ideally 120 characters per line or less, including whitespace preceding comment symbol
+  - use full sentences with proper terminal punctuation.
 - Every source, sink, or operator should live in a separate file. Extra types that are only used by the source, sink, or operator and their downstream sinks may be defined in that file; otherwise, if a type may be used by multiple components, it should be put into `src/types`.
 - This is a header-only library; all components should be in `.hpp` files.
 - Guard against multiple import with `#pragma once`.
@@ -191,6 +196,7 @@ TODO
 - Propose solutions with tradeoffs rather than asking what to do
 - Flag potentially breaking changes before implementing
 - Look for ways to improve the elegance and ergonomics of the codebase by simplifying code, but always favour the ergonomics of the end-user developer
+- Do not ask me to confirm whether to run non-destructive tools during discovery such as `git show`, `find`, and `grep` -- just run them
 
 ### Error Reporting
 
