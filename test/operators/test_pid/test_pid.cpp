@@ -3,6 +3,7 @@
 #include <operators/pid.hpp>
 #include <types/mock_clock.hpp>
 #include <types/State.hpp>
+#include <types/thermal_sim.hpp>
 #include <sources/from_clock.hpp>
 #include <sources/constant.hpp>
 
@@ -360,6 +361,278 @@ void test_pid_derivative_opposes_error_change() {
   TEST_ASSERT_FLOAT_WITHIN_MESSAGE(5.0f, -30.0f, d_term_3, "D term should be ~-30 when error decreases from 5 to 2 over 0.1s");
 }
 
+// =============================================================================
+// Thermal Simulator Integration Tests
+// =============================================================================
+
+// Helper source that returns raw milliseconds from mock_clock.
+// This is needed because thermal_sim expects raw time, not time_point.
+source_fn<unsigned long> raw_clock_source() {
+  return [](push_fn<unsigned long> push) -> pull_fn {
+    return [push]() {
+      push(clock_type::now().time_since_epoch().count());
+    };
+  };
+}
+
+// Helper to run a closed-loop PID + thermal sim simulation.
+// Returns final temperature after specified number of steps.
+float run_thermal_sim_with_pid(
+  ThermalSimConfig<float, float, unsigned long> thermal_config,
+  float initial_temp,
+  float target_temp,
+  PidWeights<float, float, float> weights,
+  int num_steps,
+  unsigned long step_ms,
+  float* disturbance_power = nullptr,
+  int disturbance_start_step = -1,
+  int disturbance_end_step = -1
+) {
+  clock_type::set_time(1000);  // Start at 1s
+
+  // State variables for closed loop
+  State<float> duty(0.0f);
+  State<float> temperature(initial_temp);
+  State<float> setpoint(target_temp);
+  State<PidWeights<float, float, float>> pid_weights(weights);
+  State<float> disturbance(0.0f);
+
+  // Create clock sources
+  // Thermal sim uses raw milliseconds
+  auto raw_clock = raw_clock_source();
+  // PID uses time_point for duration conversion
+  auto clock = from_clock<clock_type>();
+
+  // Create thermal sim with disturbance
+  auto temp_source = thermal_sim<float, unsigned long, float, float>(
+    duty.get_source_fn(),
+    raw_clock,
+    disturbance.get_source_fn(),
+    thermal_config,
+    initial_temp
+  );
+
+  // Create PID controller
+  auto pid_source = pid<float, time_point>(
+    temperature.get_source_fn(),
+    setpoint.get_source_fn(),
+    clock,
+    pid_weights.get_source_fn(),
+    Range<float>{ 0.0f, 1.0f },  // Duty cycle 0-1
+    duration_to_seconds
+  );
+
+  // Bind and create pull functions
+  float current_temp = initial_temp;
+  float current_duty = 0.0f;
+
+  pull_fn pull_temp = temp_source([&current_temp](float t) { current_temp = t; });
+  pull_fn pull_pid = pid_source([&current_duty](float d) { current_duty = d; });
+
+  // Initial pull to establish state
+  pull_temp();
+  temperature.set(current_temp, false);
+  pull_pid();
+  duty.set(current_duty, false);
+
+  // Simulation loop
+  for (int step = 0; step < num_steps; step++) {
+    clock_type::tick(step_ms);
+
+    // Handle disturbance
+    if (disturbance_power != nullptr &&
+        step >= disturbance_start_step && step < disturbance_end_step) {
+      disturbance.set(*disturbance_power, false);
+    } else {
+      disturbance.set(0.0f, false);
+    }
+
+    // Pull new temperature from thermal sim
+    pull_temp();
+    temperature.set(current_temp, false);
+
+    // Pull new duty from PID
+    pull_pid();
+    duty.set(current_duty, false);
+  }
+
+  return current_temp;
+}
+
+void test_pid_thermal_sim_reaches_setpoint() {
+  // Test that PID + thermal sim reaches setpoint.
+  // Use a small thermal system for faster testing.
+  //
+  // Parameters: 1L water, 500W heater, short time constant
+  auto thermal_config = make_sous_vide_config<float, float, unsigned long>(
+    1.0f,     // 1 liter (4186 J/K)
+    500.0f,   // 500W heater
+    20.0f,    // 20C ambient
+    10.0f,    // 10 W/K heat loss (fast)
+    100       // 100ms PWM cycle
+  );
+
+  float initial_temp = 20.0f;
+  float target_temp = 40.0f;
+
+  // PID weights tuned for this system
+  // Time constant: tau = C/k = 4186/10 = 418.6s
+  // Use aggressive gains for faster testing
+  PidWeights<float, float, float> weights{
+    0.1f,     // Kp: 10% duty per degree error
+    0.001f,   // Ki: slow integral
+    5.0f      // Kd: anticipate changes
+  };
+
+  // Run for enough steps to reach setpoint (simulate ~10 minutes in 100ms steps)
+  int num_steps = 6000;  // 600 seconds = 10 minutes
+  unsigned long step_ms = 100;
+
+  float final_temp = run_thermal_sim_with_pid(
+    thermal_config, initial_temp, target_temp, weights,
+    num_steps, step_ms
+  );
+
+  // Should reach within 2C of setpoint
+  TEST_ASSERT_FLOAT_WITHIN_MESSAGE(
+    2.0f, target_temp, final_temp,
+    "Temperature should reach within 2C of setpoint"
+  );
+}
+
+void test_pid_thermal_sim_rejects_disturbance() {
+  // Test that PID recovers after a disturbance.
+  auto thermal_config = make_sous_vide_config<float, float, unsigned long>(
+    1.0f,     // 1 liter
+    500.0f,   // 500W heater
+    20.0f,    // 20C ambient
+    10.0f,    // 10 W/K heat loss
+    100       // 100ms PWM cycle
+  );
+
+  float initial_temp = 35.0f;  // Start closer to setpoint
+  float target_temp = 40.0f;
+
+  PidWeights<float, float, float> weights{
+    0.1f,     // Kp
+    0.001f,   // Ki
+    5.0f      // Kd
+  };
+
+  // First reach steady state (3 minutes)
+  int warmup_steps = 1800;
+
+  // Then apply disturbance (1 minute) then recover (3 minutes)
+  int total_steps = 6000;
+  float disturbance = -200.0f;  // -200W cooling disturbance
+  int dist_start = warmup_steps;
+  int dist_end = warmup_steps + 600;  // 1 minute disturbance
+
+  unsigned long step_ms = 100;
+
+  float final_temp = run_thermal_sim_with_pid(
+    thermal_config, initial_temp, target_temp, weights,
+    total_steps, step_ms,
+    &disturbance, dist_start, dist_end
+  );
+
+  // Should recover to within 3C of setpoint after disturbance
+  TEST_ASSERT_FLOAT_WITHIN_MESSAGE(
+    3.0f, target_temp, final_temp,
+    "Temperature should recover to within 3C of setpoint after disturbance"
+  );
+}
+
+void test_pid_thermal_sim_tracks_setpoint_change() {
+  // Test that PID tracks a setpoint change.
+  auto thermal_config = make_sous_vide_config<float, float, unsigned long>(
+    1.0f,     // 1 liter
+    500.0f,   // 500W heater
+    20.0f,    // 20C ambient
+    10.0f,    // 10 W/K heat loss
+    100       // 100ms PWM cycle
+  );
+
+  float initial_temp = 35.0f;
+  float first_setpoint = 40.0f;
+  float second_setpoint = 45.0f;
+
+  PidWeights<float, float, float> weights{
+    0.1f,     // Kp
+    0.001f,   // Ki
+    5.0f      // Kd
+  };
+
+  clock_type::set_time(1000);
+
+  State<float> duty(0.0f);
+  State<float> temperature(initial_temp);
+  State<float> setpoint(first_setpoint);
+  State<PidWeights<float, float, float>> pid_weights(weights);
+
+  // Use raw clock for thermal sim, time_point clock for PID
+  auto raw_clock = raw_clock_source();
+  auto clock = from_clock<clock_type>();
+
+  auto temp_source = thermal_sim<float, unsigned long, float, float>(
+    duty.get_source_fn(),
+    raw_clock,
+    thermal_config,
+    initial_temp
+  );
+
+  auto pid_source = pid<float, time_point>(
+    temperature.get_source_fn(),
+    setpoint.get_source_fn(),
+    clock,
+    pid_weights.get_source_fn(),
+    Range<float>{ 0.0f, 1.0f },
+    duration_to_seconds
+  );
+
+  float current_temp = initial_temp;
+  float current_duty = 0.0f;
+
+  pull_fn pull_temp = temp_source([&current_temp](float t) { current_temp = t; });
+  pull_fn pull_pid = pid_source([&current_duty](float d) { current_duty = d; });
+
+  // Initial pull
+  pull_temp();
+  temperature.set(current_temp, false);
+  pull_pid();
+  duty.set(current_duty, false);
+
+  unsigned long step_ms = 100;
+
+  // Reach first setpoint (3 minutes)
+  for (int step = 0; step < 1800; step++) {
+    clock_type::tick(step_ms);
+    pull_temp();
+    temperature.set(current_temp, false);
+    pull_pid();
+    duty.set(current_duty, false);
+  }
+
+  // Change setpoint
+  setpoint.set(second_setpoint, false);
+
+  // Track new setpoint (6 minutes for slower systems)
+  for (int step = 0; step < 3600; step++) {
+    clock_type::tick(step_ms);
+    pull_temp();
+    temperature.set(current_temp, false);
+    pull_pid();
+    duty.set(current_duty, false);
+  }
+
+  // Should track the new setpoint.
+  // Allow 4C tolerance since thermal systems take time to reach equilibrium.
+  TEST_ASSERT_FLOAT_WITHIN_MESSAGE(
+    4.0f, second_setpoint, current_temp,
+    "Temperature should track new setpoint within 4C"
+  );
+}
+
 int main(int argc, char **argv) {
   UNITY_BEGIN();
   RUN_TEST(test_pid_basic_proportional_control);
@@ -371,5 +644,9 @@ int main(int argc, char **argv) {
   RUN_TEST(test_pid_dynamic_weight_change);
   RUN_TEST(test_pid_responds_to_setpoint_change);
   RUN_TEST(test_pid_derivative_opposes_error_change);
+  // Thermal simulator integration tests
+  RUN_TEST(test_pid_thermal_sim_reaches_setpoint);
+  RUN_TEST(test_pid_thermal_sim_rejects_disturbance);
+  RUN_TEST(test_pid_thermal_sim_tracks_setpoint_change);
   UNITY_END();
 }
