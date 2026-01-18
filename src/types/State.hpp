@@ -8,7 +8,7 @@ namespace rheo {
   class bad_state_unset_access : std::exception {
     public:
       const char* what() const noexcept {
-        return "Tried to access the state of a State object that was ended";
+        return "Tried to access the state of a State object that has no value yet";
       }
   };
 
@@ -39,6 +39,26 @@ namespace rheo {
 
     RHEO_NOINLINE pull_fn operator()(push_fn<T> push) const {
       return state->add_sink(std::move(push), initial_push);
+    }
+  };
+
+  template <typename T>
+  struct state_push_handler {
+    State<T>* state;
+    bool push_on_set;
+
+    RHEO_NOINLINE void operator()(T value) const {
+      state->set(value, push_on_set);
+    }
+  };
+
+  template <typename T>
+  struct state_sink_binder {
+    State<T>* state;
+    bool push_on_set;
+
+    RHEO_NOINLINE void operator()(source_fn<T> source) const {
+      source(state->get_setter_push_fn(push_on_set));
     }
   };
 
@@ -90,6 +110,14 @@ namespace rheo {
 
       source_fn<T> get_source_fn(bool initial_push = true) {
         return state_source_binder<T>{this, initial_push};
+      }
+
+      push_fn<T> get_setter_push_fn(bool push_on_set = true) {
+        return state_push_handler<T>{this, push_on_set};
+      }
+
+      sink_fn<T> get_setter_sink_fn(bool push_on_set = true) {
+        return state_sink_binder<T>{this, push_on_set};
       }
   };
 
