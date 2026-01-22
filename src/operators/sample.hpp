@@ -19,10 +19,12 @@ namespace rheo::operators {
 
     RHEO_NOINLINE void operator()(TSample sample_value) const {
       if (last_event_value->has_value()) {
-        push(combiner(last_event_value->value(), sample_value));
-        // Clear the event value out in case the sample source pushes something.
-        // This prevents us from pushing a sample that _isn't_ sampled on an event.
+        // Extract the event value and clear BEFORE pushing.
+        // This prevents re-entrant pushes (e.g., from State.set() in downstream)
+        // from emitting again with the same event.
+        TEvent event_value = std::move(last_event_value->value());
         last_event_value->reset();
+        push(combiner(std::move(event_value), sample_value));
       }
     }
   };
