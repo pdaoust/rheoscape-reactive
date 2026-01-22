@@ -13,17 +13,25 @@
 
 namespace rheo::operators {
 
-  // combine streams together into one stream using a combining function.
-  // If you're using this in a push stream, it won't start emitting values
-  // until all sources have emitted a value.
-  // Thereafter, it'll emit a combined value every time _any_ source emits a value,
-  // updating the respective portion of the combined value.
-  // Make sure all the streams being combined
-  // will push a value every time they're pulled,
-  // because it will only push a value once all streams have pushed.
-  // If you're using it in a pull stream, it'll pull all sources and combine them.
-  // An optional combiner function can be passed so you can combine the values the way you like;
-  // the default just gloms them into a tuple.
+  // Combine streams together into one stream using a combining function.
+  //
+  // When any source pushes a value, combine will:
+  // 1. Reset all stored values (clearing any stale data from previous cascades)
+  // 2. Store the pushed value
+  // 3. Pull all other sources to get their current values
+  // 4. If all sources responded to their pulls with pushes, emit the combined result
+  // 5. If any source has a no-op pull (didn't respond), no emission occurs
+  //
+  // This ensures that combine only emits when ALL sources provide fresh values
+  // as a direct consequence of the current cascade. Spontaneous pushes from sources
+  // (e.g., State.set() pushing to subscribers) will not cause emissions with stale
+  // values from other sources.
+  //
+  // For pull-based usage, pulling combine will pull the first source, which triggers
+  // the cascade described above.
+  //
+  // An optional combiner function can be passed to combine the values;
+  // the default creates a tuple of all values.
   //
   // All of these sources end when any of their upstream sources ends.
   //
@@ -99,21 +107,38 @@ namespace rheo::operators {
     push_fn<TOut> push;
     std::shared_ptr<ValuesType> current_values;
     std::shared_ptr<PullsType> pull_functions;
+    // Flag to track whether we're in a pull cascade.
+    // Only values pushed during a cascade (as a direct result of pulling) should be used.
+    std::shared_ptr<bool> in_cascade;
 
     RHEO_NOINLINE void operator()(TValue value) const {
+      if (!*in_cascade) {
+        // This push is NOT from a pull cascade (e.g., spontaneous push from State.set()).
+        // Start a new cascade: reset all values to clear any stale data.
+        detail::reset_all(*current_values);
+        *in_cascade = true;
+      }
+
       // Store the value at index I
       std::get<I>(*current_values).emplace(std::move(value));
 
       // Check if all values are ready
       if (detail::all_have_values(*current_values)) {
         // All ready - push combined result
+        // Clear cascade flag BEFORE push to handle re-entrant pushes correctly
+        *in_cascade = false;
         auto extracted_values = detail::extract_values(*current_values);
         auto result = std::apply(combiner, std::move(extracted_values));
-        push(std::move(result));
         detail::reset_all(*current_values);
+        push(std::move(result));
       } else {
         // Not all ready - cascade pull to next source that needs a value
         detail::cascade_pull<I, N>(current_values, pull_functions);
+        // If we get here and still not all values, clear cascade flag
+        // (the pulled source didn't respond with a push)
+        if (!detail::all_have_values(*current_values)) {
+          *in_cascade = false;
+        }
       }
     }
   };
@@ -148,9 +173,12 @@ namespace rheo::operators {
     RHEO_NOINLINE pull_fn operator()(push_fn<TOut> push) const {
       auto current_values = std::make_shared<ValuesType>();
       auto pull_functions = std::make_shared<PullsType>();
+      // Shared flag to track whether we're in a pull cascade.
+      // All handlers share this so they know if the current push is from a cascade or spontaneous.
+      auto in_cascade = std::make_shared<bool>(false);
 
       // Bind each source with its push handler
-      bind_sources(push, current_values, pull_functions, std::make_index_sequence<N>{});
+      bind_sources(push, current_values, pull_functions, in_cascade, std::make_index_sequence<N>{});
 
       return combine_pull_handler<T1, Ts...>{pull_functions};
     }
@@ -161,16 +189,18 @@ namespace rheo::operators {
       const push_fn<TOut>& push,
       const std::shared_ptr<ValuesType>& current_values,
       const std::shared_ptr<PullsType>& pull_functions,
+      const std::shared_ptr<bool>& in_cascade,
       std::index_sequence<Is...>
     ) const {
-      (bind_source<Is>(push, current_values, pull_functions), ...);
+      (bind_source<Is>(push, current_values, pull_functions, in_cascade), ...);
     }
 
     template<size_t I>
     RHEO_NOINLINE void bind_source(
       const push_fn<TOut>& push,
       const std::shared_ptr<ValuesType>& current_values,
-      const std::shared_ptr<PullsType>& pull_functions
+      const std::shared_ptr<PullsType>& pull_functions,
+      const std::shared_ptr<bool>& in_cascade
     ) const {
       using TValue = std::tuple_element_t<I, std::tuple<T1, Ts...>>;
 
@@ -178,7 +208,8 @@ namespace rheo::operators {
         combiner,
         push,
         current_values,
-        pull_functions
+        pull_functions,
+        in_cascade
       };
 
       std::get<I>(*pull_functions).emplace(std::get<I>(sources)(handler));
@@ -203,23 +234,61 @@ namespace rheo::operators {
     };
   }
 
-  // Pipe factory overload - requires explicitly specifying T1 template parameter.
-  // Usage: source1 | combine_with<int>(combiner, source2, source3)
+  // Pipe factory overload - automatically deduces T1 from combiner's first parameter.
+  // Usage: source1 | combine_with(combiner, source2, source3)
   //
-  // NOTE: Unlike merge() which can infer types from its source arguments,
-  // combine_with() requires explicit T1 because pipe_fn<TOut, TIn> needs to know
-  // TIn at the call site, but TIn (which is T1) cannot be deduced from the
-  // combiner function alone - it could be any type the combiner accepts.
-  template <typename T1, typename CombineFn, typename... Ts>
-    requires concepts::Combiner<CombineFn, T1, Ts...>
+  // The T1 type is deduced from the combiner function's first parameter type,
+  // so you no longer need to specify it explicitly.
+  template <typename CombineFn, typename... Ts>
+    requires concepts::Combiner<CombineFn, arg_of<CombineFn, 0>, Ts...>
   RHEO_NOINLINE auto combine_with(
     CombineFn combiner,
     source_fn<Ts>... sources
-  ) -> pipe_fn<std::invoke_result_t<CombineFn, T1, Ts...>, T1> {
+  ) -> pipe_fn<
+      std::invoke_result_t<CombineFn, arg_of<CombineFn, 0>, Ts...>,
+      arg_of<CombineFn, 0>
+    > {
+    using T1 = arg_of<CombineFn, 0>;
     using TOut = std::invoke_result_t<CombineFn, T1, Ts...>;
     return [combiner = std::move(combiner), ... sources = std::move(sources)]
     (source_fn<T1> source1) mutable -> source_fn<TOut> {
       return combine(std::move(combiner), std::move(source1), std::move(sources)...);
+    };
+  }
+
+  // Tuple-based combine - no combiner function required.
+  // Combines multiple sources into a tuple of their values.
+  // Usage: combine(source1, source2, source3)
+  template <typename T1, typename... Ts>
+    requires (sizeof...(Ts) >= 1)
+  RHEO_NOINLINE auto combine(
+    source_fn<T1> first,
+    source_fn<Ts>... rest
+  ) -> source_fn<std::tuple<T1, Ts...>> {
+    auto tuple_maker = [](T1 v1, Ts... vs) {
+      return std::make_tuple(std::move(v1), std::move(vs)...);
+    };
+
+    return combine(
+      std::move(tuple_maker),
+      std::move(first),
+      std::move(rest)...
+    );
+  }
+
+  // Tuple-based pipe factory - no combiner function required.
+  // Combines the piped source with additional sources into a tuple.
+  // Usage: source1 | combine_with<int>(source2, source3)
+  //
+  // NOTE: Requires explicit T1 template parameter for the same reason as
+  // the combiner-based version - pipe_fn needs to know TIn at the call site.
+  template <typename T1, typename... Ts>
+  RHEO_NOINLINE auto combine_with_boop(
+    source_fn<Ts>... sources
+  ) -> pipe_fn<std::tuple<T1, Ts...>, T1> {
+    return [... sources = std::move(sources)]
+    (source_fn<T1> source1) mutable -> source_fn<std::tuple<T1, Ts...>> {
+      return combine(std::move(source1), std::move(sources)...);
     };
   }
 
