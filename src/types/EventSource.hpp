@@ -29,7 +29,7 @@ namespace rheo {
 
       void push(T value) {
         for (auto& sink : _sinks) {
-        sink(value);
+          sink(value);
         }
       }
 

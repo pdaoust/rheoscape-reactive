@@ -1,3 +1,3 @@
-#ifdef PLATFORM_ESP32
+#ifdef FRAMEWORK_ARDUINO
 #include <sinks/arduino/everything.hpp>
 #endif

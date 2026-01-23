@@ -4,10 +4,10 @@
 #include <core_types.hpp>
 #include <types/au_all_units_noio.hpp>
 #include <Arduino.h>
-#ifdef ESP32
-  #include <ESP32Servo.h>
+#if defined(PLATFORM_ESP32)
+#include <ESP32Servo.h>
 #else
-  #include <Servo.h>
+#include <Servo.h>
 #endif
 
 
