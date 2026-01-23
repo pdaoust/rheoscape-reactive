@@ -14,22 +14,24 @@ namespace rheo::operators {
   // this doesn't mean the wave will be shifted forward along the t axis by 25 units.
   // All you need to do, really, is reverse your thinking.
   // For example, 25 becomes 100 - 25 = 75.
-  // This is to prevent integer wraparound errors
-  // or errors that come from C++'s weird behaviour of giving negative modulos
-  // if one operand is negative.
   template <typename TInput, typename MapFn>
   auto wave(source_fn<TInput> input_source, source_fn<TInput> period_source, source_fn<TInput> phase_shift_source, MapFn&& wave_function)
   -> source_fn<return_of<std::decay_t<MapFn>>> {
     using TFloat = return_of<std::decay_t<MapFn>>;
-    
+
     return map(
-      combine(std::make_tuple<TInput, TInput, TInput>, input_source, period_source, phase_shift_source),
+      combine(input_source, period_source, phase_shift_source),
       [wave_function = std::forward<MapFn>(wave_function)](std::tuple<TInput, TInput, TInput> value) {
         TInput input = std::get<0>(value);
         TInput period = std::get<1>(value);
         TInput phase_shift = std::get<2>(value);
-        TFloat input_normalised = (TFloat)((input + phase_shift) % period) / (TFloat)period;
-        return wave_function(input_normalised);
+        TInput input_adjusted = input + phase_shift;
+        // Division of like units yields a dimensionless scalar.
+        auto completed_cycles = floor(input_adjusted / period);
+        // scalar * TInput gives TInput; TInput - TInput gives TInput.
+        TInput remainder = input_adjusted - completed_cycles * period;
+        TFloat pos_in_cycle = remainder / period;
+        return wave_function(pos_in_cycle);
       }
     );
   }
@@ -67,7 +69,6 @@ namespace rheo::operators {
   source_fn<TFloat> pwm_wave(source_fn<TInput> input_source, source_fn<TInput> period_source, source_fn<TInput> phase_shift_source, source_fn<TFloat> duty_source) {
     return map(
       combine(
-        std::make_tuple<TFloat, TFloat>,
         wave(input_source, period_source, phase_shift_source, [](TFloat v) { return v; }),
         duty_source
       ),
