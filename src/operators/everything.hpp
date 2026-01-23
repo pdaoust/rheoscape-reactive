@@ -11,6 +11,7 @@
 #include <operators/filter.hpp>
 #include <operators/filter_map.hpp>
 #include <operators/foreach.hpp>
+#include <operators/foreach_passthrough.hpp>
 #include <operators/interval.hpp>
 #include <operators/latch.hpp>
 #include <operators/lift.hpp>
