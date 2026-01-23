@@ -1,5 +1,7 @@
 #pragma once
 
+#if defined(RHEO_USE_LVGL)
+
 #include <functional>
 #include <core_types.hpp>
 #include <types/Range.hpp>
@@ -54,3 +56,5 @@ namespace rheo::ui::lvgl {
     );
   }
 }
+
+#endif

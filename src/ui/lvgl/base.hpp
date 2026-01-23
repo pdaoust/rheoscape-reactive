@@ -1,5 +1,7 @@
 #pragma once
 
+#if defined(RHEO_USE_LVGL)
+
 #include <functional>
 #include <core_types.hpp>
 #include <lvgl.h>
@@ -21,3 +23,5 @@ namespace rheo::ui::lvgl {
   const auto& button = base;
 
 }
+
+#endif

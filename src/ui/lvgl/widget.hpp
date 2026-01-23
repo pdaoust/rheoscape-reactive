@@ -1,5 +1,7 @@
 #pragma once
 
+#if defined(RHEO_USE_LVGL)
+
 #include <functional>
 #include <memory>
 #include <core_types.hpp>
@@ -89,3 +91,5 @@ namespace rheo::ui::lvgl {
   }
 
 }
+
+#endif
