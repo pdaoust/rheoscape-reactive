@@ -5,13 +5,6 @@
 
 namespace rheo {
 
-  class bad_state_unset_access : std::exception {
-    public:
-      const char* what() const noexcept {
-        return "Tried to access the state of a State object that has no value yet";
-      }
-  };
-
   // Forward declaration
   template <typename T>
   class State;
@@ -23,11 +16,11 @@ namespace rheo {
     push_fn<T> push;
 
     RHEO_NOINLINE void operator()() const {
-      try {
-        push(state->get());
-      } catch (const bad_state_unset_access&) {
-        // Nothing set yet; don't push anything but don't error out either.
+      auto value = state->try_get();
+      if (value.has_value()) {
+        push(value.value());
       }
+      // Nothing set yet; don't push anything but don't error out either.
     }
   };
 
@@ -85,11 +78,19 @@ namespace rheo {
         }
       }
 
+      // Unsafe: Undefined behaviour if no value has been set.
+      // Wrap `get()` in a conditional guarded by `has_value()`
+      // or use `try_get()` for safe access.
       T get() {
-        if (!_value.has_value()) {
-          throw bad_state_unset_access();
-        }
         return _value.value();
+      }
+
+      std::optional<T> try_get() {
+        return _value;
+      }
+
+      bool has_value() {
+        return _value.has_value();
       }
 
       // This can be used as-is as a source function.
@@ -116,7 +117,7 @@ namespace rheo {
         return state_push_handler<T>{this, push_on_set};
       }
 
-      sink_fn<T> get_setter_sink_fn(bool push_on_set = true) {
+      cap_fn<T> get_setter_sink_fn(bool push_on_set = true) {
         return state_sink_binder<T>{this, push_on_set};
       }
   };
