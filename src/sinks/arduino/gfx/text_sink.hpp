@@ -13,11 +13,8 @@ namespace rheo::sinks::arduino::gfx {
     source_fn<TextHints> hints_source,
     source_fn<Coords> coords_source
   ) {
-    return combine3(
-      text_source,
-      hints_source,
-      coords_source,
-      (combine3_fn<std::vector<GfxCommand<GFXcanvas1>>, std::string, TextHints, Coords>)[](std::string text, TextHints hints, Coords coords) {
+    return operators::combine(
+      [](std::string text, TextHints hints, Coords coords) {
         std::vector<GfxCommand<GFXcanvas1>> commands = {
           [text, hints, coords](GFXcanvas1& canvas) {
             canvas.setCursor(coords.x, coords.y);
@@ -28,7 +25,10 @@ namespace rheo::sinks::arduino::gfx {
           }
         };
         return commands;
-      }
+      },
+      text_source,
+      hints_source,
+      coords_source
     );
   }
 

@@ -11,7 +11,7 @@ namespace rheo::sinks::arduino::gfx {
   source_fn<std::vector<GfxCommand<TCanvas>>> _widget_pipe(
     source_fn<std::string> text_source,
     source_fn<THints> hints_source,
-    source_fn<Coords> coords_source,
+    source_fn<Coords> coords_source
   ) {
     return combine3(
       text_source,

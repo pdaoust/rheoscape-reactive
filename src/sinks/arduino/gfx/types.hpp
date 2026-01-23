@@ -11,15 +11,15 @@ namespace rheo::sinks::arduino::gfx {
 
     friend Coords operator+(Coords lhs, const Coords& rhs) {
       return Coords {
-        x: lhs.x + rhs.x,
-        y: lhs.y + rhs.y
+        .x = static_cast<int16_t>(lhs.x + rhs.x),
+        .y = static_cast<int16_t>(lhs.y + rhs.y)
       };
     }
 
     friend Coords operator-(Coords lhs, const Coords& rhs) {
       return Coords {
-        x: lhs.x - rhs.x,
-        y: lhs.y - rhs.y
+        .x = static_cast<int16_t>(lhs.x - rhs.x),
+        .y = static_cast<int16_t>(lhs.y - rhs.y)
       };
     }
   };
@@ -29,8 +29,10 @@ namespace rheo::sinks::arduino::gfx {
     uint16_t h;
   };
 
-  template <typename TCanvas, typename TMask>
-  using GfxCommand = std::function<void(TCanvas&, TMask&)>;
+  // template <typename TCanvas, typename TMask>
+  // using GfxCommand = std::function<void(TCanvas&, TMask&)>;
+  template <typename TCanvas>
+  using GfxCommand = std::function<void(TCanvas&)>;
 
   struct DisplayHints {
     uint8_t rotation;
