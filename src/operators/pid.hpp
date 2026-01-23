@@ -17,9 +17,9 @@ namespace rheo::operators {
   // Helper to get interval type from time type
   // For scalars, interval is same as time type
   // For time_points, interval is the duration type
-  template <typename TTime>
+  template <typename TTimePoint>
   struct interval_type {
-    using type = TTime;
+    using type = TTimePoint;
   };
 
   template <typename Clock, typename Duration>
@@ -27,8 +27,8 @@ namespace rheo::operators {
     using type = Duration;
   };
 
-  template <typename TTime>
-  using interval_type_t = typename interval_type<TTime>::type;
+  template <typename TTimePoint>
+  using interval_type_t = typename interval_type<TTimePoint>::type;
 
   // Helper to get the delta type when subtracting two values
   // For most types, T - T = T, but for QuantityPoint, QP - QP = Quantity
@@ -52,11 +52,11 @@ namespace rheo::operators {
   };
 
   // Combined input data for PID calculation
-  template <typename TProc, typename TTime, typename TKp, typename TKi, typename TKd>
+  template <typename TProc, typename TTimePoint, typename TKp, typename TKi, typename TKd>
   struct PidData {
     TProc process_variable;
     TProc setpoint;
-    TTime timestamp;
+    TTimePoint timestamp;
     PidWeights<TKp, TKi, TKd> weights;
   };
 
@@ -64,7 +64,7 @@ namespace rheo::operators {
   // TProcDelta: error type (setpoint - process_variable)
   // TIntegral: accumulated error type (TProcDelta * TFloatInterval)
   // TCtrl: control output type
-  template <typename TCtrl, typename TProcDelta, typename TIntegral, typename TTime>
+  template <typename TCtrl, typename TProcDelta, typename TIntegral, typename TTimePoint>
   struct PidState {
     TCtrl control;
     TProcDelta error;
@@ -73,7 +73,7 @@ namespace rheo::operators {
     TCtrl i_term;
     TCtrl d_term;
     bool is_saturated;
-    TTime timestamp;
+    TTimePoint timestamp;
   };
 
   // Output type for pid_detailed() - exposes all PID internals
@@ -93,15 +93,15 @@ namespace rheo::operators {
   // ==========================================================================
 
   // Named callable for combining PID input sources into PidData
-  template <typename TProc, typename TTime, typename TKp, typename TKi, typename TKd>
+  template <typename TProc, typename TTimePoint, typename TKp, typename TKi, typename TKd>
   struct pid_data_combiner {
-    using DataType = PidData<TProc, TTime, TKp, TKi, TKd>;
+    using DataType = PidData<TProc, TTimePoint, TKp, TKi, TKd>;
     using WeightsType = PidWeights<TKp, TKi, TKd>;
 
     RHEO_NOINLINE DataType operator()(
       TProc process_variable,
       TProc setpoint,
-      TTime timestamp,
+      TTimePoint timestamp,
       WeightsType weights
     ) const {
       return DataType {
@@ -122,7 +122,7 @@ namespace rheo::operators {
   //   This preserves the time dimension while enabling float arithmetic.
   template <
     typename TProc,
-    typename TTime,
+    typename TTimePoint,
     typename TCtrl,
     typename TKp,
     typename TKi,
@@ -132,13 +132,13 @@ namespace rheo::operators {
   struct pid_calculator {
     // Derived types
     using TProcDelta = delta_type_t<TProc>;       // Error type: setpoint - pv
-    using TInterval = interval_type_t<TTime>;     // Time delta type (may have integral rep)
+    using TInterval = interval_type_t<TTimePoint>;     // Time delta type (may have integral rep)
     using TFloatInterval = std::invoke_result_t<TIntervalConverter, TInterval>;  // Float-rep interval
     using TIntegral = decltype(std::declval<TProcDelta>() * std::declval<TFloatInterval>());   // Error * time
     using TDerivative = decltype(std::declval<TProcDelta>() / std::declval<TFloatInterval>()); // Error / time
 
-    using StateType = PidState<TCtrl, TProcDelta, TIntegral, TTime>;
-    using DataType = PidData<TProc, TTime, TKp, TKi, TKd>;
+    using StateType = PidState<TCtrl, TProcDelta, TIntegral, TTimePoint>;
+    using DataType = PidData<TProc, TTimePoint, TKp, TKi, TKd>;
 
     std::optional<Range<TCtrl>> clamp_range;
     TIntervalConverter interval_converter;
@@ -205,19 +205,19 @@ namespace rheo::operators {
   };
 
   // Named callable for extracting control from PidState
-  template <typename TCtrl, typename TProcDelta, typename TIntegral, typename TTime>
+  template <typename TCtrl, typename TProcDelta, typename TIntegral, typename TTimePoint>
   struct pid_control_extractor {
-    RHEO_NOINLINE TCtrl operator()(PidState<TCtrl, TProcDelta, TIntegral, TTime> state) const {
+    RHEO_NOINLINE TCtrl operator()(PidState<TCtrl, TProcDelta, TIntegral, TTimePoint> state) const {
       return state.control;
     }
   };
 
   // Named callable for converting PidState to PidOutput
-  template <typename TCtrl, typename TProcDelta, typename TIntegral, typename TTime>
+  template <typename TCtrl, typename TProcDelta, typename TIntegral, typename TTimePoint>
   struct pid_output_extractor {
     using OutputType = PidOutput<TCtrl, TProcDelta, TIntegral>;
 
-    RHEO_NOINLINE OutputType operator()(PidState<TCtrl, TProcDelta, TIntegral, TTime> state) const {
+    RHEO_NOINLINE OutputType operator()(PidState<TCtrl, TProcDelta, TIntegral, TTimePoint> state) const {
       return OutputType {
         state.control,
         state.p_term,
@@ -237,7 +237,7 @@ namespace rheo::operators {
   // Internal helper: creates the combined and calculated source
   template <
     typename TProc,
-    typename TTime,
+    typename TTimePoint,
     typename TCtrl,
     typename TKp,
     typename TKi,
@@ -247,17 +247,17 @@ namespace rheo::operators {
   auto pid_calculate(
     source_fn<TProc> process_variable_source,
     source_fn<TProc> setpoint_source,
-    source_fn<TTime> clock_source,
+    source_fn<TTimePoint> clock_source,
     source_fn<PidWeights<TKp, TKi, TKd>> weights_source,
     std::optional<Range<TCtrl>> clamp_range,
     TIntervalConverter&& interval_converter
   ) {
-    using Calculator = pid_calculator<TProc, TTime, TCtrl, TKp, TKi, TKd, std::decay_t<TIntervalConverter>>;
+    using Calculator = pid_calculator<TProc, TTimePoint, TCtrl, TKp, TKi, TKd, std::decay_t<TIntervalConverter>>;
     using StateType = typename Calculator::StateType;
     using DataType = typename Calculator::DataType;
 
     source_fn<DataType> combined_source = combine(
-      pid_data_combiner<TProc, TTime, TKp, TKi, TKd>{},
+      pid_data_combiner<TProc, TTimePoint, TKp, TKi, TKd>{},
       process_variable_source,
       setpoint_source,
       clock_source,
@@ -278,7 +278,7 @@ namespace rheo::operators {
   // Returns just the control output
   template <
     typename TProc,
-    typename TTime,
+    typename TTimePoint,
     typename TCtrl,
     typename TKp,
     typename TKi,
@@ -288,16 +288,16 @@ namespace rheo::operators {
   source_fn<TCtrl> pid(
     source_fn<TProc> process_variable_source,
     source_fn<TProc> setpoint_source,
-    source_fn<TTime> clock_source,
+    source_fn<TTimePoint> clock_source,
     source_fn<PidWeights<TKp, TKi, TKd>> weights_source,
     std::optional<Range<TCtrl>> clamp_range,
     TIntervalConverter&& interval_converter
   ) {
-    using Calculator = pid_calculator<TProc, TTime, TCtrl, TKp, TKi, TKd, std::decay_t<TIntervalConverter>>;
+    using Calculator = pid_calculator<TProc, TTimePoint, TCtrl, TKp, TKi, TKd, std::decay_t<TIntervalConverter>>;
     using TProcDelta = typename Calculator::TProcDelta;
     using TIntegral = typename Calculator::TIntegral;
 
-    auto calculated_source = pid_calculate<TProc, TTime, TCtrl, TKp, TKi, TKd>(
+    auto calculated_source = pid_calculate<TProc, TTimePoint, TCtrl, TKp, TKi, TKd>(
       process_variable_source,
       setpoint_source,
       clock_source,
@@ -306,14 +306,14 @@ namespace rheo::operators {
       std::forward<TIntervalConverter>(interval_converter)
     );
 
-    return map(calculated_source, pid_control_extractor<TCtrl, TProcDelta, TIntegral, TTime>{});
+    return map(calculated_source, pid_control_extractor<TCtrl, TProcDelta, TIntegral, TTimePoint>{});
   }
 
   // Fully-typed PID controller with detailed output
   // Returns PidOutput with all internal terms exposed
   template <
     typename TProc,
-    typename TTime,
+    typename TTimePoint,
     typename TCtrl,
     typename TKp,
     typename TKi,
@@ -323,17 +323,17 @@ namespace rheo::operators {
   auto pid_detailed(
     source_fn<TProc> process_variable_source,
     source_fn<TProc> setpoint_source,
-    source_fn<TTime> clock_source,
+    source_fn<TTimePoint> clock_source,
     source_fn<PidWeights<TKp, TKi, TKd>> weights_source,
     std::optional<Range<TCtrl>> clamp_range,
     TIntervalConverter&& interval_converter
   ) {
-    using Calculator = pid_calculator<TProc, TTime, TCtrl, TKp, TKi, TKd, std::decay_t<TIntervalConverter>>;
+    using Calculator = pid_calculator<TProc, TTimePoint, TCtrl, TKp, TKi, TKd, std::decay_t<TIntervalConverter>>;
     using TProcDelta = typename Calculator::TProcDelta;
     using TIntegral = typename Calculator::TIntegral;
     using OutputType = PidOutput<TCtrl, TProcDelta, TIntegral>;
 
-    auto calculated_source = pid_calculate<TProc, TTime, TCtrl, TKp, TKi, TKd>(
+    auto calculated_source = pid_calculate<TProc, TTimePoint, TCtrl, TKp, TKi, TKd>(
       process_variable_source,
       setpoint_source,
       clock_source,
@@ -342,7 +342,7 @@ namespace rheo::operators {
       std::forward<TIntervalConverter>(interval_converter)
     );
 
-    return map(calculated_source, pid_output_extractor<TCtrl, TProcDelta, TIntegral, TTime>{});
+    return map(calculated_source, pid_output_extractor<TCtrl, TProcDelta, TIntegral, TTimePoint>{});
   }
 
   // ==========================================================================
@@ -351,16 +351,16 @@ namespace rheo::operators {
   // ==========================================================================
 
   // Simplified PID controller for scalar types with interval converter
-  template <typename TCalc, typename TTime, typename TIntervalConverter>
+  template <typename TCalc, typename TTimePoint, typename TIntervalConverter>
   source_fn<TCalc> pid(
     source_fn<TCalc> process_variable_source,
     source_fn<TCalc> setpoint_source,
-    source_fn<TTime> clock_source,
+    source_fn<TTimePoint> clock_source,
     source_fn<PidWeights<TCalc, TCalc, TCalc>> weights_source,
     std::optional<Range<TCalc>> clamp_range,
     TIntervalConverter&& interval_converter
   ) {
-    return pid<TCalc, TTime, TCalc, TCalc, TCalc, TCalc>(
+    return pid<TCalc, TTimePoint, TCalc, TCalc, TCalc, TCalc>(
       process_variable_source,
       setpoint_source,
       clock_source,
@@ -371,17 +371,17 @@ namespace rheo::operators {
   }
 
   // Simplified PID controller for pure scalar types (no converter needed)
-  // Assumes TTime - TTime yields something directly usable in arithmetic with TCalc
-  template <typename TCalc, typename TTime>
+  // Assumes TTimePoint - TTimePoint yields something directly usable in arithmetic with TCalc
+  template <typename TCalc, typename TTimePoint>
   source_fn<TCalc> pid(
     source_fn<TCalc> process_variable_source,
     source_fn<TCalc> setpoint_source,
-    source_fn<TTime> clock_source,
+    source_fn<TTimePoint> clock_source,
     source_fn<PidWeights<TCalc, TCalc, TCalc>> weights_source,
     std::optional<Range<TCalc>> clamp_range = std::nullopt
   ) {
-    using TInterval = interval_type_t<TTime>;
-    return pid<TCalc, TTime>(
+    using TInterval = interval_type_t<TTimePoint>;
+    return pid<TCalc, TTimePoint>(
       process_variable_source,
       setpoint_source,
       clock_source,
@@ -392,16 +392,16 @@ namespace rheo::operators {
   }
 
   // Simplified pid_detailed for scalar types with interval converter
-  template <typename TCalc, typename TTime, typename TIntervalConverter>
+  template <typename TCalc, typename TTimePoint, typename TIntervalConverter>
   source_fn<PidOutput<TCalc, TCalc, TCalc>> pid_detailed(
     source_fn<TCalc> process_variable_source,
     source_fn<TCalc> setpoint_source,
-    source_fn<TTime> clock_source,
+    source_fn<TTimePoint> clock_source,
     source_fn<PidWeights<TCalc, TCalc, TCalc>> weights_source,
     std::optional<Range<TCalc>> clamp_range,
     TIntervalConverter&& interval_converter
   ) {
-    return pid_detailed<TCalc, TTime, TCalc, TCalc, TCalc, TCalc>(
+    return pid_detailed<TCalc, TTimePoint, TCalc, TCalc, TCalc, TCalc>(
       process_variable_source,
       setpoint_source,
       clock_source,
@@ -412,16 +412,16 @@ namespace rheo::operators {
   }
 
   // Simplified pid_detailed for pure scalar types
-  template <typename TCalc, typename TTime>
+  template <typename TCalc, typename TTimePoint>
   source_fn<PidOutput<TCalc, TCalc, TCalc>> pid_detailed(
     source_fn<TCalc> process_variable_source,
     source_fn<TCalc> setpoint_source,
-    source_fn<TTime> clock_source,
+    source_fn<TTimePoint> clock_source,
     source_fn<PidWeights<TCalc, TCalc, TCalc>> weights_source,
     std::optional<Range<TCalc>> clamp_range = std::nullopt
   ) {
-    using TInterval = interval_type_t<TTime>;
-    return pid_detailed<TCalc, TTime>(
+    using TInterval = interval_type_t<TTimePoint>;
+    return pid_detailed<TCalc, TTimePoint>(
       process_variable_source,
       setpoint_source,
       clock_source,
@@ -435,10 +435,10 @@ namespace rheo::operators {
   // Pipe versions (simplified scalar-only for ergonomics)
   // ==========================================================================
 
-  template <typename TCalc, typename TTime, typename TIntervalConverter>
+  template <typename TCalc, typename TTimePoint, typename TIntervalConverter>
   pipe_fn<TCalc, TCalc> pid(
     source_fn<TCalc> setpoint_source,
-    source_fn<TTime> clock_source,
+    source_fn<TTimePoint> clock_source,
     source_fn<PidWeights<TCalc, TCalc, TCalc>> weights_source,
     std::optional<Range<TCalc>> clamp_range,
     TIntervalConverter&& interval_converter
@@ -450,30 +450,30 @@ namespace rheo::operators {
       clamp_range,
       interval_converter = std::forward<TIntervalConverter>(interval_converter)
     ](source_fn<TCalc> process_variable_source) {
-      return pid<TCalc, TTime>(
+      return pid<TCalc, TTimePoint>(
         process_variable_source, setpoint_source, clock_source, weights_source, clamp_range, interval_converter
       );
     };
   }
 
-  template <typename TCalc, typename TTime>
+  template <typename TCalc, typename TTimePoint>
   pipe_fn<TCalc, TCalc> pid(
     source_fn<TCalc> setpoint_source,
-    source_fn<TTime> clock_source,
+    source_fn<TTimePoint> clock_source,
     source_fn<PidWeights<TCalc, TCalc, TCalc>> weights_source,
     std::optional<Range<TCalc>> clamp_range = std::nullopt
   ) {
-    using TInterval = interval_type_t<TTime>;
-    return pid<TCalc, TTime>(
+    using TInterval = interval_type_t<TTimePoint>;
+    return pid<TCalc, TTimePoint>(
       setpoint_source, clock_source, weights_source, clamp_range,
       [](TInterval t) { return static_cast<TCalc>(t); }
     );
   }
 
-  template <typename TCalc, typename TTime, typename TIntervalConverter>
+  template <typename TCalc, typename TTimePoint, typename TIntervalConverter>
   pipe_fn<PidOutput<TCalc, TCalc, TCalc>, TCalc> pid_detailed(
     source_fn<TCalc> setpoint_source,
-    source_fn<TTime> clock_source,
+    source_fn<TTimePoint> clock_source,
     source_fn<PidWeights<TCalc, TCalc, TCalc>> weights_source,
     std::optional<Range<TCalc>> clamp_range,
     TIntervalConverter&& interval_converter
@@ -485,21 +485,21 @@ namespace rheo::operators {
       clamp_range,
       interval_converter = std::forward<TIntervalConverter>(interval_converter)
     ](source_fn<TCalc> process_variable_source) {
-      return pid_detailed<TCalc, TTime>(
+      return pid_detailed<TCalc, TTimePoint>(
         process_variable_source, setpoint_source, clock_source, weights_source, clamp_range, interval_converter
       );
     };
   }
 
-  template <typename TCalc, typename TTime>
+  template <typename TCalc, typename TTimePoint>
   pipe_fn<PidOutput<TCalc, TCalc, TCalc>, TCalc> pid_detailed(
     source_fn<TCalc> setpoint_source,
-    source_fn<TTime> clock_source,
+    source_fn<TTimePoint> clock_source,
     source_fn<PidWeights<TCalc, TCalc, TCalc>> weights_source,
     std::optional<Range<TCalc>> clamp_range = std::nullopt
   ) {
-    using TInterval = interval_type_t<TTime>;
-    return pid_detailed<TCalc, TTime>(
+    using TInterval = interval_type_t<TTimePoint>;
+    return pid_detailed<TCalc, TTimePoint>(
       setpoint_source, clock_source, weights_source, clamp_range,
       [](TInterval t) { return static_cast<TCalc>(t); }
     );

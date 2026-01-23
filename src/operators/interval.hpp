@@ -37,6 +37,7 @@ namespace rheo::operators {
   };
 
   template <typename TTimePoint, typename TInterval>
+    requires concepts::TimePointAndDurationCompatible<TTimePoint, TInterval>
   struct interval_time_push_handler {
     std::shared_ptr<std::optional<TInterval>> last_interval;
     std::shared_ptr<std::optional<TTimePoint>> last_interval_timestamp;
@@ -72,6 +73,7 @@ namespace rheo::operators {
   };
 
   template <typename TTimePoint, typename TInterval>
+    requires concepts::TimePointAndDurationCompatible<TTimePoint, TInterval>
   struct interval_source_binder {
     source_fn<TTimePoint> time_source;
     source_fn<TInterval> interval_source;
@@ -92,6 +94,7 @@ namespace rheo::operators {
   };
 
   template <typename TTimePoint, typename TInterval>
+    requires concepts::TimePointAndDurationCompatible<TTimePoint, TInterval>
   source_fn<TTimePoint> interval(source_fn<TTimePoint> time_source, source_fn<TInterval> interval_source) {
     return interval_source_binder<TTimePoint, TInterval>{
       std::move(time_source),
@@ -100,6 +103,7 @@ namespace rheo::operators {
   }
 
   template <typename TTimePoint, typename TInterval>
+    requires concepts::TimePointAndDurationCompatible<TTimePoint, TInterval>
   pipe_fn<TTimePoint, TTimePoint> interval(source_fn<TInterval> interval_source) {
     return [interval_source](source_fn<TTimePoint> time_source) {
       return interval(time_source, interval_source);

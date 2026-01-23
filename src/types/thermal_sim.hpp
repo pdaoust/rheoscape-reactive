@@ -21,88 +21,88 @@ namespace rheo {
   }
 
   // PWM configuration
-  template <typename TTime>
+  template <typename TTimePoint>
   struct PwmConfig {
-    TTime min_cycle_time;  // Minimum PWM cycle time (e.g., 1000ms for slow-switching SSR)
+    TTimePoint min_cycle_time;  // Minimum PWM cycle time (e.g., 1000ms for slow-switching SSR)
   };
 
   // Thermal simulation configuration
-  template <typename TTemp, typename TPower, typename TTime>
+  template <typename TTemp, typename TPower, typename TTimePoint>
   struct ThermalSimConfig {
     TTemp ambient_temperature;        // K or degrees C
     TPower max_heater_power;          // W
     TTemp thermal_capacity;           // J/K (use water_volume_to_thermal_capacity)
     TTemp heat_transfer_coefficient;  // W/K
-    PwmConfig<TTime> pwm;             // PWM cycle configuration
+    PwmConfig<TTimePoint> pwm;             // PWM cycle configuration
   };
 
   // Internal state for thermal simulation
-  template <typename TTemp, typename TTime, typename TDuty>
+  template <typename TTemp, typename TTimePoint, typename TDuty>
   struct ThermalSimState {
     TTemp temperature;
-    TTime last_update;
+    TTimePoint last_update;
     // PWM state
-    TTime cycle_start;
+    TTimePoint cycle_start;
     TDuty current_duty;
     bool heater_on;
   };
 
   // Combined input for thermal sim scanner
-  template <typename TDuty, typename TTime, typename TPower>
+  template <typename TDuty, typename TTimePoint, typename TPower>
   struct ThermalSimInput {
     TDuty duty;
-    TTime timestamp;
+    TTimePoint timestamp;
     TPower disturbance;  // External heat injection (W), 0 if no disturbance
   };
 
   // Named callable for combining thermal sim inputs
-  template <typename TDuty, typename TTime, typename TPower>
+  template <typename TDuty, typename TTimePoint, typename TPower>
   struct thermal_sim_combiner {
-    RHEO_NOINLINE ThermalSimInput<TDuty, TTime, TPower> operator()(
+    RHEO_NOINLINE ThermalSimInput<TDuty, TTimePoint, TPower> operator()(
       TDuty duty,
-      TTime timestamp,
+      TTimePoint timestamp,
       TPower disturbance
     ) const {
-      return ThermalSimInput<TDuty, TTime, TPower>{ duty, timestamp, disturbance };
+      return ThermalSimInput<TDuty, TTimePoint, TPower>{ duty, timestamp, disturbance };
     }
   };
 
   // Named callable for combining thermal sim inputs (no disturbance)
-  template <typename TDuty, typename TTime, typename TPower>
+  template <typename TDuty, typename TTimePoint, typename TPower>
   struct thermal_sim_combiner_no_disturbance {
-    RHEO_NOINLINE ThermalSimInput<TDuty, TTime, TPower> operator()(
+    RHEO_NOINLINE ThermalSimInput<TDuty, TTimePoint, TPower> operator()(
       TDuty duty,
-      TTime timestamp
+      TTimePoint timestamp
     ) const {
-      return ThermalSimInput<TDuty, TTime, TPower>{ duty, timestamp, TPower{0} };
+      return ThermalSimInput<TDuty, TTimePoint, TPower>{ duty, timestamp, TPower{0} };
     }
   };
 
   // Named callable for thermal simulation physics with PWM
-  template <typename TTemp, typename TPower, typename TTime, typename TDuty>
+  template <typename TTemp, typename TPower, typename TTimePoint, typename TDuty>
   struct thermal_sim_scanner {
-    ThermalSimConfig<TTemp, TPower, TTime> config;
+    ThermalSimConfig<TTemp, TPower, TTimePoint> config;
 
-    RHEO_NOINLINE ThermalSimState<TTemp, TTime, TDuty> operator()(
-      ThermalSimState<TTemp, TTime, TDuty> state,
-      ThermalSimInput<TDuty, TTime, TPower> input
+    RHEO_NOINLINE ThermalSimState<TTemp, TTimePoint, TDuty> operator()(
+      ThermalSimState<TTemp, TTimePoint, TDuty> state,
+      ThermalSimInput<TDuty, TTimePoint, TPower> input
     ) const {
       // Calculate time delta
-      TTime dt = input.timestamp - state.last_update;
+      TTimePoint dt = input.timestamp - state.last_update;
       float dt_seconds = static_cast<float>(dt);
 
       // Handle PWM: determine if heater is on or off
-      TTime time_in_cycle = input.timestamp - state.cycle_start;
-      TTime on_time = static_cast<TTime>(static_cast<float>(config.pwm.min_cycle_time) * static_cast<float>(input.duty));
+      TTimePoint time_in_cycle = input.timestamp - state.cycle_start;
+      TTimePoint on_time = static_cast<TTimePoint>(static_cast<float>(config.pwm.min_cycle_time) * static_cast<float>(input.duty));
 
       // Check if we need to start a new PWM cycle
       bool new_cycle = time_in_cycle >= config.pwm.min_cycle_time;
-      TTime cycle_start = new_cycle ? input.timestamp : state.cycle_start;
-      time_in_cycle = new_cycle ? TTime{0} : time_in_cycle;
+      TTimePoint cycle_start = new_cycle ? input.timestamp : state.cycle_start;
+      time_in_cycle = new_cycle ? TTimePoint{0} : time_in_cycle;
 
       // Recalculate on_time for new duty if cycle restarted
       if (new_cycle) {
-        on_time = static_cast<TTime>(static_cast<float>(config.pwm.min_cycle_time) * static_cast<float>(input.duty));
+        on_time = static_cast<TTimePoint>(static_cast<float>(config.pwm.min_cycle_time) * static_cast<float>(input.duty));
       }
 
       // Heater is on if we're within the on portion of the cycle
@@ -121,7 +121,7 @@ namespace rheo {
       // Temperature change: dT = (Q_in - Q_out + Q_disturbance) * dt / C
       TTemp dT = (q_in - q_out + q_disturbance) * dt_seconds / config.thermal_capacity;
 
-      return ThermalSimState<TTemp, TTime, TDuty>{
+      return ThermalSimState<TTemp, TTimePoint, TDuty>{
         state.temperature + dT,
         input.timestamp,
         cycle_start,
@@ -132,9 +132,9 @@ namespace rheo {
   };
 
   // Named callable for extracting temperature from state
-  template <typename TTemp, typename TTime, typename TDuty>
+  template <typename TTemp, typename TTimePoint, typename TDuty>
   struct thermal_sim_temp_extractor {
-    RHEO_NOINLINE TTemp operator()(ThermalSimState<TTemp, TTime, TDuty> state) const {
+    RHEO_NOINLINE TTemp operator()(ThermalSimState<TTemp, TTimePoint, TDuty> state) const {
       return state.temperature;
     }
   };
@@ -148,19 +148,19 @@ namespace rheo {
   //
   // PWM creates sawtooth temperature ripple, which is important for
   // testing autotuning robustness.
-  template <typename TTemp, typename TTime, typename TDuty, typename TPower>
+  template <typename TTemp, typename TTimePoint, typename TDuty, typename TPower>
   source_fn<TTemp> thermal_sim(
     source_fn<TDuty> duty_source,
-    source_fn<TTime> clock_source,
+    source_fn<TTimePoint> clock_source,
     source_fn<TPower> disturbance_source,
-    ThermalSimConfig<TTemp, TPower, TTime> config,
+    ThermalSimConfig<TTemp, TPower, TTimePoint> config,
     TTemp initial_temperature
   ) {
-    using InputType = ThermalSimInput<TDuty, TTime, TPower>;
-    using StateType = ThermalSimState<TTemp, TTime, TDuty>;
+    using InputType = ThermalSimInput<TDuty, TTimePoint, TPower>;
+    using StateType = ThermalSimState<TTemp, TTimePoint, TDuty>;
 
     source_fn<InputType> combined_source = operators::combine(
-      thermal_sim_combiner<TDuty, TTime, TPower>{},
+      thermal_sim_combiner<TDuty, TTimePoint, TPower>{},
       duty_source,
       clock_source,
       disturbance_source
@@ -168,8 +168,8 @@ namespace rheo {
 
     StateType initial_state{
       initial_temperature,
-      TTime{},      // Will be set on first update
-      TTime{},      // PWM cycle start
+      TTimePoint{},      // Will be set on first update
+      TTimePoint{},      // PWM cycle start
       TDuty{0},     // Initial duty
       false         // Heater off
     };
@@ -177,34 +177,34 @@ namespace rheo {
     source_fn<StateType> state_source = operators::scan(
       combined_source,
       initial_state,
-      thermal_sim_scanner<TTemp, TPower, TTime, TDuty>{config}
+      thermal_sim_scanner<TTemp, TPower, TTimePoint, TDuty>{config}
     );
 
-    return operators::map(state_source, thermal_sim_temp_extractor<TTemp, TTime, TDuty>{});
+    return operators::map(state_source, thermal_sim_temp_extractor<TTemp, TTimePoint, TDuty>{});
   }
 
   // Thermal simulation source (no disturbance)
   // Simplified version when external disturbances are not needed
-  template <typename TTemp, typename TTime, typename TDuty, typename TPower>
+  template <typename TTemp, typename TTimePoint, typename TDuty, typename TPower>
   source_fn<TTemp> thermal_sim(
     source_fn<TDuty> duty_source,
-    source_fn<TTime> clock_source,
-    ThermalSimConfig<TTemp, TPower, TTime> config,
+    source_fn<TTimePoint> clock_source,
+    ThermalSimConfig<TTemp, TPower, TTimePoint> config,
     TTemp initial_temperature
   ) {
-    using InputType = ThermalSimInput<TDuty, TTime, TPower>;
-    using StateType = ThermalSimState<TTemp, TTime, TDuty>;
+    using InputType = ThermalSimInput<TDuty, TTimePoint, TPower>;
+    using StateType = ThermalSimState<TTemp, TTimePoint, TDuty>;
 
     source_fn<InputType> combined_source = operators::combine(
-      thermal_sim_combiner_no_disturbance<TDuty, TTime, TPower>{},
+      thermal_sim_combiner_no_disturbance<TDuty, TTimePoint, TPower>{},
       duty_source,
       clock_source
     );
 
     StateType initial_state{
       initial_temperature,
-      TTime{},      // Will be set on first update
-      TTime{},      // PWM cycle start
+      TTimePoint{},      // Will be set on first update
+      TTimePoint{},      // PWM cycle start
       TDuty{0},     // Initial duty
       false         // Heater off
     };
@@ -212,27 +212,27 @@ namespace rheo {
     source_fn<StateType> state_source = operators::scan(
       combined_source,
       initial_state,
-      thermal_sim_scanner<TTemp, TPower, TTime, TDuty>{config}
+      thermal_sim_scanner<TTemp, TPower, TTimePoint, TDuty>{config}
     );
 
-    return operators::map(state_source, thermal_sim_temp_extractor<TTemp, TTime, TDuty>{});
+    return operators::map(state_source, thermal_sim_temp_extractor<TTemp, TTimePoint, TDuty>{});
   }
 
   // Helper to create a typical sous vide configuration
-  template <typename TTemp = float, typename TPower = float, typename TTime = unsigned long>
-  ThermalSimConfig<TTemp, TPower, TTime> make_sous_vide_config(
+  template <typename TTemp = float, typename TPower = float, typename TTimePoint = unsigned long>
+  ThermalSimConfig<TTemp, TPower, TTimePoint> make_sous_vide_config(
     TTemp volume_liters,
     TPower heater_watts,
     TTemp ambient_temp = 20.0f,
     TTemp heat_loss_coefficient = 5.0f,  // W/K, typical for insulated container
-    TTime pwm_cycle_ms = 1000             // 1 second PWM cycle
+    TTimePoint pwm_cycle_ms = 1000             // 1 second PWM cycle
   ) {
-    return ThermalSimConfig<TTemp, TPower, TTime>{
+    return ThermalSimConfig<TTemp, TPower, TTimePoint>{
       ambient_temp,
       heater_watts,
       water_volume_to_thermal_capacity(volume_liters),
       heat_loss_coefficient,
-      PwmConfig<TTime>{ pwm_cycle_ms }
+      PwmConfig<TTimePoint>{ pwm_cycle_ms }
     };
   }
 

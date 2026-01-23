@@ -30,6 +30,7 @@ namespace rheo::operators {
   };
 
   template <typename T, typename TTimePoint, typename TInterval>
+    requires concepts::TimePointAndDurationCompatible<TTimePoint, TInterval>
   struct timed_latch_push_handler {
     TInterval duration;
     T default_value;
@@ -65,6 +66,7 @@ namespace rheo::operators {
   };
 
   template <typename T, typename TTimePoint, typename TInterval>
+    requires concepts::TimePointAndDurationCompatible<TTimePoint, TInterval>
   struct timed_latch_source_binder {
     source_fn<T> source;
     source_fn<TTimePoint> clock_source;
@@ -98,6 +100,7 @@ namespace rheo::operators {
   };
 
   template <typename T, typename TTimePoint, typename TInterval>
+    requires concepts::TimePointAndDurationCompatible<TTimePoint, TInterval>
   source_fn<T> timed_latch(source_fn<T> source, source_fn<TTimePoint> clock_source, TInterval duration, T default_value) {
     return timed_latch_source_binder<T, TTimePoint, TInterval>{
       std::move(source),
@@ -108,6 +111,7 @@ namespace rheo::operators {
   }
 
   template <typename T, typename TTimePoint, typename TInterval>
+    requires concepts::TimePointAndDurationCompatible<TTimePoint, TInterval>
   pipe_fn<T, T> timed_latch(source_fn<TTimePoint> clock_source, TInterval duration, T default_value) {
     return [clock_source, duration, default_value](source_fn<T> source) {
       return timed_latch(source, clock_source, duration, default_value);

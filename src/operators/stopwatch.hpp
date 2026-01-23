@@ -14,6 +14,7 @@ namespace rheo::operators {
   // while the temperature was above 20.
 
   template <typename TDuration, typename T, typename TTimePoint, typename FilterFn>
+    requires concepts::TimePointAndDurationCompatible<TTimePoint, TDuration>
   source_fn<TaggedValue<T, TDuration>> stopwatch(source_fn<T> source, source_fn<TTimePoint> clock_source, FilterFn&& lap_condition) {
     return combine(
       // This is kinda sneaky. We're turning `combine` into a reducer here,
@@ -36,6 +37,7 @@ namespace rheo::operators {
 
   // Pipe factory
   template <typename TDuration, typename TTimePoint, typename FilterFn>
+    requires concepts::TimePointAndDurationCompatible<TTimePoint, TDuration>
   auto stopwatch(source_fn<TTimePoint> clock_source, FilterFn&& lap_condition)
   -> pipe_fn<TaggedValue<arg_of<FilterFn>, TDuration>, arg_of<FilterFn>> {
     using T = arg_of<FilterFn>;

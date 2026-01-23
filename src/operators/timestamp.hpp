@@ -7,17 +7,17 @@
 
 namespace rheo::operators {
 
-  template <typename T, typename TTime>
-  source_fn<TaggedValue<T, TTime>> timestamp(source_fn<T> source, source_fn<TTime> clock_source) {
+  template <typename T, typename TTimePoint>
+  source_fn<TaggedValue<T, TTimePoint>> timestamp(source_fn<T> source, source_fn<TTimePoint> clock_source) {
     return combine(
-      [](T value, TTime timestamp) { return TaggedValue<T, TTime> { value, timestamp }; },
+      [](T value, TTimePoint timestamp) { return TaggedValue<T, TTimePoint> { value, timestamp }; },
       source,
       clock_source
     );
   }
 
-  template <typename T, typename TTime>
-  pipe_fn<TaggedValue<T, TTime>, T> timestamp(source_fn<TTime> clock_source) {
+  template <typename T, typename TTimePoint>
+  pipe_fn<TaggedValue<T, TTimePoint>, T> timestamp(source_fn<TTimePoint> clock_source) {
     return [clock_source](source_fn<T> source) {
       return timestamp(source, clock_source);
     };

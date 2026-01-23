@@ -23,10 +23,10 @@ namespace rheo::autotune {
   };
 
   // Result from relay autotuner
-  template <typename TKp, typename TKi, typename TKd, typename TTime>
+  template <typename TKp, typename TKi, typename TKd, typename TTimePoint>
   struct RelayAutotuneResult {
     TKp Ku;             // Ultimate gain
-    TTime Tu;           // Ultimate period
+    TTimePoint Tu;           // Ultimate period
     TKp Kp;             // Calculated proportional gain
     TKi Ki;             // Calculated integral gain
     TKd Kd;             // Calculated derivative gain
@@ -34,31 +34,31 @@ namespace rheo::autotune {
   };
 
   // Output from relay autotune operator - combines control signal and result
-  template <typename TCtl, typename TKp, typename TKi, typename TKd, typename TTime>
+  template <typename TCtl, typename TKp, typename TKi, typename TKd, typename TTimePoint>
   struct RelayAutotuneOutput {
     TCtl control;       // Current relay output (high/low)
-    std::optional<RelayAutotuneResult<TKp, TKi, TKd, TTime>> result;  // Populated when complete
+    std::optional<RelayAutotuneResult<TKp, TKi, TKd, TTimePoint>> result;  // Populated when complete
   };
 
   // Configuration for relay autotuner
-  template <typename TCtl, typename TP, typename TTime>
+  template <typename TCtl, typename TP, typename TTimePoint>
   struct RelayAutotuneConfig {
     TCtl high_output;         // Output when below setpoint
     TCtl low_output;          // Output when above setpoint
     TP hysteresis;            // Dead band around setpoint
     int min_oscillations;     // Minimum oscillations before calculating (typically 3-5)
-    TTime max_duration;       // Timeout for autotuning
-    TTime min_period;         // Minimum expected period (filters out noise/PWM ripple)
+    TTimePoint max_duration;       // Timeout for autotuning
+    TTimePoint min_period;         // Minimum expected period (filters out noise/PWM ripple)
     ZieglerNicholsRule rule;  // Which Z-N rule to use for calculation
   };
 
   // Performance metrics for rule-based tuner
-  template <typename TP, typename TTime>
+  template <typename TP, typename TTimePoint>
   struct PerformanceMetrics {
     TP overshoot;             // Max excursion past setpoint (positive direction)
     TP undershoot;            // Max excursion below setpoint (negative direction)
-    TTime rise_time;          // Time from 10% to 90% of setpoint change
-    TTime settling_time;      // Time to stay within tolerance of setpoint
+    TTimePoint rise_time;          // Time from 10% to 90% of setpoint change
+    TTimePoint settling_time;      // Time to stay within tolerance of setpoint
     TP steady_state_error;    // Average error after settling
     int oscillation_count;    // Number of zero crossings after initial rise
     bool is_oscillating;      // Detected sustained oscillation
@@ -76,14 +76,14 @@ namespace rheo::autotune {
   };
 
   // Configuration for rule-based advisor
-  template <typename TP, typename TTime>
+  template <typename TP, typename TTimePoint>
   struct RuleBasedConfig {
     TP overshoot_threshold;         // Trigger if overshoot exceeds this
     TP oscillation_amplitude;       // Trigger if oscillating more than this
-    TTime settling_window;          // Time window for settling detection
+    TTimePoint settling_window;          // Time window for settling detection
     TP settling_tolerance;          // Error tolerance for "settled"
     float adjustment_factor;        // How much to adjust weights (e.g., 0.1 = 10%)
-    TTime min_adjustment_interval;  // Don't adjust more often than this
+    TTimePoint min_adjustment_interval;  // Don't adjust more often than this
   };
 
   // Plant parameters for KNN interpolation
@@ -128,10 +128,10 @@ namespace rheo::autotune {
 
   // Compute quality score from performance metrics
   // Lower score = better performance
-  template <typename TP, typename TTime>
-  float compute_quality_score(const PerformanceMetrics<TP, TTime>& metrics) {
+  template <typename TP, typename TTimePoint>
+  float compute_quality_score(const PerformanceMetrics<TP, TTimePoint>& metrics) {
     // Convert types to float for scoring
-    // This assumes TP and TTime can be cast to float or have .count() for durations
+    // This assumes TP and TTimePoint can be cast to float or have .count() for durations
     float settling = static_cast<float>(metrics.settling_time);
     float overshoot = static_cast<float>(metrics.overshoot);
     float error = static_cast<float>(metrics.steady_state_error);

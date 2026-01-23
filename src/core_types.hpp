@@ -241,6 +241,25 @@ namespace rheo {
   using wall_duration = std::chrono::system_clock::duration;
   using wall_time_point = std::chrono::system_clock::time_point;
 
+  // Type traits to detect std::chrono types.
+  template<typename T>
+  struct is_chrono_duration : std::false_type {};
+
+  template<typename Rep, typename Period>
+  struct is_chrono_duration<std::chrono::duration<Rep, Period>> : std::true_type {};
+
+  template<typename T>
+  inline constexpr bool is_chrono_duration_v = is_chrono_duration<T>::value;
+
+  template<typename T>
+  struct is_chrono_time_point : std::false_type {};
+
+  template<typename Clock, typename Duration>
+  struct is_chrono_time_point<std::chrono::time_point<Clock, Duration>> : std::true_type {};
+
+  template<typename T>
+  inline constexpr bool is_chrono_time_point_v = is_chrono_time_point<T>::value;
+
   // Can be used to represent the state of input switches that are pulled high or low,
   // or to represent commands to drive switch outputs.
   enum class SwitchState {
@@ -327,6 +346,15 @@ namespace rheo {
     concept FilterMapper =
       std::invocable<F, TIn> &&
       is_optional_v<std::invoke_result_t<F, TIn>>;
+
+    // TimePointAndDurationCompatible: Checks that TTimePoint can be subtracted
+    // to produce a result comparable with TDuration.
+    // This is the fundamental relationship needed for time-based operators like
+    // debounce, throttle, timed_latch, etc.
+    template <typename TTimePoint, typename TDuration>
+    concept TimePointAndDurationCompatible = requires(TTimePoint t1, TTimePoint t2, TDuration d) {
+      { (t1 - t2) >= d } -> std::convertible_to<bool>;
+    };
 
   } // namespace concepts
 

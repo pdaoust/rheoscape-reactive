@@ -13,16 +13,17 @@ namespace rheo::operators {
   // in which there will be no values pushed at all,
   // because it's checking whether the upstream source's initial value is stable.
 
-  template <typename T, typename TTime, typename TInterval>
+  template <typename T, typename TTimePoint, typename TInterval>
+    requires concepts::TimePointAndDurationCompatible<TTimePoint, TInterval>
   struct debounce_push_handler {
     TInterval interval;
     push_fn<T> push;
     std::shared_ptr<Wrapper<bool>> did_pull;
-    mutable std::optional<TaggedValue<T, TTime>> testing_new_state;
+    mutable std::optional<TaggedValue<T, TTimePoint>> testing_new_state;
     mutable std::optional<T> current_state;
     mutable bool current_state_has_been_pushed;
 
-    RHEO_NOINLINE void operator()(TaggedValue<T, TTime> value) const {
+    RHEO_NOINLINE void operator()(TaggedValue<T, TTimePoint> value) const {
       if (testing_new_state.has_value()
           // NOTE: This equation has to be this way
           // to guard against wraparound for unsigned time representations.
@@ -57,7 +58,8 @@ namespace rheo::operators {
     }
   };
 
-  template <typename T, typename TTime, typename TInterval>
+  template <typename T, typename TTimePoint, typename TInterval>
+    requires concepts::TimePointAndDurationCompatible<TTimePoint, TInterval>
   struct debounce_pull_handler {
     std::shared_ptr<Wrapper<bool>> did_pull;
     pull_fn inner_pull;
@@ -69,9 +71,10 @@ namespace rheo::operators {
     }
   };
 
-  template <typename T, typename TTime, typename TInterval>
+  template <typename T, typename TTimePoint, typename TInterval>
+    requires concepts::TimePointAndDurationCompatible<TTimePoint, TInterval>
   struct debounce_source_binder {
-    source_fn<TaggedValue<T, TTime>> timestamped;
+    source_fn<TaggedValue<T, TTimePoint>> timestamped;
     TInterval interval;
 
     RHEO_NOINLINE pull_fn operator()(push_fn<T> push) const {
@@ -81,7 +84,7 @@ namespace rheo::operators {
       // for every single bouncy new value that's getting discarded.
       auto did_pull = make_wrapper_shared(false);
 
-      pull_fn inner_pull = timestamped(debounce_push_handler<T, TTime, TInterval>{
+      pull_fn inner_pull = timestamped(debounce_push_handler<T, TTimePoint, TInterval>{
         interval,
         std::move(push),
         did_pull,
@@ -90,20 +93,22 @@ namespace rheo::operators {
         false
       });
 
-      return debounce_pull_handler<T, TTime, TInterval>{did_pull, std::move(inner_pull)};
+      return debounce_pull_handler<T, TTimePoint, TInterval>{did_pull, std::move(inner_pull)};
     }
   };
 
-  template <typename T, typename TTime, typename TInterval>
-  source_fn<T> debounce(source_fn<T> source, source_fn<TTime> clock_source, TInterval interval) {
-    return debounce_source_binder<T, TTime, TInterval>{
+  template <typename T, typename TTimePoint, typename TInterval>
+    requires concepts::TimePointAndDurationCompatible<TTimePoint, TInterval>
+  source_fn<T> debounce(source_fn<T> source, source_fn<TTimePoint> clock_source, TInterval interval) {
+    return debounce_source_binder<T, TTimePoint, TInterval>{
       timestamp(source, clock_source),
       interval
     };
   }
 
-  template <typename T, typename TTime, typename TInterval>
-  pipe_fn<T, T> debounce(source_fn<TTime> clock_source, TInterval interval) {
+  template <typename T, typename TTimePoint, typename TInterval>
+    requires concepts::TimePointAndDurationCompatible<TTimePoint, TInterval>
+  pipe_fn<T, T> debounce(source_fn<TTimePoint> clock_source, TInterval interval) {
     return [clock_source, interval](source_fn<T> source) {
       return debounce(source, clock_source, interval);
     };

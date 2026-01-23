@@ -12,19 +12,19 @@
 namespace rheo::autotune {
 
   // Extended configuration for rule-based advisor with cooldown support.
-  template <typename TP, typename TTime, typename TFitness = float>
+  template <typename TP, typename TTimePoint, typename TFitness = float>
   struct RuleBasedAdvisorConfig {
     TP overshoot_threshold;         // Trigger if overshoot exceeds this
     TP oscillation_amplitude;       // Trigger if oscillating more than this
-    TTime settling_window;          // Time window for settling detection
+    TTimePoint settling_window;          // Time window for settling detection
     TP settling_tolerance;          // Error tolerance for "settled"
     float adjustment_factor;        // How much to adjust weights (e.g., 0.1 = 10%)
-    TTime min_adjustment_interval;  // Don't adjust more often than this
+    TTimePoint min_adjustment_interval;  // Don't adjust more often than this
     TFitness target_fitness;        // Cool down when fitness <= this (lower is better)
   };
 
   // Internal state for rule-based advisor.
-  template <typename TP, typename TTime, typename TFitness = float>
+  template <typename TP, typename TTimePoint, typename TFitness = float>
   struct RuleBasedState {
     // Performance tracking
     TP peak_error;                  // Maximum positive error seen
@@ -33,8 +33,8 @@ namespace rheo::autotune {
     int sample_count;               // Number of samples
     int zero_crossing_count;        // For oscillation detection
     bool last_error_positive;       // For zero crossing detection
-    TTime first_sample_time;        // When measurement started
-    TTime last_adjustment_time;     // When we last made an adjustment
+    TTimePoint first_sample_time;        // When measurement started
+    TTimePoint last_adjustment_time;     // When we last made an adjustment
 
     // Fitness tracking
     TFitness current_fitness;       // Computed from performance metrics
@@ -42,27 +42,27 @@ namespace rheo::autotune {
 
     // State flags
     bool first_sample;              // First sample flag
-    TTime settling_start_time;      // When error entered tolerance band
+    TTimePoint settling_start_time;      // When error entered tolerance band
     bool in_tolerance_band;         // Currently within settling tolerance
   };
 
   // Combined input for rule-based advisor.
-  template <typename TCtrl, typename TP, typename TI, typename TD, typename TTime, typename TFitness>
+  template <typename TCtrl, typename TP, typename TI, typename TD, typename TTimePoint, typename TFitness>
   struct RuleBasedInput {
     operators::PidOutput<TCtrl, TP, TI> pid_output;
-    TTime timestamp;
+    TTimePoint timestamp;
     TFitness target_fitness;  // Dynamic target from source
   };
 
   // Named callable for combining advisor inputs.
-  template <typename TCtrl, typename TP, typename TI, typename TD, typename TTime, typename TFitness>
+  template <typename TCtrl, typename TP, typename TI, typename TD, typename TTimePoint, typename TFitness>
   struct rule_based_input_combiner {
-    RHEO_NOINLINE RuleBasedInput<TCtrl, TP, TI, TD, TTime, TFitness> operator()(
+    RHEO_NOINLINE RuleBasedInput<TCtrl, TP, TI, TD, TTimePoint, TFitness> operator()(
       operators::PidOutput<TCtrl, TP, TI> pid_output,
-      TTime timestamp,
+      TTimePoint timestamp,
       TFitness target_fitness
     ) const {
-      return RuleBasedInput<TCtrl, TP, TI, TD, TTime, TFitness>{
+      return RuleBasedInput<TCtrl, TP, TI, TD, TTimePoint, TFitness>{
         pid_output,
         timestamp,
         target_fitness
@@ -71,15 +71,15 @@ namespace rheo::autotune {
   };
 
   // Named callable for combining advisor inputs (scalar target).
-  template <typename TCtrl, typename TP, typename TI, typename TD, typename TTime, typename TFitness>
+  template <typename TCtrl, typename TP, typename TI, typename TD, typename TTimePoint, typename TFitness>
   struct rule_based_input_combiner_scalar_target {
     TFitness target_fitness;
 
-    RHEO_NOINLINE RuleBasedInput<TCtrl, TP, TI, TD, TTime, TFitness> operator()(
+    RHEO_NOINLINE RuleBasedInput<TCtrl, TP, TI, TD, TTimePoint, TFitness> operator()(
       operators::PidOutput<TCtrl, TP, TI> pid_output,
-      TTime timestamp
+      TTimePoint timestamp
     ) const {
-      return RuleBasedInput<TCtrl, TP, TI, TD, TTime, TFitness>{
+      return RuleBasedInput<TCtrl, TP, TI, TD, TTimePoint, TFitness>{
         pid_output,
         timestamp,
         target_fitness
@@ -89,8 +89,8 @@ namespace rheo::autotune {
 
   // Compute fitness score from current state.
   // Lower is better (matches quality_score semantics).
-  template <typename TP, typename TTime, typename TFitness>
-  TFitness compute_fitness_from_state(const RuleBasedState<TP, TTime, TFitness>& state) {
+  template <typename TP, typename TTimePoint, typename TFitness>
+  TFitness compute_fitness_from_state(const RuleBasedState<TP, TTimePoint, TFitness>& state) {
     if (state.sample_count == 0) {
       return std::numeric_limits<TFitness>::max();
     }
@@ -113,12 +113,12 @@ namespace rheo::autotune {
   }
 
   // Named callable for rule-based advisor scanner.
-  template <typename TCtrl, typename TP, typename TI, typename TD, typename TTime, typename TFitness>
+  template <typename TCtrl, typename TP, typename TI, typename TD, typename TTimePoint, typename TFitness>
   struct rule_based_scanner {
-    RuleBasedAdvisorConfig<TP, TTime, TFitness> config;
+    RuleBasedAdvisorConfig<TP, TTimePoint, TFitness> config;
 
-    using StateType = RuleBasedState<TP, TTime, TFitness>;
-    using InputType = RuleBasedInput<TCtrl, TP, TI, TD, TTime, TFitness>;
+    using StateType = RuleBasedState<TP, TTimePoint, TFitness>;
+    using InputType = RuleBasedInput<TCtrl, TP, TI, TD, TTimePoint, TFitness>;
 
     RHEO_NOINLINE StateType operator()(StateType state, InputType input) const {
       // Handle first sample
@@ -182,11 +182,11 @@ namespace rheo::autotune {
   };
 
   // Determine tuning adjustment based on current performance.
-  template <typename TP, typename TTime, typename TFitness>
+  template <typename TP, typename TTimePoint, typename TFitness>
   TuningAdjustment determine_adjustment(
-    const RuleBasedState<TP, TTime, TFitness>& state,
-    const RuleBasedAdvisorConfig<TP, TTime, TFitness>& config,
-    TTime current_time
+    const RuleBasedState<TP, TTimePoint, TFitness>& state,
+    const RuleBasedAdvisorConfig<TP, TTimePoint, TFitness>& config,
+    TTimePoint current_time
   ) {
     // If cooled down (target fitness achieved), no adjustment needed
     if (state.is_cooled_down) {
@@ -194,7 +194,7 @@ namespace rheo::autotune {
     }
 
     // Respect minimum adjustment interval
-    TTime since_last = current_time - state.last_adjustment_time;
+    TTimePoint since_last = current_time - state.last_adjustment_time;
     if (since_last < config.min_adjustment_interval) {
       return TuningAdjustment::none;
     }
@@ -244,20 +244,20 @@ namespace rheo::autotune {
   }
 
   // Named callable for extracting TuningAdjustment from state.
-  template <typename TP, typename TTime, typename TFitness>
+  template <typename TP, typename TTimePoint, typename TFitness>
   struct rule_based_output_mapper {
-    RuleBasedAdvisorConfig<TP, TTime, TFitness> config;
+    RuleBasedAdvisorConfig<TP, TTimePoint, TFitness> config;
 
     // We need the current timestamp, which we can get from the state's last update
     // This is a bit awkward; ideally we'd have timestamp in the mapper call
-    mutable TTime last_timestamp;
+    mutable TTimePoint last_timestamp;
 
     RHEO_NOINLINE TuningAdjustment operator()(
-      RuleBasedState<TP, TTime, TFitness> state
+      RuleBasedState<TP, TTimePoint, TFitness> state
     ) const {
       // Use stored timestamp (this is a simplification; proper implementation
       // would thread the timestamp through)
-      TTime current_time = state.first_sample_time;  // Approximate
+      TTimePoint current_time = state.first_sample_time;  // Approximate
       if (state.sample_count > 0) {
         // Estimate based on sample count (rough approximation)
         current_time = state.settling_start_time;
@@ -268,22 +268,22 @@ namespace rheo::autotune {
   };
 
   // Combined state and timestamp for proper output mapping
-  template <typename TP, typename TTime, typename TFitness>
+  template <typename TP, typename TTimePoint, typename TFitness>
   struct RuleBasedStateWithTime {
-    RuleBasedState<TP, TTime, TFitness> state;
-    TTime timestamp;
+    RuleBasedState<TP, TTimePoint, TFitness> state;
+    TTimePoint timestamp;
   };
 
   // Scanner that preserves timestamp
-  template <typename TCtrl, typename TP, typename TI, typename TD, typename TTime, typename TFitness>
+  template <typename TCtrl, typename TP, typename TI, typename TD, typename TTimePoint, typename TFitness>
   struct rule_based_scanner_with_time {
-    RuleBasedAdvisorConfig<TP, TTime, TFitness> config;
-    rule_based_scanner<TCtrl, TP, TI, TD, TTime, TFitness> inner_scanner;
+    RuleBasedAdvisorConfig<TP, TTimePoint, TFitness> config;
+    rule_based_scanner<TCtrl, TP, TI, TD, TTimePoint, TFitness> inner_scanner;
 
-    using StateType = RuleBasedStateWithTime<TP, TTime, TFitness>;
-    using InputType = RuleBasedInput<TCtrl, TP, TI, TD, TTime, TFitness>;
+    using StateType = RuleBasedStateWithTime<TP, TTimePoint, TFitness>;
+    using InputType = RuleBasedInput<TCtrl, TP, TI, TD, TTimePoint, TFitness>;
 
-    rule_based_scanner_with_time(RuleBasedAdvisorConfig<TP, TTime, TFitness> cfg)
+    rule_based_scanner_with_time(RuleBasedAdvisorConfig<TP, TTimePoint, TFitness> cfg)
       : config(cfg), inner_scanner{cfg} {}
 
     RHEO_NOINLINE StateType operator()(StateType state, InputType input) const {
@@ -295,12 +295,12 @@ namespace rheo::autotune {
   };
 
   // Output mapper with proper timestamp access
-  template <typename TP, typename TTime, typename TFitness>
+  template <typename TP, typename TTimePoint, typename TFitness>
   struct rule_based_output_mapper_with_time {
-    RuleBasedAdvisorConfig<TP, TTime, TFitness> config;
+    RuleBasedAdvisorConfig<TP, TTimePoint, TFitness> config;
 
     RHEO_NOINLINE TuningAdjustment operator()(
-      RuleBasedStateWithTime<TP, TTime, TFitness> state_with_time
+      RuleBasedStateWithTime<TP, TTimePoint, TFitness> state_with_time
     ) const {
       return determine_adjustment(state_with_time.state, config, state_with_time.timestamp);
     }
@@ -324,56 +324,56 @@ namespace rheo::autotune {
     typename TP,
     typename TI,
     typename TD,
-    typename TTime,
+    typename TTimePoint,
     typename TFitness = float
   >
   source_fn<TuningAdjustment> rule_based_advisor(
     source_fn<operators::PidOutput<TCtrl, TP, TI>> pid_output_source,
-    source_fn<TTime> clock_source,
+    source_fn<TTimePoint> clock_source,
     source_fn<TFitness> target_fitness_source,
-    RuleBasedAdvisorConfig<TP, TTime, TFitness> config
+    RuleBasedAdvisorConfig<TP, TTimePoint, TFitness> config
   ) {
-    using InputType = RuleBasedInput<TCtrl, TP, TI, TD, TTime, TFitness>;
-    using StateType = RuleBasedStateWithTime<TP, TTime, TFitness>;
+    using InputType = RuleBasedInput<TCtrl, TP, TI, TD, TTimePoint, TFitness>;
+    using StateType = RuleBasedStateWithTime<TP, TTimePoint, TFitness>;
 
     // Combine input sources
     source_fn<InputType> combined_source = operators::combine(
-      rule_based_input_combiner<TCtrl, TP, TI, TD, TTime, TFitness>{},
+      rule_based_input_combiner<TCtrl, TP, TI, TD, TTimePoint, TFitness>{},
       pid_output_source,
       clock_source,
       target_fitness_source
     );
 
     // Initial state
-    RuleBasedState<TP, TTime, TFitness> initial_inner_state{
+    RuleBasedState<TP, TTimePoint, TFitness> initial_inner_state{
       TP{0},        // peak_error
       TP{0},        // valley_error
       TP{0},        // accumulated_error
       0,            // sample_count
       0,            // zero_crossing_count
       false,        // last_error_positive
-      TTime{0},     // first_sample_time
-      TTime{0},     // last_adjustment_time
+      TTimePoint{0},     // first_sample_time
+      TTimePoint{0},     // last_adjustment_time
       std::numeric_limits<TFitness>::max(),  // current_fitness
       false,        // is_cooled_down
       true,         // first_sample
-      TTime{0},     // settling_start_time
+      TTimePoint{0},     // settling_start_time
       false         // in_tolerance_band
     };
 
-    StateType initial_state{initial_inner_state, TTime{0}};
+    StateType initial_state{initial_inner_state, TTimePoint{0}};
 
     // Scan to accumulate state
     source_fn<StateType> state_source = operators::scan(
       combined_source,
       initial_state,
-      rule_based_scanner_with_time<TCtrl, TP, TI, TD, TTime, TFitness>{config}
+      rule_based_scanner_with_time<TCtrl, TP, TI, TD, TTimePoint, TFitness>{config}
     );
 
     // Map to adjustment output
     return operators::map(
       state_source,
-      rule_based_output_mapper_with_time<TP, TTime, TFitness>{config}
+      rule_based_output_mapper_with_time<TP, TTimePoint, TFitness>{config}
     );
   }
 
@@ -385,54 +385,54 @@ namespace rheo::autotune {
     typename TP,
     typename TI,
     typename TD,
-    typename TTime,
+    typename TTimePoint,
     typename TFitness = float
   >
   source_fn<TuningAdjustment> rule_based_advisor(
     source_fn<operators::PidOutput<TCtrl, TP, TI>> pid_output_source,
-    source_fn<TTime> clock_source,
-    RuleBasedAdvisorConfig<TP, TTime, TFitness> config
+    source_fn<TTimePoint> clock_source,
+    RuleBasedAdvisorConfig<TP, TTimePoint, TFitness> config
   ) {
-    using InputType = RuleBasedInput<TCtrl, TP, TI, TD, TTime, TFitness>;
-    using StateType = RuleBasedStateWithTime<TP, TTime, TFitness>;
+    using InputType = RuleBasedInput<TCtrl, TP, TI, TD, TTimePoint, TFitness>;
+    using StateType = RuleBasedStateWithTime<TP, TTimePoint, TFitness>;
 
     // Combine input sources (with scalar target)
     source_fn<InputType> combined_source = operators::combine(
-      rule_based_input_combiner_scalar_target<TCtrl, TP, TI, TD, TTime, TFitness>{config.target_fitness},
+      rule_based_input_combiner_scalar_target<TCtrl, TP, TI, TD, TTimePoint, TFitness>{config.target_fitness},
       pid_output_source,
       clock_source
     );
 
     // Initial state
-    RuleBasedState<TP, TTime, TFitness> initial_inner_state{
+    RuleBasedState<TP, TTimePoint, TFitness> initial_inner_state{
       TP{0},        // peak_error
       TP{0},        // valley_error
       TP{0},        // accumulated_error
       0,            // sample_count
       0,            // zero_crossing_count
       false,        // last_error_positive
-      TTime{0},     // first_sample_time
-      TTime{0},     // last_adjustment_time
+      TTimePoint{0},     // first_sample_time
+      TTimePoint{0},     // last_adjustment_time
       std::numeric_limits<TFitness>::max(),  // current_fitness
       false,        // is_cooled_down
       true,         // first_sample
-      TTime{0},     // settling_start_time
+      TTimePoint{0},     // settling_start_time
       false         // in_tolerance_band
     };
 
-    StateType initial_state{initial_inner_state, TTime{0}};
+    StateType initial_state{initial_inner_state, TTimePoint{0}};
 
     // Scan to accumulate state
     source_fn<StateType> state_source = operators::scan(
       combined_source,
       initial_state,
-      rule_based_scanner_with_time<TCtrl, TP, TI, TD, TTime, TFitness>{config}
+      rule_based_scanner_with_time<TCtrl, TP, TI, TD, TTimePoint, TFitness>{config}
     );
 
     // Map to adjustment output
     return operators::map(
       state_source,
-      rule_based_output_mapper_with_time<TP, TTime, TFitness>{config}
+      rule_based_output_mapper_with_time<TP, TTimePoint, TFitness>{config}
     );
   }
 
