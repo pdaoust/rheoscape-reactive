@@ -13,13 +13,13 @@
 
 namespace rheo::operators {
 
-  // Combine streams together into one stream using a combining function.
+  // Combine multiple streams together into a single stream of tuples.
   //
   // When any source pushes a value, combine will:
   // 1. Reset all stored values (clearing any stale data from previous cascades)
   // 2. Store the pushed value
   // 3. Pull all other sources to get their current values
-  // 4. If all sources responded to their pulls with pushes, emit the combined result
+  // 4. If all sources responded to their pulls with pushes, emit a tuple of all values
   // 5. If any source has a no-op pull (didn't respond), no emission occurs
   //
   // This ensures that combine only emits when ALL sources provide fresh values
@@ -30,8 +30,7 @@ namespace rheo::operators {
   // For pull-based usage, pulling combine will pull the first source, which triggers
   // the cascade described above.
   //
-  // An optional combiner function can be passed to combine the values;
-  // the default creates a tuple of all values.
+  // To transform the tuple into a different type, use: combine(...) | map_tuple(mapper)
   //
   // All of these sources end when any of their upstream sources ends.
   //
@@ -216,74 +215,42 @@ namespace rheo::operators {
     }
   };
 
-  // Variadic combine implementation
-  // Usage: combine(combiner_fn, source1, source2, ...)
-  // Note: combiner is first to enable variadic parameter pack deduction
-  template <typename CombineFn, typename T1, typename... Ts>
-    requires (sizeof...(Ts) >= 1) && concepts::Combiner<CombineFn, T1, Ts...>
-  RHEO_NOINLINE auto combine(
-    CombineFn combiner,
-    source_fn<T1> first,
-    source_fn<Ts>... rest
-  ) -> source_fn<std::invoke_result_t<CombineFn, T1, Ts...>> {
-    using TOut = std::invoke_result_t<CombineFn, T1, Ts...>;
-
-    return combine_source_binder<CombineFn, TOut, T1, Ts...>{
-      std::move(combiner),
-      std::make_tuple(std::move(first), std::move(rest)...)
-    };
-  }
-
-  // Pipe factory overload - automatically deduces T1 from combiner's first parameter.
-  // Usage: source1 | combine_with(combiner, source2, source3)
+  // Combine multiple sources into a tuple of their values.
   //
-  // The T1 type is deduced from the combiner function's first parameter type,
-  // so you no longer need to specify it explicitly.
-  template <typename CombineFn, typename... Ts>
-    requires concepts::Combiner<CombineFn, arg_of<CombineFn, 0>, Ts...>
-  RHEO_NOINLINE auto combine_with(
-    CombineFn combiner,
-    source_fn<Ts>... sources
-  ) -> pipe_fn<
-      std::invoke_result_t<CombineFn, arg_of<CombineFn, 0>, Ts...>,
-      arg_of<CombineFn, 0>
-    > {
-    using T1 = arg_of<CombineFn, 0>;
-    using TOut = std::invoke_result_t<CombineFn, T1, Ts...>;
-    return [combiner = std::move(combiner), ... sources = std::move(sources)]
-    (source_fn<T1> source1) mutable -> source_fn<TOut> {
-      return combine(std::move(combiner), std::move(source1), std::move(sources)...);
-    };
-  }
-
-  // Tuple-based combine - no combiner function required.
-  // Combines multiple sources into a tuple of their values.
+  // When any source pushes a value, combine will:
+  // 1. Reset all stored values (clearing any stale data from previous cascades)
+  // 2. Store the pushed value
+  // 3. Pull all other sources to get their current values
+  // 4. If all sources responded to their pulls with pushes, emit a tuple of all values
+  // 5. If any source has a no-op pull (didn't respond), no emission occurs
+  //
   // Usage: combine(source1, source2, source3)
+  // To transform the tuple, use: combine(...) | map_tuple(mapper)
   template <typename T1, typename... Ts>
     requires (sizeof...(Ts) >= 1)
   RHEO_NOINLINE auto combine(
     source_fn<T1> first,
     source_fn<Ts>... rest
   ) -> source_fn<std::tuple<T1, Ts...>> {
+    using TOut = std::tuple<T1, Ts...>;
     auto tuple_maker = [](T1 v1, Ts... vs) {
       return std::make_tuple(std::move(v1), std::move(vs)...);
     };
+    using CombineFn = decltype(tuple_maker);
 
-    return combine(
+    return combine_source_binder<CombineFn, TOut, T1, Ts...>{
       std::move(tuple_maker),
-      std::move(first),
-      std::move(rest)...
-    );
+      std::make_tuple(std::move(first), std::move(rest)...)
+    };
   }
 
-  // Tuple-based pipe factory - no combiner function required.
-  // Combines the piped source with additional sources into a tuple.
-  // Usage: source1 | combine_with<int>(source2, source3)
+  // Pipe factory: combine the piped source with additional sources into a tuple.
+  // Usage: source1 | combine_with<T1>(source2, source3)
   //
-  // NOTE: Requires explicit T1 template parameter for the same reason as
-  // the combiner-based version - pipe_fn needs to know TIn at the call site.
+  // NOTE: Requires explicit T1 template parameter because pipe_fn needs to know
+  // the input type at the call site before the source is piped in.
   template <typename T1, typename... Ts>
-  RHEO_NOINLINE auto combine_with_boop(
+  RHEO_NOINLINE auto combine_with(
     source_fn<Ts>... sources
   ) -> pipe_fn<std::tuple<T1, Ts...>, T1> {
     return [... sources = std::move(sources)]
