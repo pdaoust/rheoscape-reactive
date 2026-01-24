@@ -13,9 +13,9 @@ namespace rheo::operators {
   // This source ends when either of its sources ends.
   template <typename T>
   source_fn<T> toggle(source_fn<T> value_source, source_fn<bool> toggle_source) {
-    auto combined = combine(std::make_tuple<T, bool>, value_source, toggle_source);
-    auto filtered = filter(combined, (rheo::filter_fn<std::tuple<T, bool>>)[](std::tuple<T, bool> value) { return std::get<1>(value); });
-    return map(filtered, (map_fn<T, std::tuple<T, bool>>)[](std::tuple<T, bool> value) { return std::get<0>(value); });
+    auto combined = combine(value_source, toggle_source);
+    auto filtered = filter(combined, [](std::tuple<T, bool> value) { return std::get<1>(value); });
+    return map(filtered, [](std::tuple<T, bool> value) { return std::get<0>(value); });
   }
 
   // A pipe to toggle a value source by the given boolean toggle source.

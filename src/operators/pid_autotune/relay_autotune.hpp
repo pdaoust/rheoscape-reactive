@@ -6,6 +6,7 @@
 #include <operators/scan.hpp>
 #include <operators/combine.hpp>
 #include <operators/map.hpp>
+#include <operators/map_tuple.hpp>
 #include <operators/pid_autotune/autotune_types.hpp>
 
 namespace rheo::autotune {
@@ -283,12 +284,9 @@ namespace rheo::autotune {
     using OutputType = RelayAutotuneOutput<TCtl, TKp, TKi, TKd, TTimePoint>;
 
     // Combine input sources
-    source_fn<InputType> combined_source = operators::combine(
-      relay_autotune_input_combiner<TP, TTimePoint>{},
-      process_variable_source,
-      setpoint_source,
-      clock_source
-    );
+    source_fn<InputType> combined_source =
+      operators::combine(process_variable_source, setpoint_source, clock_source)
+      | operators::map_tuple(relay_autotune_input_combiner<TP, TTimePoint>{});
 
     // Initial state
     StateType initial_state{

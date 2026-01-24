@@ -78,7 +78,7 @@ namespace rheo::operators {
     source_fn<TInterval> time_constant_source,
     TIntervalConverter&& interval_converter
   ) {
-    return combine(std::make_tuple<TVal, TInterval>, source, time_constant_source)
+    return combine(source, time_constant_source)
       | timestamp<std::tuple<TVal, TInterval>>(clock_source)
       | scan(
         std::optional<TaggedValue<TVal, TTimePoint>>{},

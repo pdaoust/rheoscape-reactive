@@ -6,6 +6,7 @@
 #include <types/Range.hpp>
 #include <types/au_all_units_noio.hpp>
 #include <operators/combine.hpp>
+#include <operators/map_tuple.hpp>
 
 namespace rheo::operators {
 
@@ -53,12 +54,8 @@ namespace rheo::operators {
 
   template <typename TOut, typename TIn>
   RHEO_INLINE source_fn<TOut> normalize(source_fn<TIn> source, source_fn<Range<TIn>> from_source, source_fn<Range<TOut>> to_source) {
-    return combine(
-      normalize_combiner<TOut, TIn>{},
-      source,
-      from_source,
-      to_source
-    );
+    return combine(source, from_source, to_source)
+      | map_tuple(normalize_combiner<TOut, TIn>{});
   }
 
   // Named callable for normalize's pipe function

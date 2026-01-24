@@ -7,6 +7,7 @@
 #include <operators/scan.hpp>
 #include <operators/map.hpp>
 #include <operators/combine.hpp>
+#include <operators/map_tuple.hpp>
 
 namespace rheo::operators {
 
@@ -256,13 +257,9 @@ namespace rheo::operators {
     using StateType = typename Calculator::StateType;
     using DataType = typename Calculator::DataType;
 
-    source_fn<DataType> combined_source = combine(
-      pid_data_combiner<TProc, TTimePoint, TKp, TKi, TKd>{},
-      process_variable_source,
-      setpoint_source,
-      clock_source,
-      weights_source
-    );
+    source_fn<DataType> combined_source =
+      combine(process_variable_source, setpoint_source, clock_source, weights_source)
+      | map_tuple(pid_data_combiner<TProc, TTimePoint, TKp, TKi, TKd>{});
 
     return scan(
       combined_source,

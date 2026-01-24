@@ -6,6 +6,7 @@
 #include <operators/scan.hpp>
 #include <operators/combine.hpp>
 #include <operators/map.hpp>
+#include <operators/map_tuple.hpp>
 #include <operators/pid.hpp>
 #include <operators/pid_autotune/autotune_types.hpp>
 
@@ -337,12 +338,9 @@ namespace rheo::autotune {
     using StateType = RuleBasedStateWithTime<TP, TTimePoint, TFitness>;
 
     // Combine input sources
-    source_fn<InputType> combined_source = operators::combine(
-      rule_based_input_combiner<TCtrl, TP, TI, TD, TTimePoint, TFitness>{},
-      pid_output_source,
-      clock_source,
-      target_fitness_source
-    );
+    source_fn<InputType> combined_source =
+      operators::combine(pid_output_source, clock_source, target_fitness_source)
+      | operators::map_tuple(rule_based_input_combiner<TCtrl, TP, TI, TD, TTimePoint, TFitness>{});
 
     // Initial state
     RuleBasedState<TP, TTimePoint, TFitness> initial_inner_state{
@@ -397,11 +395,9 @@ namespace rheo::autotune {
     using StateType = RuleBasedStateWithTime<TP, TTimePoint, TFitness>;
 
     // Combine input sources (with scalar target)
-    source_fn<InputType> combined_source = operators::combine(
-      rule_based_input_combiner_scalar_target<TCtrl, TP, TI, TD, TTimePoint, TFitness>{config.target_fitness},
-      pid_output_source,
-      clock_source
-    );
+    source_fn<InputType> combined_source =
+      operators::combine(pid_output_source, clock_source)
+      | operators::map_tuple(rule_based_input_combiner_scalar_target<TCtrl, TP, TI, TD, TTimePoint, TFitness>{config.target_fitness});
 
     // Initial state
     RuleBasedState<TP, TTimePoint, TFitness> initial_inner_state{

@@ -180,7 +180,7 @@ void setup() {
       })
     | throttle<std::monostate>(system_clock_source, float_millis_clock::duration(50.0))
     | sample<std::monostate>(ui_state.get_source_fn())
-    | map([](UiState value) {
+    | map_tuple([](std::monostate, UiState value) {
         return (UiState)((value + 1) % UiState::_count);
       })
     | ui_state.get_setter_sink_fn();
@@ -193,14 +193,15 @@ void setup() {
         }
         return std::nullopt;
       })
-    | combine_with_boop<int8_t>(ui_state.get_source_fn());
+    | combine_with<int8_t>(ui_state.get_source_fn());
 
   // Servo range.
   ui_editing
     | filter([](std::tuple<int8_t, UiState> value) {
         return std::get<1>(value) == EDIT_SERVO_MIN_ANGLE || std::get<1>(value) == EDIT_SERVO_MAX_ANGLE;
       })
-    | combine_with([](std::tuple<int8_t, UiState> delta, Range<au::QuantityPoint<au::Degrees, unsigned char>> range) {
+    | combine_with<std::tuple<int8_t, UiState>>(servo_angle_range.get_source_fn())
+    | map_tuple([](std::tuple<int8_t, UiState> delta, Range<au::QuantityPoint<au::Degrees, unsigned char>> range) {
         auto clicks = std::get<0>(delta);
         UiState state = std::get<1>(delta);
 
@@ -224,7 +225,7 @@ void setup() {
         }
         // Should be unreachable.
         return range;
-      }, servo_angle_range.get_source_fn())
+      })
     | servo_angle_range.get_setter_sink_fn();
 
   // Red PWM duty cycle.
@@ -232,7 +233,8 @@ void setup() {
     | filter([](std::tuple<int8_t, UiState> value) {
         return std::get<1>(value) == EDIT_RED_PWM_DUTY_CYCLE;
       })
-    | combine_with([](std::tuple<int8_t, UiState> delta, au::Quantity<au::Percent, int> duty_cycle) {
+    | combine_with<std::tuple<int8_t, UiState>>(red_pwm_duty_cycle.get_source_fn())
+    | map_tuple([](std::tuple<int8_t, UiState> delta, au::Quantity<au::Percent, int> duty_cycle) {
         int8_t clicks = std::get<0>(delta);
         // Jump in 10% increments.
         auto new_duty_cycle = duty_cycle + au::percent(clicks * 10);
@@ -240,7 +242,7 @@ void setup() {
           return new_duty_cycle;
         }
         return duty_cycle;
-      }, red_pwm_duty_cycle.get_source_fn())
+      })
     | red_pwm_duty_cycle.get_setter_sink_fn();
 
   // Blue PWM duty cycle.
@@ -248,14 +250,15 @@ void setup() {
     | filter([](std::tuple<int8_t, UiState> value) {
         return std::get<1>(value) == EDIT_BLUE_PWM_DUTY_CYCLE;
       })
-    | combine_with([](std::tuple<int8_t, UiState> delta, au::Quantity<au::Percent, int> duty_cycle) {
+    | combine_with<std::tuple<int8_t, UiState>>(blue_pwm_duty_cycle.get_source_fn())
+    | map_tuple([](std::tuple<int8_t, UiState> delta, au::Quantity<au::Percent, int> duty_cycle) {
         int8_t clicks = std::get<0>(delta);
         auto new_duty_cycle = duty_cycle + au::percent(clicks * 10);
         if (new_duty_cycle >= au::percent(0) && new_duty_cycle <= au::percent(100)) {
           return new_duty_cycle;
         }
         return duty_cycle;
-      }, blue_pwm_duty_cycle.get_source_fn())
+      })
     | blue_pwm_duty_cycle.get_setter_sink_fn();
 
   // Servo sweep duration.
@@ -263,19 +266,27 @@ void setup() {
     | filter([](std::tuple<int8_t, UiState> value) {
         return std::get<1>(value) == EDIT_SERVO_SWEEP_DURATION;
       })
-    | combine_with([](std::tuple<int8_t, UiState> delta, float_millis_clock::duration duration) {
+    | combine_with<std::tuple<int8_t, UiState>>(servo_sweep_duration.get_source_fn())
+    | map_tuple([](std::tuple<int8_t, UiState> delta, float_millis_clock::duration duration) {
         int8_t clicks = std::get<0>(delta);
         auto new_duration = duration + float_millis_clock::duration(clicks * 100);
         if (new_duration.count() >= 2000 && new_duration.count() <= 60000) {
           return new_duration;
         }
         return duration;
-      }, servo_sweep_duration.get_source_fn())
+      })
     | servo_sweep_duration.get_setter_sink_fn();
 
   // Connect the display to the UI state and the settings.
   pull_display = combine(
-    [](
+    ui_state.get_source_fn(),
+    servo_angle_range.get_source_fn(),
+    red_pwm_duty_cycle.get_source_fn(),
+    blue_pwm_duty_cycle.get_source_fn(),
+    servo_sweep_duration.get_source_fn(),
+    servo_position
+  )
+  | map_tuple([](
       UiState state,
       Range<au::QuantityPoint<au::Degrees, unsigned char>> angle_range,
       au::Quantity<au::Percent, int> red_duty,
@@ -343,14 +354,7 @@ void setup() {
         canvas.println("\367");
       };
       return std::vector<GfxCommand<Adafruit_GFX>>{std::move(cmd)};
-    },
-    ui_state.get_source_fn(),
-    servo_angle_range.get_source_fn(),
-    red_pwm_duty_cycle.get_source_fn(),
-    blue_pwm_duty_cycle.get_source_fn(),
-    servo_sweep_duration.get_source_fn(),
-    servo_position
-  )
+    })
   | ssd1306_sink(display);
 
   pull_heartbeat = sine_wave(

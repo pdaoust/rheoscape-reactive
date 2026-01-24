@@ -4,6 +4,7 @@
 #include <core_types.hpp>
 #include <types/TaggedValue.hpp>
 #include <operators/combine.hpp>
+#include <operators/map_tuple.hpp>
 
 namespace rheo::operators {
 
@@ -16,23 +17,20 @@ namespace rheo::operators {
   template <typename TDuration, typename T, typename TTimePoint, typename FilterFn>
     requires concepts::TimePointAndDurationCompatible<TTimePoint, TDuration>
   source_fn<TaggedValue<T, TDuration>> stopwatch(source_fn<T> source, source_fn<TTimePoint> clock_source, FilterFn&& lap_condition) {
-    return combine(
-      // This is kinda sneaky. We're turning `combine` into a reducer here,
-      // because the combining callback has state.
-      (combine2_fn<TaggedValue<T, TDuration>, T, TTimePoint>)[lap_condition = std::forward<FilterFn>(lap_condition), lap_start = std::optional<TTimePoint>(), last_value_matched = false](T value, TTimePoint ts) mutable {
-        bool this_value_matches = lap_condition(value);
-        if (!lap_start.has_value() || (!last_value_matched && this_value_matches)) {
-          // We've either just started the stream
-          // or transitioned from a no-match state to a match state.
-          lap_start = ts;
-        }
+    // This is kinda sneaky. We're turning `combine` into a reducer here,
+    // because the mapping callback has state.
+    return combine(source, clock_source)
+      | map_tuple([lap_condition = std::forward<FilterFn>(lap_condition), lap_start = std::optional<TTimePoint>(), last_value_matched = false](T value, TTimePoint ts) mutable {
+          bool this_value_matches = lap_condition(value);
+          if (!lap_start.has_value() || (!last_value_matched && this_value_matches)) {
+            // We've either just started the stream
+            // or transitioned from a no-match state to a match state.
+            lap_start = ts;
+          }
 
-        last_value_matched = this_value_matches;
-        return TaggedValue(value, ts - lap_start.value());
-      },
-      source,
-      clock_source
-    );
+          last_value_matched = this_value_matches;
+          return TaggedValue(value, ts - lap_start.value());
+        });
   }
 
   // Pipe factory
