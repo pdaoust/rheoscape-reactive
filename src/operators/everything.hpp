@@ -17,7 +17,7 @@
 #include <operators/lift.hpp>
 #include <operators/log_errors.hpp>
 #include <operators/map.hpp>
-#include <operators/map.hpp>
+#include <operators/map_tuple.hpp>
 #include <operators/merge.hpp>
 #include <operators/normalize.hpp>
 #include <operators/pid.hpp>

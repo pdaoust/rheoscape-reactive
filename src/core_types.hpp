@@ -224,15 +224,6 @@ namespace rheo {
   template <typename T>
   using exec_fn = std::function<void(T)>;
 
-  template <typename TCombined, typename T1, typename T2>
-  using combine2_fn = std::function<TCombined(T1, T2)>;
-
-  template <typename TCombined, typename T1, typename T2, typename T3>
-  using combine3_fn = std::function<TCombined(T1, T2, T3)>;
-
-  template <typename TCombined, typename T1, typename T2, typename T3, typename T4>
-  using combine4_fn = std::function<TCombined(T1, T2, T3, T4)>;
-
   // Shorthands for different kinds of time:
   // monotonic and wall time, which are synonyms for
   // steady time and system time.
@@ -355,6 +346,35 @@ namespace rheo {
     concept TimePointAndDurationCompatible = requires(TTimePoint t1, TTimePoint t2, TDuration d) {
       { (t1 - t2) >= d } -> std::convertible_to<bool>;
     };
+
+  } // namespace concepts
+
+  // ============================================================================
+  // Apply Result Type Trait
+  // ============================================================================
+  //
+  // Helper to get the result type of applying a callable to a tuple via std::apply.
+
+  template<typename F, typename Tuple>
+  struct apply_result;
+
+  template<typename F, typename... Args>
+  struct apply_result<F, std::tuple<Args...>> {
+    using type = std::invoke_result_t<F, Args...>;
+  };
+
+  template<typename F, typename Tuple>
+  using apply_result_t = typename apply_result<F, Tuple>::type;
+
+  namespace concepts {
+
+    // TupleMapper: A callable that can be applied to a tuple's elements via std::apply.
+    // Ensures the mapper's arity matches the tuple size and returns non-void.
+    // Uses std::decay_t<F> to properly handle mutable lambdas (whose operator() is non-const).
+    template<typename F, typename TTuple>
+    concept TupleMapper = requires(std::decay_t<F>& f, TTuple t) {
+      { std::apply(f, t) };
+    } && !std::is_void_v<apply_result_t<std::decay_t<F>, TTuple>>;
 
   } // namespace concepts
 
