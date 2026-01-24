@@ -1,5 +1,6 @@
 #include <unity.h>
 #include <functional>
+#include <tuple>
 #include <operators/sample.hpp>
 #include <types/mock_clock.hpp>
 #include <types/State.hpp>
@@ -14,7 +15,9 @@ void test_sample_samples_on_events() {
   State<bool> sampler_event_stream(true);
   auto sampler = sample(sampler_event_stream.get_source_fn(), clock);
   mock_clock_ulong_millis::time_point pushed_value;
-  sampler([&pushed_value](mock_clock_ulong_millis::time_point v) { pushed_value = v; });
+  sampler([&pushed_value](std::tuple<bool, mock_clock_ulong_millis::time_point> v) {
+    pushed_value = std::get<1>(v);
+  });
   // Try to sample the clock with every push to the event stream.
   for (int i = 1; i <= 10; i ++) {
     mock_clock_ulong_millis::tick();
@@ -28,7 +31,9 @@ void test_sample_doesnt_sample_on_events_from_push_stream() {
   State<bool> sampler_event_stream(true);
   auto sampler = sample(sampler_event_stream.get_source_fn(), sampled_stream.get_source_fn());
   int pushed_value = 0;
-  sampler([&pushed_value](int v) { pushed_value = v; });
+  sampler([&pushed_value](std::tuple<bool, int> v) {
+    pushed_value = std::get<1>(v);
+  });
   // We shouldn't get a new value when the sampled stream pushes something.
   sampled_stream.set(1);
   TEST_ASSERT_NOT_EQUAL_MESSAGE(1, pushed_value, "Shouldn't get new value");
@@ -42,7 +47,7 @@ void test_sample_handles_reentrant_push_from_downstream() {
   // the downstream pipeline pushes back to the sampled source.
   //
   // Scenario (like the button pipeline in main.cpp):
-  // 1. Event arrives, sample pulls State, emits State value
+  // 1. Event arrives, sample pulls State, emits tuple of (event, State value)
   // 2. Downstream processes, eventually calls State.set(new_value)
   // 3. State.set() pushes to sample's handler
   // 4. Sample should NOT emit again (event was already consumed)
@@ -56,11 +61,12 @@ void test_sample_handles_reentrant_push_from_downstream() {
 
   // Build a pipeline where sample's output feeds back to the sampled State
   auto sampler = sample(event_source.get_source_fn(false), state.get_source_fn(false));
-  sampler([&](int sampled_value) {
+  sampler([&](std::tuple<bool, int> v) {
+    int sampled_value = std::get<1>(v);
     emit_count++;
     last_value = sampled_value;
     // Simulate downstream pipeline that updates the State
-    // (like: map(increment) | state.get_setter_sink_fn())
+    // (like: map_tuple([](bool, int v) { return v + 1; }) | state.get_setter_sink_fn())
     state.set(sampled_value + 1);
   });
 
@@ -88,10 +94,30 @@ void test_sample_handles_reentrant_push_from_downstream() {
   TEST_ASSERT_EQUAL_MESSAGE(2, state.get(), "State should be incremented again");
 }
 
+void test_sample_returns_tuple_with_event_and_sample() {
+  State<int> sampled_stream(42);
+  State<std::string> event_stream("hello");
+
+  auto sampler = sample(event_stream.get_source_fn(), sampled_stream.get_source_fn());
+
+  std::string last_event = "";
+  int last_sample = 0;
+
+  sampler([&](std::tuple<std::string, int> v) {
+    last_event = std::get<0>(v);
+    last_sample = std::get<1>(v);
+  });
+
+  event_stream.set("world");
+  TEST_ASSERT_TRUE_MESSAGE(last_event == "world", "Should include event value in tuple");
+  TEST_ASSERT_EQUAL_MESSAGE(42, last_sample, "Should include sampled value in tuple");
+}
+
 int main(int argc, char **argv) {
   UNITY_BEGIN();
   RUN_TEST(test_sample_samples_on_events);
   RUN_TEST(test_sample_doesnt_sample_on_events_from_push_stream);
   RUN_TEST(test_sample_handles_reentrant_push_from_downstream);
+  RUN_TEST(test_sample_returns_tuple_with_event_and_sample);
   UNITY_END();
 }
