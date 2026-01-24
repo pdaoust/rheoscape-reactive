@@ -25,7 +25,7 @@ namespace rheo::sinks {
   struct table_sink_push_handler {
     store_fn<TKey, TValue> store;
 
-    RHEO_NOINLINE void operator()(TableSinkInput<TKey, TValue> input) const {
+    RHEO_CALLABLE void operator()(TableSinkInput<TKey, TValue> input) const {
       store(input.key, input.value);
     }
   };

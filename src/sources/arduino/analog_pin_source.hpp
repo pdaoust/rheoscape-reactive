@@ -11,7 +11,7 @@ namespace rheo::sources::arduino {
     uint8_t resolution_bits;
     push_fn<int> push;
 
-    RHEO_NOINLINE void operator()() const {
+    RHEO_CALLABLE void operator()() const {
       analogReadResolution(resolution_bits);
       push(analogRead(pin));
     }
@@ -21,7 +21,7 @@ namespace rheo::sources::arduino {
     int pin;
     uint8_t resolution_bits;
 
-    RHEO_NOINLINE pull_fn operator()(push_fn<int> push) const {
+    RHEO_CALLABLE pull_fn operator()(push_fn<int> push) const {
       return analog_pin_pull_handler{pin, resolution_bits, std::move(push)};
     }
   };

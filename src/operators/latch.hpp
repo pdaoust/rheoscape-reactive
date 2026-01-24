@@ -12,7 +12,7 @@ namespace rheo::operators {
     push_fn<T> push;
     mutable std::optional<T> last_seen_value = std::nullopt;
 
-    RHEO_NOINLINE void operator()(std::optional<T> value) const {
+    RHEO_CALLABLE void operator()(std::optional<T> value) const {
       if (value.has_value()) {
         last_seen_value = value;
       }
@@ -27,7 +27,7 @@ namespace rheo::operators {
   struct latch_source_binder {
     source_fn<std::optional<T>> source;
 
-    RHEO_NOINLINE pull_fn operator()(push_fn<T> push) const {
+    RHEO_CALLABLE pull_fn operator()(push_fn<T> push) const {
       return source(latch_push_handler<T>{push});
     }
   };
@@ -44,7 +44,7 @@ namespace rheo::operators {
   // rather than remembering the last non-empty value and pushing it when pulled,
   // use `filter<std::optional<T>>(source, not_empty)`
   template <typename T>
-  RHEO_INLINE source_fn<T> latch(source_fn<std::optional<T>> source) {
+  RHEO_CALLABLE source_fn<T> latch(source_fn<std::optional<T>> source) {
     return latch_source_binder<T>{source};
   }
 

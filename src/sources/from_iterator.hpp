@@ -21,7 +21,7 @@ namespace rheo::sources {
     push_fn<Endable<typename TIter::value_type>> push;
     std::shared_ptr<from_iterator_state<TIter>> state;
 
-    RHEO_NOINLINE void operator()() const {
+    RHEO_CALLABLE void operator()() const {
       using T = typename TIter::value_type;
       if (state->is_ended) {
         push(Endable<T>());
@@ -42,7 +42,7 @@ namespace rheo::sources {
     TIter i_begin;
     TIter i_end;
 
-    RHEO_NOINLINE pull_fn operator()(push_fn<Endable<typename TIter::value_type>> push) const {
+    RHEO_CALLABLE pull_fn operator()(push_fn<Endable<typename TIter::value_type>> push) const {
       auto state = std::make_shared<from_iterator_state<TIter>>(from_iterator_state<TIter>{i_begin, false});
       return from_iterator_pull_handler<TIter>{i_end, std::move(push), state};
     }

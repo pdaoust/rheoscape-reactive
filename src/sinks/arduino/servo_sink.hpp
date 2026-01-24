@@ -17,7 +17,7 @@ namespace rheo::sinks::arduino {
     std::shared_ptr<Servo> servo;
     int pin;
 
-    RHEO_NOINLINE void operator()(au::QuantityPoint<au::Degrees, uint8_t> value) const {
+    RHEO_CALLABLE void operator()(au::QuantityPoint<au::Degrees, uint8_t> value) const {
         servo->write(static_cast<int>(value.in(au::Degrees{})));
     }
   };
@@ -25,7 +25,7 @@ namespace rheo::sinks::arduino {
   struct servo_sink_binder {
     int pin;
 
-    RHEO_NOINLINE pull_fn operator()(source_fn<au::QuantityPoint<au::Degrees, uint8_t>> source) const {
+    RHEO_CALLABLE pull_fn operator()(source_fn<au::QuantityPoint<au::Degrees, uint8_t>> source) const {
       auto servo = std::make_shared<Servo>();
       servo->attach(pin);
       return source(servo_sink_push_handler{std::move(servo), pin});

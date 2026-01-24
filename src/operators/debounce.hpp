@@ -23,7 +23,7 @@ namespace rheo::operators {
     mutable std::optional<T> current_state;
     mutable bool current_state_has_been_pushed;
 
-    RHEO_NOINLINE void operator()(TaggedValue<T, TTimePoint> value) const {
+    RHEO_CALLABLE void operator()(TaggedValue<T, TTimePoint> value) const {
       if (testing_new_state.has_value()
           // NOTE: This equation has to be this way
           // to guard against wraparound for unsigned time representations.
@@ -64,7 +64,7 @@ namespace rheo::operators {
     std::shared_ptr<Wrapper<bool>> did_pull;
     pull_fn inner_pull;
 
-    RHEO_NOINLINE void operator()() const {
+    RHEO_CALLABLE void operator()() const {
       did_pull->value = true;
       inner_pull();
       did_pull->value = false;
@@ -77,7 +77,7 @@ namespace rheo::operators {
     source_fn<TaggedValue<T, TTimePoint>> timestamped;
     TInterval interval;
 
-    RHEO_NOINLINE pull_fn operator()(push_fn<T> push) const {
+    RHEO_CALLABLE pull_fn operator()(push_fn<T> push) const {
       // We only want to push a value that's the same as the previously pushed value
       // if the push happens as a consequence of a pull.
       // It doesn't make sense for a push stream to force a debounced value to get emitted

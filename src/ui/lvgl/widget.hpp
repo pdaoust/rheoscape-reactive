@@ -16,7 +16,7 @@ namespace rheo::ui::lvgl {
   struct widget_style_push_handler {
     lv_obj_t* widget;
 
-    RHEO_NOINLINE void operator()(std::vector<StyleAndSelector> styles) const {
+    RHEO_CALLABLE void operator()(std::vector<StyleAndSelector> styles) const {
       for (const StyleAndSelector& style : styles) {
         lv_obj_add_style(widget, &style.style, style.selector);
       }
@@ -28,7 +28,7 @@ namespace rheo::ui::lvgl {
   struct widget_event_pull_handler {
     std::shared_ptr<push_fn<lv_event_code_t>> push_storage;
 
-    RHEO_NOINLINE void operator()() const {
+    RHEO_CALLABLE void operator()() const {
       // No-op: events are pushed by LVGL, not pulled
     }
   };
@@ -36,7 +36,7 @@ namespace rheo::ui::lvgl {
   struct widget_event_source_binder {
     lv_obj_t* widget;
 
-    RHEO_NOINLINE pull_fn operator()(push_fn<lv_event_code_t> push) const {
+    RHEO_CALLABLE pull_fn operator()(push_fn<lv_event_code_t> push) const {
       auto push_storage = std::make_shared<push_fn<lv_event_code_t>>(std::move(push));
       lv_obj_add_event_cb(
         widget,

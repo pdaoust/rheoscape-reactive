@@ -24,7 +24,7 @@ namespace rheo::sources {
     push_fn<Endable<T>> push;
     std::shared_ptr<sequence_state<T>> state;
 
-    RHEO_NOINLINE void operator()() const {
+    RHEO_CALLABLE void operator()() const {
       if (state->is_ended) {
         push(Endable<T>());
         return;
@@ -51,7 +51,7 @@ namespace rheo::sources {
     T i_end;
     T step;
 
-    RHEO_NOINLINE pull_fn operator()(push_fn<Endable<T>> push) const {
+    RHEO_CALLABLE pull_fn operator()(push_fn<Endable<T>> push) const {
       auto state = std::make_shared<sequence_state<T>>(sequence_state<T>{i_begin, step, false});
       return sequence_pull_handler<T>{i_begin, i_end, std::move(push), state};
     }

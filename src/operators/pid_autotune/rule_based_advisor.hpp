@@ -58,7 +58,7 @@ namespace rheo::autotune {
   // Named callable for combining advisor inputs.
   template <typename TCtrl, typename TP, typename TI, typename TD, typename TTimePoint, typename TFitness>
   struct rule_based_input_combiner {
-    RHEO_NOINLINE RuleBasedInput<TCtrl, TP, TI, TD, TTimePoint, TFitness> operator()(
+    RHEO_CALLABLE RuleBasedInput<TCtrl, TP, TI, TD, TTimePoint, TFitness> operator()(
       operators::PidOutput<TCtrl, TP, TI> pid_output,
       TTimePoint timestamp,
       TFitness target_fitness
@@ -76,7 +76,7 @@ namespace rheo::autotune {
   struct rule_based_input_combiner_scalar_target {
     TFitness target_fitness;
 
-    RHEO_NOINLINE RuleBasedInput<TCtrl, TP, TI, TD, TTimePoint, TFitness> operator()(
+    RHEO_CALLABLE RuleBasedInput<TCtrl, TP, TI, TD, TTimePoint, TFitness> operator()(
       operators::PidOutput<TCtrl, TP, TI> pid_output,
       TTimePoint timestamp
     ) const {
@@ -121,7 +121,7 @@ namespace rheo::autotune {
     using StateType = RuleBasedState<TP, TTimePoint, TFitness>;
     using InputType = RuleBasedInput<TCtrl, TP, TI, TD, TTimePoint, TFitness>;
 
-    RHEO_NOINLINE StateType operator()(StateType state, InputType input) const {
+    RHEO_CALLABLE StateType operator()(StateType state, InputType input) const {
       // Handle first sample
       if (state.first_sample) {
         TP error = input.pid_output.error;
@@ -253,7 +253,7 @@ namespace rheo::autotune {
     // This is a bit awkward; ideally we'd have timestamp in the mapper call
     mutable TTimePoint last_timestamp;
 
-    RHEO_NOINLINE TuningAdjustment operator()(
+    RHEO_CALLABLE TuningAdjustment operator()(
       RuleBasedState<TP, TTimePoint, TFitness> state
     ) const {
       // Use stored timestamp (this is a simplification; proper implementation
@@ -287,7 +287,7 @@ namespace rheo::autotune {
     rule_based_scanner_with_time(RuleBasedAdvisorConfig<TP, TTimePoint, TFitness> cfg)
       : config(cfg), inner_scanner{cfg} {}
 
-    RHEO_NOINLINE StateType operator()(StateType state, InputType input) const {
+    RHEO_CALLABLE StateType operator()(StateType state, InputType input) const {
       return StateType{
         inner_scanner(state.state, input),
         input.timestamp
@@ -300,7 +300,7 @@ namespace rheo::autotune {
   struct rule_based_output_mapper_with_time {
     RuleBasedAdvisorConfig<TP, TTimePoint, TFitness> config;
 
-    RHEO_NOINLINE TuningAdjustment operator()(
+    RHEO_CALLABLE TuningAdjustment operator()(
       RuleBasedStateWithTime<TP, TTimePoint, TFitness> state_with_time
     ) const {
       return determine_adjustment(state_with_time.state, config, state_with_time.timestamp);

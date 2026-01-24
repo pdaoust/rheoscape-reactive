@@ -9,7 +9,7 @@ namespace rheo::sinks::arduino::gfx {
   struct ssd1306_push_handler {
     Adafruit_SSD1306& display;
 
-    RHEO_NOINLINE void operator()(std::vector<GfxCommand<Adafruit_GFX>> commands) const {
+    RHEO_CALLABLE void operator()(std::vector<GfxCommand<Adafruit_GFX>> commands) const {
       GFXcanvas1 canvas(display.width(), display.height(), false);
       display.clearDisplay();
       for (auto& command : commands) {
@@ -23,7 +23,7 @@ namespace rheo::sinks::arduino::gfx {
   struct ssd1306_sink_binder {
     Adafruit_SSD1306& display;
 
-    RHEO_NOINLINE pull_fn operator()(source_fn<std::vector<GfxCommand<Adafruit_GFX>>> source) const {
+    RHEO_CALLABLE pull_fn operator()(source_fn<std::vector<GfxCommand<Adafruit_GFX>>> source) const {
       return source(ssd1306_push_handler{display});
     }
   };

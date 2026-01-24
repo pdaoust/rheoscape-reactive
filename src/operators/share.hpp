@@ -17,7 +17,7 @@ namespace rheo::operators {
   struct share_push_handler {
     std::shared_ptr<std::vector<push_fn<T>>> sinks;
 
-    RHEO_NOINLINE void operator()(T value) const {
+    RHEO_CALLABLE void operator()(T value) const {
       for (push_fn<T> sink : *sinks) {
         sink(value);
       }
@@ -30,14 +30,14 @@ namespace rheo::operators {
     std::shared_ptr<std::vector<push_fn<T>>> sinks;
     pull_fn pull;
 
-    RHEO_NOINLINE pull_fn operator()(push_fn<T> push) const {
+    RHEO_CALLABLE pull_fn operator()(push_fn<T> push) const {
       sinks->push_back(push);
       return pull;
     }
   };
 
   template <typename T>
-  RHEO_INLINE source_fn<T> share(source_fn<T> source) {
+  RHEO_CALLABLE source_fn<T> share(source_fn<T> source) {
     auto sinks = std::make_shared<std::vector<push_fn<T>>>();
     auto pull = source(share_push_handler<T>{sinks});
 
@@ -47,7 +47,7 @@ namespace rheo::operators {
   // Pipe factory for share
   template<typename T>
   struct share_pipe_factory {
-    RHEO_NOINLINE source_fn<T> operator()(source_fn<T> source) const {
+    RHEO_CALLABLE source_fn<T> operator()(source_fn<T> source) const {
       return share(std::move(source));
     }
   };

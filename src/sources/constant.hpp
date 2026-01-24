@@ -10,7 +10,7 @@ namespace rheo::sources {
     T value;
     push_fn<T> push;
 
-    RHEO_NOINLINE void operator()() const {
+    RHEO_CALLABLE void operator()() const {
       push(value);
     }
   };
@@ -19,7 +19,7 @@ namespace rheo::sources {
   struct constant_source_binder {
     T value;
 
-    RHEO_NOINLINE pull_fn operator()(push_fn<T> push) const {
+    RHEO_CALLABLE pull_fn operator()(push_fn<T> push) const {
       return constant_pull_handler<T>{value, std::move(push)};
     }
   };

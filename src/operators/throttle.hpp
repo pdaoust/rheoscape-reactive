@@ -17,7 +17,7 @@ namespace rheo::operators {
     push_fn<T> push;
     mutable std::optional<TTimePoint> interval_start;
 
-    RHEO_NOINLINE void operator()(TaggedValue<T, TTimePoint> value) const {
+    RHEO_CALLABLE void operator()(TaggedValue<T, TTimePoint> value) const {
       if (interval_start.has_value() && value.tag - interval_start.value() > interval) {
         interval_start = std::nullopt;
       }
@@ -35,7 +35,7 @@ namespace rheo::operators {
     source_fn<TaggedValue<T, TTimePoint>> timestamped;
     TInterval interval;
 
-    RHEO_NOINLINE pull_fn operator()(push_fn<T> push) const {
+    RHEO_CALLABLE pull_fn operator()(push_fn<T> push) const {
       return timestamped(throttle_push_handler<T, TTimePoint, TInterval>{
         interval,
         std::move(push),

@@ -58,7 +58,7 @@ namespace rheo::operators {
     std::shared_ptr<Wrapper<TLiftedIn>> last_lifted_in;
     push_fn<TIn> push_inner_in;
 
-    RHEO_NOINLINE void operator()(TLiftedIn outer_value_in) const {
+    RHEO_CALLABLE void operator()(TLiftedIn outer_value_in) const {
       last_lifted_in->value = outer_value_in;
       std::variant<TIn, TLiftedOut> maybe_lowered_value = lower_fn(outer_value_in);
       if (maybe_lowered_value.index() == 0) {
@@ -79,7 +79,7 @@ namespace rheo::operators {
     source_fn<TLiftedIn> outer_source_in;
     std::shared_ptr<Wrapper<TLiftedIn>> last_lifted_in;
 
-    RHEO_NOINLINE pull_fn operator()(push_fn<TIn> push_inner_in) const {
+    RHEO_CALLABLE pull_fn operator()(push_fn<TIn> push_inner_in) const {
       return outer_source_in(lift_outer_push_handler<TIn, TLiftedIn, TLiftedOut, LowerFn>{
         lower_fn,
         push_outer_out,
@@ -96,7 +96,7 @@ namespace rheo::operators {
     push_fn<TLiftedOut> push_outer_out;
     std::shared_ptr<Wrapper<TLiftedIn>> last_lifted_in;
 
-    RHEO_NOINLINE void operator()(TOut inner_value_out) const {
+    RHEO_CALLABLE void operator()(TOut inner_value_out) const {
       push_outer_out(lift_fn(inner_value_out, last_lifted_in->value));
     }
   };
@@ -109,7 +109,7 @@ namespace rheo::operators {
     LowerFn lower_fn;
     source_fn<TLiftedIn> outer_source_in;
 
-    RHEO_NOINLINE pull_fn operator()(push_fn<TLiftedOut> push_outer_out) const {
+    RHEO_CALLABLE pull_fn operator()(push_fn<TLiftedOut> push_outer_out) const {
       auto last_lifted_in = make_wrapper_shared<TLiftedIn>();
 
       // Create the inner source by applying inner pipe to our custom source binder
@@ -137,7 +137,7 @@ namespace rheo::operators {
     LiftFn lift_fn;
     LowerFn lower_fn;
 
-    RHEO_NOINLINE source_fn<TLiftedOut> operator()(source_fn<TLiftedIn> outer_source_in) const {
+    RHEO_CALLABLE source_fn<TLiftedOut> operator()(source_fn<TLiftedIn> outer_source_in) const {
       return lift_source_binder<TOut, TIn, TLiftedIn, TLiftedOut, LiftFn, LowerFn>{
         inner_pipe_fn,
         lift_fn,

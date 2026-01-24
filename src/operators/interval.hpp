@@ -31,7 +31,7 @@ namespace rheo::operators {
   struct interval_interval_push_handler {
     std::shared_ptr<std::optional<TInterval>> last_interval;
 
-    RHEO_NOINLINE void operator()(TInterval interval) const {
+    RHEO_CALLABLE void operator()(TInterval interval) const {
       last_interval->emplace(interval);
     }
   };
@@ -44,7 +44,7 @@ namespace rheo::operators {
     pull_fn pull_next_interval;
     push_fn<TTimePoint> push;
 
-    RHEO_NOINLINE void operator()(TTimePoint timestamp) const {
+    RHEO_CALLABLE void operator()(TTimePoint timestamp) const {
       if (!last_interval->has_value()) {
         pull_next_interval();
         if (!last_interval->has_value()) {
@@ -78,7 +78,7 @@ namespace rheo::operators {
     source_fn<TTimePoint> time_source;
     source_fn<TInterval> interval_source;
 
-    RHEO_NOINLINE pull_fn operator()(push_fn<TTimePoint> push) const {
+    RHEO_CALLABLE pull_fn operator()(push_fn<TTimePoint> push) const {
       auto last_interval = std::make_shared<std::optional<TInterval>>();
       auto last_interval_timestamp = std::make_shared<std::optional<TTimePoint>>();
 
@@ -125,7 +125,7 @@ namespace rheo::operators {
     float factor;
     push_fn<TInterval> push;
 
-    RHEO_NOINLINE void operator()() const {
+    RHEO_CALLABLE void operator()() const {
       push(acc);
       acc *= factor;
     }
@@ -136,7 +136,7 @@ namespace rheo::operators {
     TInterval start_interval;
     float factor;
 
-    RHEO_NOINLINE pull_fn operator()(push_fn<TInterval> push) const {
+    RHEO_CALLABLE pull_fn operator()(push_fn<TInterval> push) const {
       return curve_pull_handler<TInterval>{start_interval, factor, std::move(push)};
     }
   };

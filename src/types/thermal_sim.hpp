@@ -59,7 +59,7 @@ namespace rheo {
   // Named callable for combining thermal sim inputs
   template <typename TDuty, typename TTimePoint, typename TPower>
   struct thermal_sim_combiner {
-    RHEO_NOINLINE ThermalSimInput<TDuty, TTimePoint, TPower> operator()(
+    RHEO_CALLABLE ThermalSimInput<TDuty, TTimePoint, TPower> operator()(
       TDuty duty,
       TTimePoint timestamp,
       TPower disturbance
@@ -71,7 +71,7 @@ namespace rheo {
   // Named callable for combining thermal sim inputs (no disturbance)
   template <typename TDuty, typename TTimePoint, typename TPower>
   struct thermal_sim_combiner_no_disturbance {
-    RHEO_NOINLINE ThermalSimInput<TDuty, TTimePoint, TPower> operator()(
+    RHEO_CALLABLE ThermalSimInput<TDuty, TTimePoint, TPower> operator()(
       TDuty duty,
       TTimePoint timestamp
     ) const {
@@ -84,7 +84,7 @@ namespace rheo {
   struct thermal_sim_scanner {
     ThermalSimConfig<TTemp, TPower, TTimePoint> config;
 
-    RHEO_NOINLINE ThermalSimState<TTemp, TTimePoint, TDuty> operator()(
+    RHEO_CALLABLE ThermalSimState<TTemp, TTimePoint, TDuty> operator()(
       ThermalSimState<TTemp, TTimePoint, TDuty> state,
       ThermalSimInput<TDuty, TTimePoint, TPower> input
     ) const {
@@ -135,7 +135,7 @@ namespace rheo {
   // Named callable for extracting temperature from state
   template <typename TTemp, typename TTimePoint, typename TDuty>
   struct thermal_sim_temp_extractor {
-    RHEO_NOINLINE TTemp operator()(ThermalSimState<TTemp, TTimePoint, TDuty> state) const {
+    RHEO_CALLABLE TTemp operator()(ThermalSimState<TTemp, TTimePoint, TDuty> state) const {
       return state.temperature;
     }
   };

@@ -23,7 +23,7 @@ namespace rheo::operators {
 
     TIntervalConverter interval_converter;
 
-    RHEO_NOINLINE std::optional<TaggedValue<TVal, TTimePoint>> operator()(
+    RHEO_CALLABLE std::optional<TaggedValue<TVal, TTimePoint>> operator()(
       std::optional<TaggedValue<TVal, TTimePoint>> prev,
       TaggedValue<std::tuple<TVal, TInterval>, TTimePoint> next
     ) const {
@@ -56,7 +56,7 @@ namespace rheo::operators {
   // Named callable for extracting value from optional TaggedValue
   template <typename TVal, typename TTimePoint>
   struct ema_value_extractor {
-    RHEO_NOINLINE TVal operator()(std::optional<TaggedValue<TVal, TTimePoint>> value) const {
+    RHEO_CALLABLE TVal operator()(std::optional<TaggedValue<TVal, TTimePoint>> value) const {
       return value.value().value;
     }
   };

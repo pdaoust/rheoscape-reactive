@@ -11,7 +11,7 @@ namespace rheo::sources::arduino {
     uint8_t pin_mode_flag;
     push_fn<bool> push;
 
-    RHEO_NOINLINE void operator()() const {
+    RHEO_CALLABLE void operator()() const {
       pinMode(pin, INPUT | pin_mode_flag);
       push(static_cast<bool>(digitalRead(pin)));
     }
@@ -21,7 +21,7 @@ namespace rheo::sources::arduino {
     int pin;
     uint8_t pin_mode_flag;
 
-    RHEO_NOINLINE pull_fn operator()(push_fn<bool> push) const {
+    RHEO_CALLABLE pull_fn operator()(push_fn<bool> push) const {
       return digital_pin_pull_handler{pin, pin_mode_flag, std::move(push)};
     }
   };

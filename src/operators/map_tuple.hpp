@@ -26,7 +26,7 @@ namespace rheo::operators {
     // Mutable to support stateful mappers (mutable lambdas).
     mutable MapFn mapper;
 
-    RHEO_NOINLINE void operator()(TTuple value) const {
+    RHEO_CALLABLE void operator()(TTuple value) const {
       push(std::apply(mapper, std::move(value)));
     }
   };
@@ -37,7 +37,7 @@ namespace rheo::operators {
     source_fn<TTuple> source;
     MapFn mapper;
 
-    RHEO_NOINLINE pull_fn operator()(push_fn<TOut> push) const {
+    RHEO_CALLABLE pull_fn operator()(push_fn<TOut> push) const {
       return source(map_tuple_push_handler<TTuple, TOut, MapFn>{std::move(push), mapper});
     }
   };
@@ -48,7 +48,7 @@ namespace rheo::operators {
   // returns a source that emits the result of applying the mapper to each tuple.
   template <typename TTuple, typename MapFn>
     requires concepts::TupleMapper<MapFn, TTuple>
-  RHEO_INLINE auto map_tuple(source_fn<TTuple> source, MapFn&& mapper)
+  RHEO_CALLABLE auto map_tuple(source_fn<TTuple> source, MapFn&& mapper)
   -> source_fn<apply_result_t<std::decay_t<MapFn>, TTuple>> {
     using TOut = apply_result_t<std::decay_t<MapFn>, TTuple>;
     return map_tuple_source_binder<TTuple, TOut, std::decay_t<MapFn>>{

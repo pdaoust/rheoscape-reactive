@@ -15,7 +15,7 @@ namespace rheo {
     State<T>* state;
     push_fn<T> push;
 
-    RHEO_NOINLINE void operator()() const {
+    RHEO_CALLABLE void operator()() const {
       auto value = state->try_get();
       if (value.has_value()) {
         push(value.value());
@@ -30,7 +30,7 @@ namespace rheo {
     State<T>* state;
     bool initial_push;
 
-    RHEO_NOINLINE pull_fn operator()(push_fn<T> push) const {
+    RHEO_CALLABLE pull_fn operator()(push_fn<T> push) const {
       return state->add_sink(std::move(push), initial_push);
     }
   };
@@ -40,7 +40,7 @@ namespace rheo {
     State<T>* state;
     bool push_on_set;
 
-    RHEO_NOINLINE void operator()(T value) const {
+    RHEO_CALLABLE void operator()(T value) const {
       state->set(value, push_on_set);
     }
   };
@@ -50,7 +50,7 @@ namespace rheo {
     State<T>* state;
     bool push_on_set;
 
-    RHEO_NOINLINE void operator()(source_fn<T> source) const {
+    RHEO_CALLABLE void operator()(source_fn<T> source) const {
       source(state->get_setter_push_fn(push_on_set));
     }
   };

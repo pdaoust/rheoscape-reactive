@@ -10,7 +10,7 @@ namespace rheo::operators {
   struct foreach_push_handler {
     ExecFn exec;
 
-    RHEO_NOINLINE void operator()(T value) const {
+    RHEO_CALLABLE void operator()(T value) const {
       exec(value);
     }
   };
@@ -20,7 +20,7 @@ namespace rheo::operators {
   struct foreach_source_binder {
     ExecFn exec;
 
-    RHEO_NOINLINE pull_fn operator()(source_fn<T> source) const {
+    RHEO_CALLABLE pull_fn operator()(source_fn<T> source) const {
       return source(foreach_push_handler<T, ExecFn>{exec});
     }
   };

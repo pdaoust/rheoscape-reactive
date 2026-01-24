@@ -17,7 +17,7 @@ namespace rheo::operators {
     push_fn<T> push_downstream;
     ExecFn const& exec;
 
-    RHEO_NOINLINE void operator()(T value) const {
+    RHEO_CALLABLE void operator()(T value) const {
       // Pass as const reference to prevent exec from consuming the value.
       // The value must remain intact for downstream.
       exec(std::as_const(value));
@@ -31,7 +31,7 @@ namespace rheo::operators {
     source_fn<T> source;
     ExecFn exec;
 
-    RHEO_NOINLINE pull_fn operator()(push_fn<T> push_downstream) const {
+    RHEO_CALLABLE pull_fn operator()(push_fn<T> push_downstream) const {
       return source(inspect_push_handler<T, ExecFn>{
         push_downstream,
         exec

@@ -99,7 +99,7 @@ namespace rheo::operators {
     using DataType = PidData<TProc, TTimePoint, TKp, TKi, TKd>;
     using WeightsType = PidWeights<TKp, TKi, TKd>;
 
-    RHEO_NOINLINE DataType operator()(
+    RHEO_CALLABLE DataType operator()(
       TProc process_variable,
       TProc setpoint,
       TTimePoint timestamp,
@@ -144,7 +144,7 @@ namespace rheo::operators {
     std::optional<Range<TCtrl>> clamp_range;
     TIntervalConverter interval_converter;
 
-    RHEO_NOINLINE StateType operator()(
+    RHEO_CALLABLE StateType operator()(
       StateType prev_state,
       DataType values
     ) const {
@@ -208,7 +208,7 @@ namespace rheo::operators {
   // Named callable for extracting control from PidState
   template <typename TCtrl, typename TProcDelta, typename TIntegral, typename TTimePoint>
   struct pid_control_extractor {
-    RHEO_NOINLINE TCtrl operator()(PidState<TCtrl, TProcDelta, TIntegral, TTimePoint> state) const {
+    RHEO_CALLABLE TCtrl operator()(PidState<TCtrl, TProcDelta, TIntegral, TTimePoint> state) const {
       return state.control;
     }
   };
@@ -218,7 +218,7 @@ namespace rheo::operators {
   struct pid_output_extractor {
     using OutputType = PidOutput<TCtrl, TProcDelta, TIntegral>;
 
-    RHEO_NOINLINE OutputType operator()(PidState<TCtrl, TProcDelta, TIntegral, TTimePoint> state) const {
+    RHEO_CALLABLE OutputType operator()(PidState<TCtrl, TProcDelta, TIntegral, TTimePoint> state) const {
       return OutputType {
         state.control,
         state.p_term,

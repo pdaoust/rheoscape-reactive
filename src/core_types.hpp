@@ -379,37 +379,44 @@ namespace rheo {
   } // namespace concepts
 
   // ============================================================================
-  // Inline Control Macros for Debug/Release Builds
+  // Inline Control Macro
   // ============================================================================
   //
-  // These macros control inlining behavior based on NDEBUG:
-  // - Debug (NDEBUG undefined): Preserve stack frames for debugging
-  // - Release (NDEBUG defined): Aggressive inlining for performance
+  // RHEO_CALLABLE controls inlining behavior for framework internals.
+  // Use this on operator() methods of named callable structs.
+  //
+  // Configuration macros (define before including Rheoscape headers):
+  //
+  //   RHEO_DEBUG_INTERNALS   - Prevent inlining so you can step through
+  //                            framework code in the debugger. Useful for
+  //                            Rheoscape developers or debugging operator issues.
+  //
+  //   RHEO_AGGRESSIVE_INLINE - Force aggressive inlining for maximum performance
+  //                            and shallow stacks. May increase binary size.
+  //
+  // Priority: RHEO_DEBUG_INTERNALS > RHEO_AGGRESSIVE_INLINE > default (inline hint)
 
-#ifdef NDEBUG
-  // Release build: suggest aggressive inlining
+#if defined(RHEO_DEBUG_INTERNALS)
+  // Debug internals: prevent inlining so you can step through framework code
   #if defined(__GNUC__) || defined(__clang__)
-    #define RHEO_INLINE [[gnu::always_inline]] inline
-    #define RHEO_NOINLINE
+    #define RHEO_CALLABLE [[gnu::noinline]]
   #elif defined(_MSC_VER)
-    #define RHEO_INLINE __forceinline
-    #define RHEO_NOINLINE
+    #define RHEO_CALLABLE __declspec(noinline)
   #else
-    #define RHEO_INLINE inline
-    #define RHEO_NOINLINE
+    #define RHEO_CALLABLE
+  #endif
+#elif defined(RHEO_AGGRESSIVE_INLINE)
+  // Aggressive inlining: force inline for max performance and shallow stacks
+  #if defined(__GNUC__) || defined(__clang__)
+    #define RHEO_CALLABLE [[gnu::always_inline]] inline
+  #elif defined(_MSC_VER)
+    #define RHEO_CALLABLE __forceinline
+  #else
+    #define RHEO_CALLABLE inline
   #endif
 #else
-  // Debug build: preserve stack frames for better debugging
-  #if defined(__GNUC__) || defined(__clang__)
-    #define RHEO_INLINE inline
-    #define RHEO_NOINLINE [[gnu::noinline]]
-  #elif defined(_MSC_VER)
-    #define RHEO_INLINE inline
-    #define RHEO_NOINLINE __declspec(noinline)
-  #else
-    #define RHEO_INLINE inline
-    #define RHEO_NOINLINE
-  #endif
+  // Default: hint to compiler, let it decide based on its heuristics
+  #define RHEO_CALLABLE inline
 #endif
 
   // ============================================================================

@@ -9,14 +9,14 @@ namespace rheo::sources {
   struct from_clock_pull_handler {
     push_fn<typename TClock::time_point> push;
 
-    RHEO_NOINLINE void operator()() const {
+    RHEO_CALLABLE void operator()() const {
       push(TClock::now());
     }
   };
 
   template <typename TClock>
   struct from_clock_source_binder {
-    RHEO_NOINLINE pull_fn operator()(push_fn<typename TClock::time_point> push) const {
+    RHEO_CALLABLE pull_fn operator()(push_fn<typename TClock::time_point> push) const {
       return from_clock_pull_handler<TClock>{std::move(push)};
     }
   };

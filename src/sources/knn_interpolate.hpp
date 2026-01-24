@@ -75,7 +75,7 @@ namespace rheo::sources {
     WeightFn weight_fn;
     CombineFn combine_fn;
 
-    RHEO_NOINLINE std::optional<TValue> operator()(TKey key) const {
+    RHEO_CALLABLE std::optional<TValue> operator()(TKey key) const {
       auto neighbors = storage->find_k_nearest(key, k);
 
       if (neighbors.empty()) {

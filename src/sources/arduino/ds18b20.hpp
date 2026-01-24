@@ -60,7 +60,7 @@ namespace rheo::sources::arduino::ds18b20 {
     push_fn<std::optional<au::QuantityPoint<au::Celsius, float>>> push;
     std::shared_ptr<ds18b20_state> state;
 
-    RHEO_NOINLINE void operator()() const {
+    RHEO_CALLABLE void operator()() const {
       // Normally when I'm consuming the time in a source function,
       // I expect a time source.
       // But because I know I'm on the Arduino platform,
@@ -84,7 +84,7 @@ namespace rheo::sources::arduino::ds18b20 {
     DallasTemperature* sensor;
     int resolution;
 
-    RHEO_NOINLINE pull_fn operator()(push_fn<std::optional<au::QuantityPoint<au::Celsius, float>>> push) const {
+    RHEO_CALLABLE pull_fn operator()(push_fn<std::optional<au::QuantityPoint<au::Celsius, float>>> push) const {
       sensor->setResolution(address.data(), resolution);
       sensor->setWaitForConversion(false);
       sensor->requestTemperaturesByAddress(address.data());

@@ -12,7 +12,7 @@ namespace rheo::operators {
     FilterMapFn filter_mapper;
     push_fn<TOut> push;
 
-    RHEO_NOINLINE void operator()(TIn value) const {
+    RHEO_CALLABLE void operator()(TIn value) const {
       std::optional<TOut> maybe_mapped = filter_mapper(value);
       if (maybe_mapped.has_value()) {
         push(maybe_mapped.value());
@@ -26,7 +26,7 @@ namespace rheo::operators {
     source_fn<TIn> source;
     FilterMapFn filter_mapper;
 
-    RHEO_NOINLINE pull_fn operator()(push_fn<TOut> push) const {
+    RHEO_CALLABLE pull_fn operator()(push_fn<TOut> push) const {
       return source(filter_map_push_handler<TIn, TOut, FilterMapFn>{filter_mapper, push});
     }
   };

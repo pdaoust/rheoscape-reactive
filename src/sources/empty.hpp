@@ -7,7 +7,7 @@ namespace rheo::sources {
 
   // Pull handler that does nothing - pulling from an empty source has no effect
   struct empty_pull_handler {
-    RHEO_NOINLINE void operator()() const {
+    RHEO_CALLABLE void operator()() const {
       // Intentionally empty
     }
   };
@@ -15,7 +15,7 @@ namespace rheo::sources {
   // Source binder that ignores the push function and returns an empty pull handler
   template <typename T>
   struct empty_source_binder {
-    RHEO_NOINLINE pull_fn operator()(push_fn<T>) const {
+    RHEO_CALLABLE pull_fn operator()(push_fn<T>) const {
       return empty_pull_handler{};
     }
   };

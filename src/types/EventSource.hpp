@@ -14,7 +14,7 @@ namespace rheo {
   struct event_source_source_binder {
     EventSource<T>* event_source;
 
-    RHEO_NOINLINE pull_fn operator()(push_fn<T> push) const {
+    RHEO_CALLABLE pull_fn operator()(push_fn<T> push) const {
       return event_source->add_sink(std::move(push));
     }
   };

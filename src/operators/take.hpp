@@ -13,7 +13,7 @@ namespace rheo::operators {
     push_fn<Endable<T>> push;
     mutable size_t i = 0;
 
-    RHEO_NOINLINE void operator()(T&& value) const {
+    RHEO_CALLABLE void operator()(T&& value) const {
       if (i < count) {
         push(Endable<T>(std::forward<T>(value), i == count - 1));
         i++;
@@ -29,7 +29,7 @@ namespace rheo::operators {
     source_fn<T> source;
     size_t count;
 
-    RHEO_NOINLINE pull_fn operator()(push_fn<Endable<T>> push) const {
+    RHEO_CALLABLE pull_fn operator()(push_fn<Endable<T>> push) const {
       return source(take_push_handler<T>{count, push});
     }
   };
@@ -37,7 +37,7 @@ namespace rheo::operators {
   // Re-emit a number of values from the source function,
   // then end the source.
   template <typename T>
-  RHEO_INLINE source_fn<Endable<T>> take(source_fn<T> source, size_t count) {
+  RHEO_CALLABLE source_fn<Endable<T>> take(source_fn<T> source, size_t count) {
     return take_source_binder<T>{source, count};
   }
 

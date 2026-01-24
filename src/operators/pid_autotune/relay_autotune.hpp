@@ -40,7 +40,7 @@ namespace rheo::autotune {
   // Named callable for combining relay autotune inputs.
   template <typename TP, typename TTimePoint>
   struct relay_autotune_input_combiner {
-    RHEO_NOINLINE RelayAutotuneInput<TP, TTimePoint> operator()(
+    RHEO_CALLABLE RelayAutotuneInput<TP, TTimePoint> operator()(
       TP process_variable,
       TP setpoint,
       TTimePoint timestamp
@@ -55,7 +55,7 @@ namespace rheo::autotune {
   struct relay_autotune_scanner {
     RelayAutotuneConfig<TCtl, TP, TTimePoint> config;
 
-    RHEO_NOINLINE RelayAutotuneState<TCtl, TP, TTimePoint> operator()(
+    RHEO_CALLABLE RelayAutotuneState<TCtl, TP, TTimePoint> operator()(
       RelayAutotuneState<TCtl, TP, TTimePoint> state,
       RelayAutotuneInput<TP, TTimePoint> input
     ) const {
@@ -233,7 +233,7 @@ namespace rheo::autotune {
 
     using OutputType = RelayAutotuneOutput<TCtl, TKp, TKi, TKd, TTimePoint>;
 
-    RHEO_NOINLINE OutputType operator()(
+    RHEO_CALLABLE OutputType operator()(
       RelayAutotuneState<TCtl, TP, TTimePoint> state
     ) const {
       std::optional<RelayAutotuneResult<TKp, TKi, TKd, TTimePoint>> result = std::nullopt;

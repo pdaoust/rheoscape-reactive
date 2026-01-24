@@ -40,7 +40,7 @@ namespace rheo::operators {
   namespace detail {
     // Helper to check if all optionals in a tuple have values
     template<typename... Ts>
-    RHEO_NOINLINE bool all_have_values(const std::tuple<std::optional<Ts>...>& values) {
+    RHEO_CALLABLE bool all_have_values(const std::tuple<std::optional<Ts>...>& values) {
       return std::apply([](const auto&... opts) {
         return (opts.has_value() && ...);
       }, values);
@@ -48,7 +48,7 @@ namespace rheo::operators {
 
     // Helper to reset all optionals in a tuple
     template<typename... Ts>
-    RHEO_NOINLINE void reset_all(std::tuple<std::optional<Ts>...>& values) {
+    RHEO_CALLABLE void reset_all(std::tuple<std::optional<Ts>...>& values) {
       std::apply([](auto&... opts) {
         (opts.reset(), ...);
       }, values);
@@ -61,13 +61,13 @@ namespace rheo::operators {
     }
 
     template<typename... Ts>
-    RHEO_NOINLINE auto extract_values(std::tuple<std::optional<Ts>...>& values) {
+    RHEO_CALLABLE auto extract_values(std::tuple<std::optional<Ts>...>& values) {
       return extract_values_impl(values, std::index_sequence_for<Ts...>{});
     }
 
     // Cascade pull helper: pulls the next source that needs a value
     template<size_t I, size_t N, typename ValuesPtr, typename PullsPtr>
-    RHEO_NOINLINE void cascade_pull(const ValuesPtr& current_values, const PullsPtr& pull_functions) {
+    RHEO_CALLABLE void cascade_pull(const ValuesPtr& current_values, const PullsPtr& pull_functions) {
       // Try sources after I first, then sources before I
       [&]<size_t... Js>(std::index_sequence<Js...>) {
         (
@@ -110,7 +110,7 @@ namespace rheo::operators {
     // Only values pushed during a cascade (as a direct result of pulling) should be used.
     std::shared_ptr<bool> in_cascade;
 
-    RHEO_NOINLINE void operator()(TValue value) const {
+    RHEO_CALLABLE void operator()(TValue value) const {
       if (!*in_cascade) {
         // This push is NOT from a pull cascade (e.g., spontaneous push from State.set()).
         // Start a new cascade: reset all values to clear any stale data.
@@ -149,7 +149,7 @@ namespace rheo::operators {
 
     std::shared_ptr<PullsType> pull_functions;
 
-    RHEO_NOINLINE void operator()() const {
+    RHEO_CALLABLE void operator()() const {
       if (std::get<0>(*pull_functions).has_value()) {
         std::get<0>(*pull_functions).value()();
       }
@@ -169,7 +169,7 @@ namespace rheo::operators {
     CombineFn combiner;
     std::tuple<source_fn<T1>, source_fn<Ts>...> sources;
 
-    RHEO_NOINLINE pull_fn operator()(push_fn<TOut> push) const {
+    RHEO_CALLABLE pull_fn operator()(push_fn<TOut> push) const {
       auto current_values = std::make_shared<ValuesType>();
       auto pull_functions = std::make_shared<PullsType>();
       // Shared flag to track whether we're in a pull cascade.
@@ -184,7 +184,7 @@ namespace rheo::operators {
 
   private:
     template<size_t... Is>
-    RHEO_NOINLINE void bind_sources(
+    RHEO_CALLABLE void bind_sources(
       const push_fn<TOut>& push,
       const std::shared_ptr<ValuesType>& current_values,
       const std::shared_ptr<PullsType>& pull_functions,
@@ -195,7 +195,7 @@ namespace rheo::operators {
     }
 
     template<size_t I>
-    RHEO_NOINLINE void bind_source(
+    RHEO_CALLABLE void bind_source(
       const push_fn<TOut>& push,
       const std::shared_ptr<ValuesType>& current_values,
       const std::shared_ptr<PullsType>& pull_functions,
@@ -228,7 +228,7 @@ namespace rheo::operators {
   // To transform the tuple, use: combine(...) | map_tuple(mapper)
   template <typename T1, typename... Ts>
     requires (sizeof...(Ts) >= 1)
-  RHEO_NOINLINE auto combine(
+  RHEO_CALLABLE auto combine(
     source_fn<T1> first,
     source_fn<Ts>... rest
   ) -> source_fn<std::tuple<T1, Ts...>> {
@@ -250,7 +250,7 @@ namespace rheo::operators {
   // NOTE: Requires explicit T1 template parameter because pipe_fn needs to know
   // the input type at the call site before the source is piped in.
   template <typename T1, typename... Ts>
-  RHEO_NOINLINE auto combine_with(
+  RHEO_CALLABLE auto combine_with(
     source_fn<Ts>... sources
   ) -> pipe_fn<std::tuple<T1, Ts...>, T1> {
     return [... sources = std::move(sources)]

@@ -14,7 +14,7 @@ namespace rheo::sources::arduino {
     std::shared_ptr<BH1750> sensor;
     push_fn<au::Quantity<au::Lux, float>> push;
 
-    RHEO_NOINLINE void operator()() const {
+    RHEO_CALLABLE void operator()() const {
       if (sensor->measurementReady()) {
         push(au::lux(sensor->readLightLevel()));
       }
@@ -26,7 +26,7 @@ namespace rheo::sources::arduino {
     TwoWire* i2c;
     BH1750::Mode mode;
 
-    RHEO_NOINLINE pull_fn operator()(push_fn<au::Quantity<au::Lux, float>> push) const {
+    RHEO_CALLABLE pull_fn operator()(push_fn<au::Quantity<au::Lux, float>> push) const {
       auto sensor = std::make_shared<BH1750>();
       sensor->begin(mode, address, i2c);
       return bh1750_pull_handler{std::move(sensor), std::move(push)};

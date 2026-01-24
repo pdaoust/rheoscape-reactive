@@ -16,7 +16,7 @@ namespace rheo::operators {
     push_fn<Endable<T>> push;
     mutable bool running = true;
 
-    RHEO_NOINLINE void operator()(T&& value) const {
+    RHEO_CALLABLE void operator()(T&& value) const {
       if (running) {
         if (!condition(value)) {
           running = false;
@@ -34,14 +34,14 @@ namespace rheo::operators {
     source_fn<T> source;
     FilterFn condition;
 
-    RHEO_NOINLINE pull_fn operator()(push_fn<Endable<T>> push) const {
+    RHEO_CALLABLE pull_fn operator()(push_fn<Endable<T>> push) const {
       return source(take_while_push_handler<T, FilterFn>{condition, push});
     }
   };
 
   template <typename T, typename FilterFn>
     requires concepts::Predicate<FilterFn, T>
-  RHEO_INLINE source_fn<Endable<T>> take_while(source_fn<T> source, FilterFn&& condition) {
+  RHEO_CALLABLE source_fn<Endable<T>> take_while(source_fn<T> source, FilterFn&& condition) {
     return take_while_source_binder<T, std::decay_t<FilterFn>>{
       source,
       std::forward<FilterFn>(condition)
@@ -62,14 +62,14 @@ namespace rheo::operators {
   struct take_until_negating_predicate {
     FilterFn condition;
 
-    RHEO_NOINLINE bool operator()(T value) const {
+    RHEO_CALLABLE bool operator()(T value) const {
       return !condition(value);
     }
   };
 
   template <typename T, typename FilterFn>
     requires concepts::Predicate<FilterFn, T>
-  RHEO_INLINE source_fn<Endable<T>> take_until(source_fn<T> source, FilterFn&& condition) {
+  RHEO_CALLABLE source_fn<Endable<T>> take_until(source_fn<T> source, FilterFn&& condition) {
     return take_while(source, take_until_negating_predicate<T, std::decay_t<FilterFn>>{std::forward<FilterFn>(condition)});
   }
 

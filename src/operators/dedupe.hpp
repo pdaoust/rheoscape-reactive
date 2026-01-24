@@ -16,7 +16,7 @@ namespace rheo::operators {
     dedupe_push_handler(push_fn<T> push)
       : push(push), last_seen_value(std::make_shared<std::optional<T>>(std::nullopt)) {}
 
-    RHEO_NOINLINE void operator()(T value) const {
+    RHEO_CALLABLE void operator()(T value) const {
       if (!last_seen_value->has_value() || last_seen_value->value() != value) {
         last_seen_value->emplace(value);
         push(value);
@@ -29,7 +29,7 @@ namespace rheo::operators {
   struct dedupe_source_binder {
     source_fn<T> source;
 
-    RHEO_NOINLINE pull_fn operator()(push_fn<T> push) const {
+    RHEO_CALLABLE pull_fn operator()(push_fn<T> push) const {
       return source(dedupe_push_handler<T>{push});
     }
   };
@@ -41,7 +41,7 @@ namespace rheo::operators {
   // function - it takes source_fn<T> and returns source_fn<T>. You can use it
   // directly with the pipe operator: source | dedupe
   template <typename T>
-  RHEO_INLINE source_fn<T> dedupe(source_fn<T> source) {
+  RHEO_CALLABLE source_fn<T> dedupe(source_fn<T> source) {
     return dedupe_source_binder<T>{source};
   }
 

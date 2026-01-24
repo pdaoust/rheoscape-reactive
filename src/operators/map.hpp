@@ -12,7 +12,7 @@ namespace rheo::operators {
     push_fn<TOut> push;
     MapFn mapper;
 
-    RHEO_NOINLINE void operator()(TIn value) const {
+    RHEO_CALLABLE void operator()(TIn value) const {
       push(mapper(value));
     }
   };
@@ -23,14 +23,14 @@ namespace rheo::operators {
     source_fn<TIn> source;
     MapFn mapper;
 
-    RHEO_NOINLINE pull_fn operator()(push_fn<TOut> push) const {
+    RHEO_CALLABLE pull_fn operator()(push_fn<TOut> push) const {
       return source(map_push_handler<TIn, TOut, MapFn>{std::move(push), mapper});
     }
   };
 
   template <typename TIn, typename MapFn>
     requires concepts::Transformer<MapFn, TIn>
-  RHEO_INLINE auto map(source_fn<TIn> source, MapFn&& mapper)
+  RHEO_CALLABLE auto map(source_fn<TIn> source, MapFn&& mapper)
   -> source_fn<return_of<MapFn>> {
     using TOut = return_of<MapFn>;
 

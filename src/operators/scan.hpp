@@ -13,7 +13,7 @@ namespace rheo::operators {
     push_fn<TAcc> push;
     mutable TAcc acc;
 
-    RHEO_NOINLINE void operator()(TIn value) const {
+    RHEO_CALLABLE void operator()(TIn value) const {
       acc = scanner(acc, value);
       push(acc);
     }
@@ -26,7 +26,7 @@ namespace rheo::operators {
     ScanFn scanner;
     TAcc initial;
 
-    RHEO_NOINLINE pull_fn operator()(push_fn<TAcc> push) const {
+    RHEO_CALLABLE pull_fn operator()(push_fn<TAcc> push) const {
       return source(scan_push_handler_with_initial<TAcc, TIn, ScanFn>{scanner, push, initial});
     }
   };
@@ -38,7 +38,7 @@ namespace rheo::operators {
     push_fn<T> push;
     mutable std::optional<T> acc = std::nullopt;
 
-    RHEO_NOINLINE void operator()(T value) const {
+    RHEO_CALLABLE void operator()(T value) const {
       if (!acc.has_value()) {
         acc.emplace(value);
       } else {
@@ -54,14 +54,14 @@ namespace rheo::operators {
     source_fn<T> source;
     ScanFn scanner;
 
-    RHEO_NOINLINE pull_fn operator()(push_fn<T> push) const {
+    RHEO_CALLABLE pull_fn operator()(push_fn<T> push) const {
       return source(scan_push_handler_no_initial<T, ScanFn>{scanner, push});
     }
   };
 
   template <typename TAcc, typename TIn, typename ScanFn>
     requires concepts::Scanner<ScanFn, TAcc, TIn>
-  RHEO_INLINE source_fn<TAcc> scan(source_fn<TIn> source, TAcc initial, ScanFn&& scanner) {
+  RHEO_CALLABLE source_fn<TAcc> scan(source_fn<TIn> source, TAcc initial, ScanFn&& scanner) {
     return scan_source_binder_with_initial<TAcc, TIn, std::decay_t<ScanFn>>{
       source,
       std::forward<ScanFn>(scanner),
@@ -71,7 +71,7 @@ namespace rheo::operators {
 
   template <typename T, typename ScanFn>
     requires concepts::Scanner<ScanFn, T, T>
-  RHEO_INLINE source_fn<T> scan(source_fn<T> source, ScanFn&& scanner) {
+  RHEO_CALLABLE source_fn<T> scan(source_fn<T> source, ScanFn&& scanner) {
     return scan_source_binder_no_initial<T, std::decay_t<ScanFn>>{
       source,
       std::forward<ScanFn>(scanner)

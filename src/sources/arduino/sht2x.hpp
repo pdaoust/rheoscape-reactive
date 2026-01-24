@@ -44,7 +44,7 @@ namespace rheo::sources::arduino::sht2x {
     push_fn<ReadingFallible> push;
     std::shared_ptr<sht2x_state> state;
 
-    RHEO_NOINLINE void operator()() const {
+    RHEO_CALLABLE void operator()() const {
       if (state->pushed_sensor_start_error) {
         logging::trace("sht2x", "Already pushed sensor start error; not pushing again.");
         return;
@@ -152,7 +152,7 @@ namespace rheo::sources::arduino::sht2x {
     uint8_t resolution;
     std::shared_ptr<sht2x_state> state;
 
-    RHEO_NOINLINE pull_fn operator()(push_fn<ReadingFallible> push) const {
+    RHEO_CALLABLE pull_fn operator()(push_fn<ReadingFallible> push) const {
       return sht2x_pull_handler{resolution, sensor, sensor_start_error, std::move(push), state};
     }
   };

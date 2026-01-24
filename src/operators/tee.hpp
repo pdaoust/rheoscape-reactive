@@ -20,7 +20,7 @@ namespace rheo::operators {
   struct tee_secondary_source {
     std::shared_ptr<Wrapper<push_fn<T>>> push_secondary;
 
-    RHEO_NOINLINE pull_fn operator()(push_fn<T> push) const {
+    RHEO_CALLABLE pull_fn operator()(push_fn<T> push) const {
       (*push_secondary).value = std::forward<push_fn<T>>(push);
       // The tee isn't allowed to pull
       return [](){};
@@ -33,7 +33,7 @@ namespace rheo::operators {
     push_fn<T> push_primary;
     std::shared_ptr<Wrapper<push_fn<T>>> push_secondary;
 
-    RHEO_NOINLINE void operator()(T value) const {
+    RHEO_CALLABLE void operator()(T value) const {
       push_primary(value);
       (*push_secondary).value(value);
     }
@@ -45,7 +45,7 @@ namespace rheo::operators {
     source_fn<T> source;
     SinkFn sink;
 
-    RHEO_NOINLINE pull_fn operator()(push_fn<T> push_primary) const {
+    RHEO_CALLABLE pull_fn operator()(push_fn<T> push_primary) const {
       auto push_secondary = make_wrapper_shared<push_fn<T>>();
       sink(tee_secondary_source<T>{push_secondary});
 
@@ -54,7 +54,7 @@ namespace rheo::operators {
   };
 
   template <typename T, typename SinkFn>
-  RHEO_INLINE source_fn<T> tee(source_fn<T> source, SinkFn&& sink) {
+  RHEO_CALLABLE source_fn<T> tee(source_fn<T> source, SinkFn&& sink) {
     return tee_source_binder<T, std::decay_t<SinkFn>>{
       source,
       std::forward<SinkFn>(sink)

@@ -25,7 +25,7 @@ namespace rheo::operators {
     std::shared_ptr<bool> is_within_pull;
     std::shared_ptr<bool> did_push_within_pull;
 
-    RHEO_NOINLINE void operator()(T value) const {
+    RHEO_CALLABLE void operator()(T value) const {
       last_seen_value->emplace(value);
       (*shared_push)(value);
 
@@ -47,7 +47,7 @@ namespace rheo::operators {
     std::shared_ptr<bool> is_within_pull;
     std::shared_ptr<bool> did_push_within_pull;
 
-    RHEO_NOINLINE void operator()() const {
+    RHEO_CALLABLE void operator()() const {
       // Set the flag that tells the upstream push callback
       // that it is being pushed because of a pull.
       *is_within_pull = true;
@@ -76,7 +76,7 @@ namespace rheo::operators {
   struct cache_source_binder {
     source_fn<T> source;
 
-    RHEO_NOINLINE pull_fn operator()(push_fn<T> push) const {
+    RHEO_CALLABLE pull_fn operator()(push_fn<T> push) const {
       auto shared_push = std::make_shared<push_fn<T>>(push);
       auto last_seen_value = std::make_shared<std::optional<T>>(std::nullopt);
       auto is_within_pull = std::make_shared<bool>(false);
@@ -89,14 +89,14 @@ namespace rheo::operators {
   };
 
   template <typename T>
-  RHEO_INLINE source_fn<T> cache(source_fn<T> source) {
+  RHEO_CALLABLE source_fn<T> cache(source_fn<T> source) {
     return cache_source_binder<T>{source};
   }
 
   // Pipe factory for cache
   template<typename T>
   struct cache_pipe_factory {
-    RHEO_NOINLINE source_fn<T> operator()(source_fn<T> source) const {
+    RHEO_CALLABLE source_fn<T> operator()(source_fn<T> source) const {
       return cache(std::move(source));
     }
   };

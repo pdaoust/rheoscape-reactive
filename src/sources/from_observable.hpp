@@ -11,14 +11,14 @@ namespace rheo::sources {
   struct from_observable_push_adapter {
     push_fn<T> push;
 
-    RHEO_NOINLINE void operator()(T value) const {
+    RHEO_CALLABLE void operator()(T value) const {
       push(std::move(value));
     }
   };
 
   // Pull handler that does nothing - pulling from an observable is meaningless
   struct from_observable_empty_pull {
-    RHEO_NOINLINE void operator()() const {
+    RHEO_CALLABLE void operator()() const {
       // It doesn't mean anything to pull from an observable.
     }
   };
@@ -27,7 +27,7 @@ namespace rheo::sources {
   struct from_observable_source_binder {
     SubscribeFn subscribe_fn;
 
-    RHEO_NOINLINE pull_fn operator()(push_fn<T> push) const {
+    RHEO_CALLABLE pull_fn operator()(push_fn<T> push) const {
       subscribe_fn(from_observable_push_adapter<T>{std::move(push)});
       return from_observable_empty_pull{};
     }

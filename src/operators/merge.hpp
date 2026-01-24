@@ -18,7 +18,7 @@ namespace rheo::operators {
     pull_fn pull1;
     pull_fn pull2;
 
-    RHEO_NOINLINE void operator()() const {
+    RHEO_CALLABLE void operator()() const {
       pull1();
       pull2();
     }
@@ -29,7 +29,7 @@ namespace rheo::operators {
     source_fn<T> source1;
     source_fn<T> source2;
 
-    RHEO_NOINLINE pull_fn operator()(push_fn<T> push) const {
+    RHEO_CALLABLE pull_fn operator()(push_fn<T> push) const {
       pull_fn pull1 = source1(push);
       pull_fn pull2 = source2(push);
       return merge_pull_handler<T>{std::move(pull1), std::move(pull2)};
@@ -55,7 +55,7 @@ namespace rheo::operators {
   struct merge_mixed_push_handler_1 {
     push_fn<std::variant<T1, T2>> push;
 
-    RHEO_NOINLINE void operator()(T1 value) const {
+    RHEO_CALLABLE void operator()(T1 value) const {
       push(std::variant<T1, T2>(std::move(value)));
     }
   };
@@ -64,7 +64,7 @@ namespace rheo::operators {
   struct merge_mixed_push_handler_2 {
     push_fn<std::variant<T1, T2>> push;
 
-    RHEO_NOINLINE void operator()(T2 value) const {
+    RHEO_CALLABLE void operator()(T2 value) const {
       push(std::variant<T1, T2>(std::move(value)));
     }
   };
@@ -74,7 +74,7 @@ namespace rheo::operators {
     pull_fn pull1;
     pull_fn pull2;
 
-    RHEO_NOINLINE void operator()() const {
+    RHEO_CALLABLE void operator()() const {
       pull1();
       pull2();
     }
@@ -85,7 +85,7 @@ namespace rheo::operators {
     source_fn<T1> source1;
     source_fn<T2> source2;
 
-    RHEO_NOINLINE pull_fn operator()(push_fn<std::variant<T1, T2>> push) const {
+    RHEO_CALLABLE pull_fn operator()(push_fn<std::variant<T1, T2>> push) const {
       pull_fn pull1 = source1(merge_mixed_push_handler_1<T1, T2>{push});
       pull_fn pull2 = source2(merge_mixed_push_handler_2<T1, T2>{push});
       return merge_mixed_pull_handler<T1, T2>{std::move(pull1), std::move(pull2)};

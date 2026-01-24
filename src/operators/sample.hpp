@@ -20,7 +20,7 @@ namespace rheo::operators {
     push_fn<TOut> push;
     std::shared_ptr<std::optional<TEvent>> last_event_value;
 
-    RHEO_NOINLINE void operator()(TSample sample_value) const {
+    RHEO_CALLABLE void operator()(TSample sample_value) const {
       if (last_event_value->has_value()) {
         // Extract the event value and clear BEFORE pushing.
         // This prevents re-entrant pushes (e.g., from State.set() in downstream)
@@ -37,7 +37,7 @@ namespace rheo::operators {
     std::shared_ptr<std::optional<TEvent>> last_event_value;
     pull_fn pull_sample;
 
-    RHEO_NOINLINE void operator()(TEvent event_value) const {
+    RHEO_CALLABLE void operator()(TEvent event_value) const {
       last_event_value->emplace(event_value);
       pull_sample();
     }
@@ -50,7 +50,7 @@ namespace rheo::operators {
     source_fn<TEvent> event_source;
     source_fn<TSample> sample_source;
 
-    RHEO_NOINLINE pull_fn operator()(push_fn<TOut> push) const {
+    RHEO_CALLABLE pull_fn operator()(push_fn<TOut> push) const {
       auto last_event_value = std::make_shared<std::optional<TEvent>>(std::nullopt);
 
       pull_fn pull_sample = sample_source(sample_sample_push_handler<TEvent, TSample>{

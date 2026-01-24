@@ -11,7 +11,7 @@ namespace rheo::operators {
     FilterFn filterer;
     push_fn<T> push;
 
-    RHEO_NOINLINE void operator()(T value) const {
+    RHEO_CALLABLE void operator()(T value) const {
       if (filterer(value)) {
         push(value);
       }
@@ -24,14 +24,14 @@ namespace rheo::operators {
     source_fn<T> source;
     FilterFn filterer;
 
-    RHEO_NOINLINE pull_fn operator()(push_fn<T> push) const {
+    RHEO_CALLABLE pull_fn operator()(push_fn<T> push) const {
       return source(filter_push_handler<T, FilterFn>{filterer, std::move(push)});
     }
   };
 
   template <typename T, typename FilterFn>
     requires concepts::Predicate<FilterFn, T>
-  RHEO_INLINE source_fn<T> filter(source_fn<T> source, FilterFn&& filterer) {
+  RHEO_CALLABLE source_fn<T> filter(source_fn<T> source, FilterFn&& filterer) {
     return filter_source_binder<T, std::decay_t<FilterFn>>{
       source,
       std::forward<FilterFn>(filterer)

@@ -12,7 +12,7 @@ namespace rheo::sources {
     push_fn<Endable<T>> push;
     mutable bool is_done = false;
 
-    RHEO_NOINLINE void operator()() const {
+    RHEO_CALLABLE void operator()() const {
       if (!is_done) {
         push(Endable<T>());
         is_done = true;
@@ -22,7 +22,7 @@ namespace rheo::sources {
 
   template <typename T>
   struct done_source_binder {
-    RHEO_NOINLINE pull_fn operator()(push_fn<Endable<T>> push) const {
+    RHEO_CALLABLE pull_fn operator()(push_fn<Endable<T>> push) const {
       return done_pull_handler<T>{std::move(push)};
     }
   };

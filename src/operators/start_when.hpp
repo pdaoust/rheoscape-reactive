@@ -12,7 +12,7 @@ namespace rheo::operators {
     push_fn<T> push;
     mutable bool started = false;
 
-    RHEO_NOINLINE void operator()(T value) const {
+    RHEO_CALLABLE void operator()(T value) const {
       if (!started && condition(value)) {
         started = true;
       }
@@ -28,14 +28,14 @@ namespace rheo::operators {
     source_fn<T> source;
     FilterFn condition;
 
-    RHEO_NOINLINE pull_fn operator()(push_fn<T> push) const {
+    RHEO_CALLABLE pull_fn operator()(push_fn<T> push) const {
       return source(start_when_push_handler<T, FilterFn>{condition, push});
     }
   };
 
   template <typename T, typename FilterFn>
     requires concepts::Predicate<FilterFn, T>
-  RHEO_INLINE source_fn<T> start_when(source_fn<T> source, FilterFn&& condition) {
+  RHEO_CALLABLE source_fn<T> start_when(source_fn<T> source, FilterFn&& condition) {
     return start_when_source_binder<T, std::decay_t<FilterFn>>{
       source,
       std::forward<FilterFn>(condition)
@@ -44,7 +44,7 @@ namespace rheo::operators {
 
   template <typename T, typename FilterFn>
     requires concepts::Predicate<FilterFn, T>
-  RHEO_INLINE pipe_fn<T, T> start_when(FilterFn&& condition) {
+  RHEO_CALLABLE pipe_fn<T, T> start_when(FilterFn&& condition) {
     return [condition = std::forward<FilterFn>(condition)](source_fn<T> source) {
       return start_when(source, condition);
     };

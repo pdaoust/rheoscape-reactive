@@ -22,7 +22,7 @@ namespace rheo::operators {
     std::shared_ptr<std::optional<TKey>> switch_state;
     TKey key;
 
-    RHEO_NOINLINE void operator()(TVal value) const {
+    RHEO_CALLABLE void operator()(TVal value) const {
       // You'd think this is unnecessary, because this source fn's pull fn
       // guards against the wrong source being pulled.
       // Ah, but what about sources that do their own pushing?
@@ -36,7 +36,7 @@ namespace rheo::operators {
   struct choose_switch_push_handler {
     std::shared_ptr<std::optional<TKey>> switch_state;
 
-    RHEO_NOINLINE void operator()(TKey key) const {
+    RHEO_CALLABLE void operator()(TKey key) const {
       switch_state->emplace(key);
     }
   };
@@ -47,7 +47,7 @@ namespace rheo::operators {
     std::shared_ptr<std::map<TKey, pull_fn>> pull_value_fns;
     pull_fn pull_switch_source;
 
-    RHEO_NOINLINE void operator()() const {
+    RHEO_CALLABLE void operator()() const {
       // Pull this one first to give us a better chance of getting a desired switch state.
       pull_switch_source();
       // Only pull the value source that's switched on.
@@ -62,7 +62,7 @@ namespace rheo::operators {
     std::map<TKey, source_fn<TVal>> value_source_map;
     source_fn<TKey> switch_source;
 
-    RHEO_NOINLINE pull_fn operator()(push_fn<TVal> push) const {
+    RHEO_CALLABLE pull_fn operator()(push_fn<TVal> push) const {
       auto switch_state = std::make_shared<std::optional<TKey>>();
       auto pull_value_fns = std::make_shared<std::map<TKey, pull_fn>>();
 

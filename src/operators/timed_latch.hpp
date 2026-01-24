@@ -24,7 +24,7 @@ namespace rheo::operators {
   struct timed_latch_clock_push_handler {
     std::shared_ptr<std::optional<TTimePoint>> last_timestamp;
 
-    RHEO_NOINLINE void operator()(TTimePoint ts) const {
+    RHEO_CALLABLE void operator()(TTimePoint ts) const {
       last_timestamp->emplace(ts);
     }
   };
@@ -40,7 +40,7 @@ namespace rheo::operators {
     std::shared_ptr<std::optional<TTimePoint>> latch_start_timestamp;
     std::shared_ptr<std::optional<T>> last_value;
 
-    RHEO_NOINLINE void operator()(T value) const {
+    RHEO_CALLABLE void operator()(T value) const {
       pull_clock();
 
       if (latch_start_timestamp->has_value()) {
@@ -73,7 +73,7 @@ namespace rheo::operators {
     TInterval duration;
     T default_value;
 
-    RHEO_NOINLINE pull_fn operator()(push_fn<T> push) const {
+    RHEO_CALLABLE pull_fn operator()(push_fn<T> push) const {
       auto last_timestamp = std::make_shared<std::optional<TTimePoint>>();
 
       // Rather than use the combine() operator,

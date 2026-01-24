@@ -13,7 +13,7 @@ namespace rheo::operators {
   struct unwrap_optional_push_handler {
     push_fn<T> push;
 
-    RHEO_NOINLINE void operator()(std::optional<T> value) const {
+    RHEO_CALLABLE void operator()(std::optional<T> value) const {
       if (value.has_value()) {
         push(value.value());
       }
@@ -25,13 +25,13 @@ namespace rheo::operators {
   struct unwrap_optional_source_binder {
     source_fn<std::optional<T>> source;
 
-    RHEO_NOINLINE pull_fn operator()(push_fn<T> push) const {
+    RHEO_CALLABLE pull_fn operator()(push_fn<T> push) const {
       return source(unwrap_optional_push_handler<T>{push});
     }
   };
 
   template <typename T>
-  RHEO_INLINE source_fn<T> unwrap_optional(source_fn<std::optional<T>> source) {
+  RHEO_CALLABLE source_fn<T> unwrap_optional(source_fn<std::optional<T>> source) {
     return unwrap_optional_source_binder<T>{source};
   }
 
@@ -47,7 +47,7 @@ namespace rheo::operators {
   struct unwrap_fallible_push_handler {
     push_fn<T> push;
 
-    RHEO_NOINLINE void operator()(Fallible<T, TErr> value) const {
+    RHEO_CALLABLE void operator()(Fallible<T, TErr> value) const {
       if (value.is_ok()) {
         push(value);
       }
@@ -59,13 +59,13 @@ namespace rheo::operators {
   struct unwrap_fallible_source_binder {
     source_fn<Fallible<T, TErr>> source;
 
-    RHEO_NOINLINE pull_fn operator()(push_fn<T> push) const {
+    RHEO_CALLABLE pull_fn operator()(push_fn<T> push) const {
       return source(unwrap_fallible_push_handler<T, TErr>{push});
     }
   };
 
   template <typename T, typename TErr>
-  RHEO_INLINE source_fn<T> unwrap_fallible(source_fn<Fallible<T, TErr>> source) {
+  RHEO_CALLABLE source_fn<T> unwrap_fallible(source_fn<Fallible<T, TErr>> source) {
     return unwrap_fallible_source_binder<T, TErr>{source};
   }
 
@@ -81,7 +81,7 @@ namespace rheo::operators {
   struct unwrap_endable_push_handler {
     push_fn<T> push;
 
-    RHEO_NOINLINE void operator()(Endable<T> value) const {
+    RHEO_CALLABLE void operator()(Endable<T> value) const {
       if (value.has_value()) {
         push(value.value());
       }
@@ -93,13 +93,13 @@ namespace rheo::operators {
   struct unwrap_endable_source_binder {
     source_fn<Endable<T>> source;
 
-    RHEO_NOINLINE pull_fn operator()(push_fn<T> push) const {
+    RHEO_CALLABLE pull_fn operator()(push_fn<T> push) const {
       return source(unwrap_endable_push_handler<T>{push});
     }
   };
 
   template <typename T>
-  RHEO_INLINE source_fn<T> unwrap_endable(source_fn<Endable<T>> source) {
+  RHEO_CALLABLE source_fn<T> unwrap_endable(source_fn<Endable<T>> source) {
     return unwrap_endable_source_binder<T>{source};
   }
 
