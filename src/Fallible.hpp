@@ -1,6 +1,7 @@
 #pragma once
 
 #include <core_types.hpp>
+#include <operators/filter_map.hpp>
 
 namespace rheo {
 
@@ -147,13 +148,24 @@ namespace rheo {
       }
   };
 
+  // A filter_map function that extracts values from Fallible, discarding errors.
   template <typename T, typename TErr>
   filter_map_fn<T, Fallible<T, TErr>> filter_map_to_infallible() {
-    return [](Fallible<T, TErr> value) {
-      if (value._has_value) {
-        return std::optional<T>(value.get_value());
+    return [](Fallible<T, TErr> fallible) -> std::optional<T> {
+      if (fallible.is_ok()) {
+        return std::optional<T>(fallible.value());
       }
-      return (std::optional<T>)std::nullopt;
+      return std::nullopt;
+    };
+  }
+
+  // Pipe operator that converts a Fallible stream to an infallible stream,
+  // filtering out errors and only passing through successful values.
+  // Usage: fallible_source | make_infallible<T, TErr>()
+  template <typename T, typename TErr>
+  pipe_fn<T, Fallible<T, TErr>> make_infallible() {
+    return [](source_fn<Fallible<T, TErr>> source) -> source_fn<T> {
+      return operators::filter_map(std::move(source), filter_map_to_infallible<T, TErr>());
     };
   }
 
