@@ -30,7 +30,7 @@ namespace rheo::operators {
         auto completed_cycles = floor(input_adjusted / period);
         // scalar * TInput gives TInput; TInput - TInput gives TInput.
         TInput remainder = input_adjusted - completed_cycles * period;
-        TFloat pos_in_cycle = remainder / period;
+        TFloat pos_in_cycle = static_cast<TFloat>(remainder) / static_cast<TFloat>(period);
         return wave_function(pos_in_cycle);
       }
     );
