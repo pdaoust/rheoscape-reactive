@@ -13,8 +13,9 @@ void test__state_throws_exception_when_unset() {
   try {
     my_state.get();
     TEST_FAIL_MESSAGE("Should've thrown exception");
-  } catch (rheo::bad_state_unset_access e) {
+  } catch (const std::bad_optional_access& e) {
     TEST_PASS_MESSAGE(e.what());
+    return;
   }
   TEST_FAIL_MESSAGE("Didn't throw the right kind of exception at all");
 }
