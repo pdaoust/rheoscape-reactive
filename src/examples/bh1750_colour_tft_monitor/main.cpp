@@ -254,7 +254,7 @@ void setup() {
   // auto map_hum_to_label = map<std::string, Percent>(infallible_hum, [](Percent v) {
   //   return string_format("Humidity: %s", au_to_string(v, 2).c_str());
   // });
-  // //map_hum_to_label = tap(map_hum_to_label, rheo::sinks::arduino::serial_string_line_sink());
+  // //map_hum_to_label = tee(map_hum_to_label, rheo::sinks::arduino::serial_string_line_sink());
   // auto pull_and_source_hum_label = lvgl::label(hum_label, map_hum_to_label, empty_style_source);
   // pull_hum = std::get<0>(pull_and_source_hum_label);
 
@@ -264,7 +264,7 @@ void setup() {
   // auto map_smooth_temp_to_label = map<std::string, TempC>(smooth_temp, [](TempC v) {
   //   return string_format("Temperature: %s", au_to_string(v, 2).c_str());
   // });
-  // //map_smooth_temp_to_label = tap(map_smooth_temp_to_label, rheo::sinks::arduino::serial_string_line_sink());
+  // //map_smooth_temp_to_label = tee(map_smooth_temp_to_label, rheo::sinks::arduino::serial_string_line_sink());
   // auto pull_and_source_smooth_temp_label = lvgl::label(smooth_temp_label, map_smooth_temp_to_label, empty_style_source);
   // pull_smooth_temp = std::get<0>(pull_and_source_smooth_temp_label);
   // Now to step on a skinned cat who wears a stupid green hat.

@@ -5,7 +5,7 @@
 #include <fmt/format.h>
 #include <Fallible.hpp>
 #include <logging.hpp>
-#include <operators/tap.hpp>
+#include <operators/tee.hpp>
 
 namespace rheo::operators {
 
@@ -15,7 +15,7 @@ namespace rheo::operators {
     MapFn&& format_error = [](TErr value) { return fmt::format("{}", value); },
     std::optional<std::string> topic = std::nullopt
   ) {
-    return tap(source, [topic, format_error = std::forward<MapFn>(format_error)](source_fn<Fallible<T, TErr>> source) {
+    return tee(source, [topic, format_error = std::forward<MapFn>(format_error)](source_fn<Fallible<T, TErr>> source) {
       source([topic, format_error](Fallible<T, TErr> value) {
         if (value.is_error()) {
           logging::error(topic, format_error(value.error()));
