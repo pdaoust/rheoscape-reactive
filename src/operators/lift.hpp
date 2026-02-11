@@ -50,103 +50,6 @@ namespace rheo::operators {
   //   But it'd be weird.
   //   It's not what this function is made for.
 
-  // Push handler for outer source values - lowers and routes them
-  template <typename TIn, typename TLiftedIn, typename TLiftedOut, typename LowerFn>
-  struct lift_outer_push_handler {
-    LowerFn lower_fn;
-    push_fn<TLiftedOut> push_outer_out;
-    std::shared_ptr<Wrapper<TLiftedIn>> last_lifted_in;
-    push_fn<TIn> push_inner_in;
-
-    RHEO_CALLABLE void operator()(TLiftedIn outer_value_in) const {
-      last_lifted_in->value = outer_value_in;
-      std::variant<TIn, TLiftedOut> maybe_lowered_value = lower_fn(outer_value_in);
-      if (maybe_lowered_value.index() == 0) {
-        // This value could be lowered; pass it to the inner pipe.
-        push_inner_in(std::get<0>(maybe_lowered_value));
-      } else {
-        // This value couldn't be lowered; pass it to the outer end of the lifted pipe.
-        push_outer_out(std::get<1>(maybe_lowered_value));
-      }
-    }
-  };
-
-  // Source binder for inner pipe input - wires outer source to inner pipe
-  template <typename TIn, typename TLiftedIn, typename TLiftedOut, typename LowerFn>
-  struct lift_inner_in_source_binder {
-    LowerFn lower_fn;
-    push_fn<TLiftedOut> push_outer_out;
-    source_fn<TLiftedIn> outer_source_in;
-    std::shared_ptr<Wrapper<TLiftedIn>> last_lifted_in;
-
-    RHEO_CALLABLE pull_fn operator()(push_fn<TIn> push_inner_in) const {
-      return outer_source_in(lift_outer_push_handler<TIn, TLiftedIn, TLiftedOut, LowerFn>{
-        lower_fn,
-        push_outer_out,
-        last_lifted_in,
-        std::move(push_inner_in)
-      });
-    }
-  };
-
-  // Push handler for inner pipe output - lifts values back up
-  template <typename TOut, typename TLiftedIn, typename TLiftedOut, typename LiftFn>
-  struct lift_inner_out_push_handler {
-    LiftFn lift_fn;
-    push_fn<TLiftedOut> push_outer_out;
-    std::shared_ptr<Wrapper<TLiftedIn>> last_lifted_in;
-
-    RHEO_CALLABLE void operator()(TOut inner_value_out) const {
-      push_outer_out(lift_fn(inner_value_out, last_lifted_in->value));
-    }
-  };
-
-  // Source binder for outer lifted source
-  template <typename TOut, typename TIn, typename TLiftedIn, typename TLiftedOut, typename LiftFn, typename LowerFn>
-  struct lift_source_binder {
-    pipe_fn<TOut, TIn> inner_pipe_fn;
-    LiftFn lift_fn;
-    LowerFn lower_fn;
-    source_fn<TLiftedIn> outer_source_in;
-
-    RHEO_CALLABLE pull_fn operator()(push_fn<TLiftedOut> push_outer_out) const {
-      auto last_lifted_in = make_wrapper_shared<TLiftedIn>();
-
-      // Create the inner source by applying inner pipe to our custom source binder
-      auto inner_source_out = inner_pipe_fn(lift_inner_in_source_binder<TIn, TLiftedIn, TLiftedOut, LowerFn>{
-        lower_fn,
-        push_outer_out,
-        outer_source_in,
-        last_lifted_in
-      });
-
-      // The pull function comes from the 'out' end of the inner pipe,
-      // which is wired up all the way through to the outer source.
-      return inner_source_out(lift_inner_out_push_handler<TOut, TLiftedIn, TLiftedOut, LiftFn>{
-        lift_fn,
-        push_outer_out,
-        last_lifted_in
-      });
-    }
-  };
-
-  // Pipe factory for lift
-  template <typename TOut, typename TIn, typename TLiftedIn, typename TLiftedOut, typename LiftFn, typename LowerFn>
-  struct lift_pipe_factory {
-    pipe_fn<TOut, TIn> inner_pipe_fn;
-    LiftFn lift_fn;
-    LowerFn lower_fn;
-
-    RHEO_CALLABLE source_fn<TLiftedOut> operator()(source_fn<TLiftedIn> outer_source_in) const {
-      return lift_source_binder<TOut, TIn, TLiftedIn, TLiftedOut, LiftFn, LowerFn>{
-        inner_pipe_fn,
-        lift_fn,
-        lower_fn,
-        std::move(outer_source_in)
-      };
-    }
-  };
-
   template <typename TOut, typename TIn, typename LiftFn, typename LowerFn>
   auto lift(
     pipe_fn<TOut, TIn> inner_pipe_fn,
@@ -160,7 +63,99 @@ namespace rheo::operators {
     using TLiftedOut = return_of<LiftFn>;
     using TLiftedIn = arg_of<LowerFn>;
 
-    return lift_pipe_factory<TOut, TIn, TLiftedIn, TLiftedOut, LiftFn, LowerFn>{
+    struct PipeFactory {
+      pipe_fn<TOut, TIn> inner_pipe_fn;
+      LiftFn lift_fn;
+      LowerFn lower_fn;
+
+      RHEO_CALLABLE source_fn<TLiftedOut> operator()(source_fn<TLiftedIn> outer_source_in) const {
+
+        struct SourceBinder {
+          pipe_fn<TOut, TIn> inner_pipe_fn;
+          LiftFn lift_fn;
+          LowerFn lower_fn;
+          source_fn<TLiftedIn> outer_source_in;
+
+          RHEO_CALLABLE pull_fn operator()(push_fn<TLiftedOut> push_outer_out) const {
+            auto last_lifted_in = make_wrapper_shared<TLiftedIn>();
+
+            // Source binder for inner pipe input - wires outer source to inner pipe
+            struct InnerInSourceBinder {
+              LowerFn lower_fn;
+              push_fn<TLiftedOut> push_outer_out;
+              source_fn<TLiftedIn> outer_source_in;
+              std::shared_ptr<Wrapper<TLiftedIn>> last_lifted_in;
+
+              RHEO_CALLABLE pull_fn operator()(push_fn<TIn> push_inner_in) const {
+
+                // Push handler for outer source values - lowers and routes them
+                struct OuterPushHandler {
+                  LowerFn lower_fn;
+                  push_fn<TLiftedOut> push_outer_out;
+                  std::shared_ptr<Wrapper<TLiftedIn>> last_lifted_in;
+                  push_fn<TIn> push_inner_in;
+
+                  RHEO_CALLABLE void operator()(TLiftedIn outer_value_in) const {
+                    last_lifted_in->value = outer_value_in;
+                    std::variant<TIn, TLiftedOut> maybe_lowered_value = lower_fn(outer_value_in);
+                    if (maybe_lowered_value.index() == 0) {
+                      // This value could be lowered; pass it to the inner pipe.
+                      push_inner_in(std::get<0>(maybe_lowered_value));
+                    } else {
+                      // This value couldn't be lowered; pass it to the outer end of the lifted pipe.
+                      push_outer_out(std::get<1>(maybe_lowered_value));
+                    }
+                  }
+                };
+
+                return outer_source_in(OuterPushHandler{
+                  lower_fn,
+                  push_outer_out,
+                  last_lifted_in,
+                  std::move(push_inner_in)
+                });
+              }
+            };
+
+            // Push handler for inner pipe output - lifts values back up
+            struct InnerOutPushHandler {
+              LiftFn lift_fn;
+              push_fn<TLiftedOut> push_outer_out;
+              std::shared_ptr<Wrapper<TLiftedIn>> last_lifted_in;
+
+              RHEO_CALLABLE void operator()(TOut inner_value_out) const {
+                push_outer_out(lift_fn(inner_value_out, last_lifted_in->value));
+              }
+            };
+
+            // Create the inner source by applying inner pipe to our custom source binder
+            auto inner_source_out = inner_pipe_fn(InnerInSourceBinder{
+              lower_fn,
+              push_outer_out,
+              outer_source_in,
+              last_lifted_in
+            });
+
+            // The pull function comes from the 'out' end of the inner pipe,
+            // which is wired up all the way through to the outer source.
+            return inner_source_out(InnerOutPushHandler{
+              lift_fn,
+              push_outer_out,
+              last_lifted_in
+            });
+          }
+        };
+
+        return SourceBinder{
+          inner_pipe_fn,
+          lift_fn,
+          lower_fn,
+          std::move(outer_source_in)
+        };
+      }
+    };
+
+    return PipeFactory{
       std::move(inner_pipe_fn),
       std::move(lift_fn),
       std::move(lower_fn)
