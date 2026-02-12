@@ -17,20 +17,30 @@ namespace rheo::operators {
   template <typename TDuration, typename T, typename TTimePoint, typename FilterFn>
     requires concepts::TimePointAndDurationCompatible<TTimePoint, TDuration>
   source_fn<TaggedValue<T, TDuration>> stopwatch(source_fn<T> source, source_fn<TTimePoint> clock_source, FilterFn&& lap_condition) {
+    using FilterFnDecayed = std::decay_t<FilterFn>;
+
     // This is kinda sneaky. We're turning `combine` into a reducer here,
     // because the mapping callback has state.
-    return combine(source, clock_source)
-      | map_tuple([lap_condition = std::forward<FilterFn>(lap_condition), lap_start = std::optional<TTimePoint>(), last_value_matched = false](T value, TTimePoint ts) mutable {
-          bool this_value_matches = lap_condition(value);
-          if (!lap_start.has_value() || (!last_value_matched && this_value_matches)) {
-            // We've either just started the stream
-            // or transitioned from a no-match state to a match state.
-            lap_start = ts;
-          }
+    struct LapMapper {
+      FilterFnDecayed lap_condition;
+      mutable std::optional<TTimePoint> lap_start;
+      mutable bool last_value_matched = false;
 
-          last_value_matched = this_value_matches;
-          return TaggedValue(value, ts - lap_start.value());
-        });
+      RHEO_CALLABLE TaggedValue<T, TDuration> operator()(T value, TTimePoint ts) const {
+        bool this_value_matches = lap_condition(value);
+        if (!lap_start.has_value() || (!last_value_matched && this_value_matches)) {
+          // We've either just started the stream
+          // or transitioned from a no-match state to a match state.
+          lap_start = ts;
+        }
+
+        last_value_matched = this_value_matches;
+        return TaggedValue(value, ts - lap_start.value());
+      }
+    };
+
+    return combine(source, clock_source)
+      | map_tuple(LapMapper{ std::forward<FilterFn>(lap_condition) });
   }
 
   // Pipe factory
@@ -39,9 +49,18 @@ namespace rheo::operators {
   auto stopwatch(source_fn<TTimePoint> clock_source, FilterFn&& lap_condition)
   -> pipe_fn<TaggedValue<arg_of<FilterFn>, TDuration>, arg_of<FilterFn>> {
     using T = arg_of<FilterFn>;
-    return [clock_source, lap_condition = std::forward<FilterFn>(lap_condition)](source_fn<T> source) -> source_fn<TaggedValue<T, TDuration>> {
-      return stopwatch<TDuration>(std::move(source), clock_source, std::move(lap_condition));
+    using FilterFnDecayed = std::decay_t<FilterFn>;
+
+    struct PipeFactory {
+      source_fn<TTimePoint> clock_source;
+      FilterFnDecayed lap_condition;
+
+      RHEO_CALLABLE source_fn<TaggedValue<T, TDuration>> operator()(source_fn<T> source) const {
+        return stopwatch<TDuration>(std::move(source), clock_source, std::move(lap_condition));
+      }
     };
+
+    return PipeFactory{clock_source, std::forward<FilterFn>(lap_condition)};
   }
 
 }

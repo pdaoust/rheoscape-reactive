@@ -28,12 +28,8 @@ namespace rheo::operators {
     source_fn<T> process_variable_source,
     source_fn<Range<T>> bounds_source
   ) {
-    auto combined = combine(process_variable_source, bounds_source);
-
-    return scan(
-      std::move(combined),
-      ProcessCommand::neutral,
-      [](ProcessCommand acc, std::tuple<T, Range<T>> value) {
+    struct Scanner {
+      RHEO_CALLABLE ProcessCommand operator()(ProcessCommand acc, std::tuple<T, Range<T>> value) const {
         if (std::get<0>(value) < std::get<1>(value).min) {
           return ProcessCommand::up;
         } else if (std::get<0>(value) > std::get<1>(value).max) {
@@ -45,14 +41,23 @@ namespace rheo::operators {
           return acc;
         }
       }
-    );
+    };
+
+    auto combined = combine(process_variable_source, bounds_source);
+    return scan(std::move(combined), ProcessCommand::neutral, Scanner{});
   }
 
   template <typename T>
   pipe_fn<T, T> bang_bang(source_fn<Range<T>> bounds_source) {
-    return [bounds_source = std::move<source_fn<Range<T>>>(bounds_source)](source_fn<T> process_variable_source) {
-      return bang_bang(std::move<source_fn<T>>(process_variable_source), std::move<source_fn<Range<T>>>(bounds_source));
+    struct PipeFactory {
+      source_fn<Range<T>> bounds_source;
+
+      RHEO_CALLABLE source_fn<ProcessCommand> operator()(source_fn<T> process_variable_source) const {
+        return bang_bang(std::move(process_variable_source), std::move(bounds_source));
+      }
     };
+
+    return PipeFactory{std::move(bounds_source)};
   }
 
   // Drive a heater, cooler, sprinkler valve, etc.
@@ -60,9 +65,15 @@ namespace rheo::operators {
   // E.g., a heater drives temperature upwards when it turns on,
   // so on_drives_process should be ProcessCommand::up.
   map_fn<SwitchState, ProcessCommand> drive_plant(ProcessCommand on_drives_process) {
-    return [on_drives_process](ProcessCommand direction) {
-      return direction == on_drives_process ? SwitchState::on : SwitchState::off;
+    struct Mapper {
+      ProcessCommand on_drives_process;
+
+      RHEO_CALLABLE SwitchState operator()(ProcessCommand direction) const {
+        return direction == on_drives_process ? SwitchState::on : SwitchState::off;
+      }
     };
+
+    return Mapper{on_drives_process};
   }
 
   // Drive a servo, linear actuator, etc.
@@ -70,9 +81,15 @@ namespace rheo::operators {
   // E.g., a vent drives temperature downwards when it opens,
   // so open_drives_process should be ProcessCommand::down.
   map_fn<GateCommand, ProcessCommand> drive_gate(ProcessCommand open_drives_process) {
-    return [open_drives_process](ProcessCommand direction) {
-      return direction == open_drives_process ? GateCommand::open : GateCommand::close;
+    struct Mapper {
+      ProcessCommand open_drives_process;
+
+      RHEO_CALLABLE GateCommand operator()(ProcessCommand direction) const {
+        return direction == open_drives_process ? GateCommand::open : GateCommand::close;
+      }
     };
+
+    return Mapper{open_drives_process};
   }
 
 }

@@ -12,26 +12,66 @@ namespace rheo::operators {
   template <typename T, typename TErr, typename MapFn>
   source_fn<Fallible<T, TErr>> log_errors(
     source_fn<Fallible<T, TErr>> source,
-    MapFn&& format_error = [](TErr value) { return fmt::format("{}", value); },
+    MapFn&& format_error,
     std::optional<std::string> topic = std::nullopt
   ) {
-    return tee(source, [topic, format_error = std::forward<MapFn>(format_error)](source_fn<Fallible<T, TErr>> source) {
-      source([topic, format_error](Fallible<T, TErr> value) {
-        if (value.is_error()) {
-          logging::error(topic, format_error(value.error()));
-        }
-      });
-    });
+    using MapFnDecayed = std::decay_t<MapFn>;
+
+    struct ErrorLogger {
+      std::optional<std::string> topic;
+      MapFnDecayed format_error;
+
+      RHEO_CALLABLE void operator()(source_fn<Fallible<T, TErr>> source) const {
+        struct PushHandler {
+          std::optional<std::string> topic;
+          MapFnDecayed format_error;
+
+          RHEO_CALLABLE void operator()(Fallible<T, TErr> value) const {
+            if (value.is_error()) {
+              logging::error(topic, format_error(value.error()));
+            }
+          }
+        };
+
+        source(PushHandler{topic, format_error});
+      }
+    };
+
+    return tee(source, ErrorLogger{topic, std::forward<MapFn>(format_error)});
+  }
+
+  // Overload with default formatter
+  template <typename T, typename TErr>
+  source_fn<Fallible<T, TErr>> log_errors(
+    source_fn<Fallible<T, TErr>> source,
+    std::optional<std::string> topic = std::nullopt
+  ) {
+    struct DefaultFormatter {
+      RHEO_CALLABLE std::string operator()(TErr value) const {
+        return fmt::format("{}", value);
+      }
+    };
+
+    return log_errors(source, DefaultFormatter{}, topic);
   }
 
   template <typename T, typename TErr, typename MapFn>
   pipe_fn<Fallible<T, TErr>, Fallible<T, TErr>> log_errors(
-    MapFn&& format_error = [](TErr value) { return fmt::format("{}", value); },
+    MapFn&& format_error,
     std::optional<std::string> topic = std::nullopt
   ) {
-    return [format_error, topic](source_fn<Fallible<T, TErr>> source) {
-      return log_errors(source, format_error, topic);
+    using MapFnDecayed = std::decay_t<MapFn>;
+
+    struct PipeFactory {
+      MapFnDecayed format_error;
+      std::optional<std::string> topic;
+
+      RHEO_CALLABLE source_fn<Fallible<T, TErr>> operator()(source_fn<Fallible<T, TErr>> source) const {
+        return log_errors(source, format_error, topic);
+      }
     };
+
+    return PipeFactory{std::forward<MapFn>(format_error), topic};
   }
 
 }

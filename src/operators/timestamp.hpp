@@ -10,17 +10,27 @@ namespace rheo::operators {
 
   template <typename T, typename TTimePoint>
   source_fn<TaggedValue<T, TTimePoint>> timestamp(source_fn<T> source, source_fn<TTimePoint> clock_source) {
+    struct Tagger {
+      RHEO_CALLABLE TaggedValue<T, TTimePoint> operator()(T value, TTimePoint timestamp) const {
+        return TaggedValue<T, TTimePoint>{ value, timestamp };
+      }
+    };
+
     return combine(source, clock_source)
-      | map_tuple([](T value, TTimePoint timestamp) {
-          return TaggedValue<T, TTimePoint> { value, timestamp };
-        });
+      | map_tuple(Tagger{});
   }
 
   template <typename T, typename TTimePoint>
   pipe_fn<TaggedValue<T, TTimePoint>, T> timestamp(source_fn<TTimePoint> clock_source) {
-    return [clock_source](source_fn<T> source) {
-      return timestamp(source, clock_source);
+    struct PipeFactory {
+      source_fn<TTimePoint> clock_source;
+
+      RHEO_CALLABLE source_fn<TaggedValue<T, TTimePoint>> operator()(source_fn<T> source) const {
+        return timestamp(source, clock_source);
+      }
     };
+
+    return PipeFactory{clock_source};
   }
 
 }

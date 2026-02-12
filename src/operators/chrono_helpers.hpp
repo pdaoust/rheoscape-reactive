@@ -9,27 +9,57 @@ namespace rheo::operators {
 
   template <class TClock>
   map_fn<typename TClock::time_point, typename TClock::duration::rep> convert_to_chrono_time_point() {
-    return [](typename TClock::duration::rep value) { return TClock::time_point(value); };
+    struct Converter {
+      RHEO_CALLABLE typename TClock::time_point operator()(typename TClock::duration::rep value) const {
+        return typename TClock::time_point(typename TClock::duration(value));
+      }
+    };
+
+    return Converter{};
   }
 
   template <class TDuration>
   map_fn<TDuration, typename TDuration::rep> convert_to_chrono_duration() {
-    return [](typename TDuration::rep value) { return TDuration(value); };
+    struct Converter {
+      RHEO_CALLABLE TDuration operator()(typename TDuration::rep value) const {
+        return TDuration(value);
+      }
+    };
+
+    return Converter{};
   }
 
   template <class TClock>
   map_fn<typename TClock::duration, typename TClock::time_point> convert_time_point_to_duration() {
-    return [](typename TClock::time_point value) { return value.time_since_epoch(); };
+    struct Converter {
+      RHEO_CALLABLE typename TClock::duration operator()(typename TClock::time_point value) const {
+        return value.time_since_epoch();
+      }
+    };
+
+    return Converter{};
   }
 
   template <typename TTimePoint>
   map_fn<typename TTimePoint::duration::rep, TTimePoint> strip_chrono() {
-    return [](TTimePoint v) { return v.time_since_epoch().count(); };
+    struct Converter {
+      RHEO_CALLABLE typename TTimePoint::duration::rep operator()(TTimePoint v) const {
+        return v.time_since_epoch().count();
+      }
+    };
+
+    return Converter{};
   }
 
   template <class TDuration>
   map_fn<typename TDuration::rep, TDuration> strip_chrono() {
-    return [](TDuration v) { return v.count(); };
+    struct Converter {
+      RHEO_CALLABLE typename TDuration::rep operator()(TDuration v) const {
+        return v.count();
+      }
+    };
+
+    return Converter{};
   }
 
   template <typename TClock>

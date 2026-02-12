@@ -1,3 +1,5 @@
+#pragma once
+
 #include <math.h>
 #include <functional>
 #include <operators/map.hpp>
@@ -18,10 +20,12 @@ namespace rheo::operators {
   auto wave(source_fn<TInput> input_source, source_fn<TInput> period_source, source_fn<TInput> phase_shift_source, MapFn&& wave_function)
   -> source_fn<return_of<std::decay_t<MapFn>>> {
     using TFloat = return_of<std::decay_t<MapFn>>;
+    using MapFnDecayed = std::decay_t<MapFn>;
 
-    return map(
-      combine(input_source, period_source, phase_shift_source),
-      [wave_function = std::forward<MapFn>(wave_function)](std::tuple<TInput, TInput, TInput> value) {
+    struct WaveMapper {
+      MapFnDecayed wave_function;
+
+      RHEO_CALLABLE TFloat operator()(std::tuple<TInput, TInput, TInput> value) const {
         TInput input = std::get<0>(value);
         TInput period = std::get<1>(value);
         TInput phase_shift = std::get<2>(value);
@@ -33,26 +37,40 @@ namespace rheo::operators {
         TFloat pos_in_cycle = static_cast<TFloat>(remainder) / static_cast<TFloat>(period);
         return wave_function(pos_in_cycle);
       }
+    };
+
+    return map(
+      combine(input_source, period_source, phase_shift_source),
+      WaveMapper{ std::forward<MapFn>(wave_function) }
     );
   }
 
   template <typename TFloat = float, typename TInput>
   source_fn<TFloat> sine_wave(source_fn<TInput> input_source, source_fn<TInput> period_source, source_fn<TInput> phase_shift_source) {
-    return wave(input_source, period_source, phase_shift_source, [](TFloat input) { return sin((TFloat)input * M_PI * 2); });
+    struct SineFunction {
+      RHEO_CALLABLE TFloat operator()(TFloat input) const {
+        return sin((TFloat)input * M_PI * 2);
+      }
+    };
+
+    return wave(input_source, period_source, phase_shift_source, SineFunction{});
   }
 
   template <typename TFloat = float, typename TInput>
   source_fn<TFloat> sawtooth_wave(source_fn<TInput> input_source, source_fn<TInput> period_source, source_fn<TInput> phase_shift_source) {
-    return wave(input_source, period_source, phase_shift_source, [](TFloat input) { return input * 2 - 1; });
+    struct SawtoothFunction {
+      RHEO_CALLABLE TFloat operator()(TFloat input) const {
+        return input * 2 - 1;
+      }
+    };
+
+    return wave(input_source, period_source, phase_shift_source, SawtoothFunction{});
   }
 
   template <typename TFloat = float, typename TInput>
   source_fn<TFloat> triangle_wave(source_fn<TInput> input_source, source_fn<TInput> period_source, source_fn<TInput> phase_shift_source) {
-    return wave(
-      input_source,
-      period_source,
-      phase_shift_source,
-      [](TFloat input) {
+    struct TriangleFunction {
+      RHEO_CALLABLE TFloat operator()(TFloat input) const {
         input = input * 4;
         if (input < 1) {
           return input;
@@ -62,21 +80,33 @@ namespace rheo::operators {
           return input - 4;
         }
       }
-    );
+    };
+
+    return wave(input_source, period_source, phase_shift_source, TriangleFunction{});
   }
 
   template <typename TFloat = float, typename TInput>
   source_fn<TFloat> pwm_wave(source_fn<TInput> input_source, source_fn<TInput> period_source, source_fn<TInput> phase_shift_source, source_fn<TFloat> duty_source) {
-    return map(
-      combine(
-        wave(input_source, period_source, phase_shift_source, [](TFloat v) { return v; }),
-        duty_source
-      ),
-      [](std::tuple<TFloat, TFloat> value) {
+    struct IdentityFunction {
+      RHEO_CALLABLE TFloat operator()(TFloat v) const {
+        return v;
+      }
+    };
+
+    struct DutyComparator {
+      RHEO_CALLABLE TFloat operator()(std::tuple<TFloat, TFloat> value) const {
         return std::get<0>(value) < std::get<1>(value)
             ? (TFloat)1
             : (TFloat)-1;
       }
+    };
+
+    return map(
+      combine(
+        wave(input_source, period_source, phase_shift_source, IdentityFunction{}),
+        duty_source
+      ),
+      DutyComparator{}
     );
   }
 
