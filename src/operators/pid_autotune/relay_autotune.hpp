@@ -37,19 +37,8 @@ namespace rheo::autotune {
     TTimePoint timestamp;
   };
 
-  // Named callable for combining relay autotune inputs.
-  template <typename TP, typename TTimePoint>
-  struct relay_autotune_input_combiner {
-    RHEO_CALLABLE RelayAutotuneInput<TP, TTimePoint> operator()(
-      TP process_variable,
-      TP setpoint,
-      TTimePoint timestamp
-    ) const {
-      return RelayAutotuneInput<TP, TTimePoint>{ process_variable, setpoint, timestamp };
-    }
-  };
-
-  // Named callable for relay autotune state machine.
+  // Named callable for relay autotune state machine
+  // (stays at namespace scope - large domain logic, shared type definitions).
   // Implements Astrom-Hagglund relay feedback method for Ziegler-Nichols tuning.
   template <typename TCtl, typename TP, typename TTimePoint>
   struct relay_autotune_scanner {
@@ -226,29 +215,6 @@ namespace rheo::autotune {
     };
   }
 
-  // Named callable for extracting RelayAutotuneOutput from state.
-  template <typename TCtl, typename TP, typename TTimePoint, typename TKp, typename TKi, typename TKd>
-  struct relay_autotune_output_mapper {
-    RelayAutotuneConfig<TCtl, TP, TTimePoint> config;
-
-    using OutputType = RelayAutotuneOutput<TCtl, TKp, TKi, TKd, TTimePoint>;
-
-    RHEO_CALLABLE OutputType operator()(
-      RelayAutotuneState<TCtl, TP, TTimePoint> state
-    ) const {
-      std::optional<RelayAutotuneResult<TKp, TKi, TKd, TTimePoint>> result = std::nullopt;
-
-      if (state.status == AutotuneStatus::converged) {
-        result = calculate_zn_parameters<TCtl, TP, TTimePoint, TKp, TKi, TKd>(state, config);
-      }
-
-      return OutputType{
-        state.current_output,
-        result
-      };
-    }
-  };
-
   // Relay autotune source function factory.
   //
   // Implements the Astrom-Hagglund relay feedback method for PID autotuning.
@@ -283,10 +249,39 @@ namespace rheo::autotune {
     using StateType = RelayAutotuneState<TCtl, TP, TTimePoint>;
     using OutputType = RelayAutotuneOutput<TCtl, TKp, TKi, TKd, TTimePoint>;
 
+    // Named callable for combining relay autotune inputs.
+    struct InputCombiner {
+      RHEO_CALLABLE InputType operator()(
+        TP process_variable,
+        TP setpoint,
+        TTimePoint timestamp
+      ) const {
+        return InputType{ process_variable, setpoint, timestamp };
+      }
+    };
+
+    // Named callable for extracting RelayAutotuneOutput from state.
+    struct OutputMapper {
+      RelayAutotuneConfig<TCtl, TP, TTimePoint> config;
+
+      RHEO_CALLABLE OutputType operator()(StateType state) const {
+        std::optional<RelayAutotuneResult<TKp, TKi, TKd, TTimePoint>> result = std::nullopt;
+
+        if (state.status == AutotuneStatus::converged) {
+          result = calculate_zn_parameters<TCtl, TP, TTimePoint, TKp, TKi, TKd>(state, config);
+        }
+
+        return OutputType{
+          state.current_output,
+          result
+        };
+      }
+    };
+
     // Combine input sources
     source_fn<InputType> combined_source =
       operators::combine(process_variable_source, setpoint_source, clock_source)
-      | operators::map_tuple(relay_autotune_input_combiner<TP, TTimePoint>{});
+      | operators::map_tuple(InputCombiner{});
 
     // Initial state
     StateType initial_state{
@@ -312,10 +307,7 @@ namespace rheo::autotune {
     );
 
     // Map to output type
-    return operators::map(
-      state_source,
-      relay_autotune_output_mapper<TCtl, TP, TTimePoint, TKp, TKi, TKd>{config}
-    );
+    return operators::map(state_source, OutputMapper{config});
   }
 
   // Pipe version of relay_autotune.
@@ -333,14 +325,24 @@ namespace rheo::autotune {
     source_fn<TTimePoint> clock_source,
     RelayAutotuneConfig<TCtl, TP, TTimePoint> config
   ) {
-    return [setpoint_source, clock_source, config](source_fn<TP> process_variable_source) {
-      return relay_autotune<TP, TCtl, TTimePoint, TKp, TKi, TKd>(
-        process_variable_source,
-        setpoint_source,
-        clock_source,
-        config
-      );
+    struct PipeFactory {
+      source_fn<TP> setpoint_source;
+      source_fn<TTimePoint> clock_source;
+      RelayAutotuneConfig<TCtl, TP, TTimePoint> config;
+
+      RHEO_CALLABLE source_fn<RelayAutotuneOutput<TCtl, TKp, TKi, TKd, TTimePoint>> operator()(
+        source_fn<TP> process_variable_source
+      ) const {
+        return relay_autotune<TP, TCtl, TTimePoint, TKp, TKi, TKd>(
+          process_variable_source,
+          setpoint_source,
+          clock_source,
+          config
+        );
+      }
     };
+
+    return PipeFactory{setpoint_source, clock_source, config};
   }
 
 }

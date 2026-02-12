@@ -55,39 +55,6 @@ namespace rheo::autotune {
     TFitness target_fitness;  // Dynamic target from source
   };
 
-  // Named callable for combining advisor inputs.
-  template <typename TCtrl, typename TP, typename TI, typename TD, typename TTimePoint, typename TFitness>
-  struct rule_based_input_combiner {
-    RHEO_CALLABLE RuleBasedInput<TCtrl, TP, TI, TD, TTimePoint, TFitness> operator()(
-      operators::PidOutput<TCtrl, TP, TI> pid_output,
-      TTimePoint timestamp,
-      TFitness target_fitness
-    ) const {
-      return RuleBasedInput<TCtrl, TP, TI, TD, TTimePoint, TFitness>{
-        pid_output,
-        timestamp,
-        target_fitness
-      };
-    }
-  };
-
-  // Named callable for combining advisor inputs (scalar target).
-  template <typename TCtrl, typename TP, typename TI, typename TD, typename TTimePoint, typename TFitness>
-  struct rule_based_input_combiner_scalar_target {
-    TFitness target_fitness;
-
-    RHEO_CALLABLE RuleBasedInput<TCtrl, TP, TI, TD, TTimePoint, TFitness> operator()(
-      operators::PidOutput<TCtrl, TP, TI> pid_output,
-      TTimePoint timestamp
-    ) const {
-      return RuleBasedInput<TCtrl, TP, TI, TD, TTimePoint, TFitness>{
-        pid_output,
-        timestamp,
-        target_fitness
-      };
-    }
-  };
-
   // Compute fitness score from current state.
   // Lower is better (matches quality_score semantics).
   template <typename TP, typename TTimePoint, typename TFitness>
@@ -113,7 +80,8 @@ namespace rheo::autotune {
     );
   }
 
-  // Named callable for rule-based advisor scanner.
+  // Named callable for rule-based advisor scanner
+  // (stays at namespace scope - large domain logic, shared between overloads).
   template <typename TCtrl, typename TP, typename TI, typename TD, typename TTimePoint, typename TFitness>
   struct rule_based_scanner {
     RuleBasedAdvisorConfig<TP, TTimePoint, TFitness> config;
@@ -244,30 +212,6 @@ namespace rheo::autotune {
     return TuningAdjustment::none;
   }
 
-  // Named callable for extracting TuningAdjustment from state.
-  template <typename TP, typename TTimePoint, typename TFitness>
-  struct rule_based_output_mapper {
-    RuleBasedAdvisorConfig<TP, TTimePoint, TFitness> config;
-
-    // We need the current timestamp, which we can get from the state's last update
-    // This is a bit awkward; ideally we'd have timestamp in the mapper call
-    mutable TTimePoint last_timestamp;
-
-    RHEO_CALLABLE TuningAdjustment operator()(
-      RuleBasedState<TP, TTimePoint, TFitness> state
-    ) const {
-      // Use stored timestamp (this is a simplification; proper implementation
-      // would thread the timestamp through)
-      TTimePoint current_time = state.first_sample_time;  // Approximate
-      if (state.sample_count > 0) {
-        // Estimate based on sample count (rough approximation)
-        current_time = state.settling_start_time;
-      }
-
-      return determine_adjustment(state, config, current_time);
-    }
-  };
-
   // Combined state and timestamp for proper output mapping
   template <typename TP, typename TTimePoint, typename TFitness>
   struct RuleBasedStateWithTime {
@@ -276,6 +220,7 @@ namespace rheo::autotune {
   };
 
   // Scanner that preserves timestamp
+  // (stays at namespace scope - shared between both overloads).
   template <typename TCtrl, typename TP, typename TI, typename TD, typename TTimePoint, typename TFitness>
   struct rule_based_scanner_with_time {
     RuleBasedAdvisorConfig<TP, TTimePoint, TFitness> config;
@@ -292,18 +237,6 @@ namespace rheo::autotune {
         inner_scanner(state.state, input),
         input.timestamp
       };
-    }
-  };
-
-  // Output mapper with proper timestamp access
-  template <typename TP, typename TTimePoint, typename TFitness>
-  struct rule_based_output_mapper_with_time {
-    RuleBasedAdvisorConfig<TP, TTimePoint, TFitness> config;
-
-    RHEO_CALLABLE TuningAdjustment operator()(
-      RuleBasedStateWithTime<TP, TTimePoint, TFitness> state_with_time
-    ) const {
-      return determine_adjustment(state_with_time.state, config, state_with_time.timestamp);
     }
   };
 
@@ -337,10 +270,34 @@ namespace rheo::autotune {
     using InputType = RuleBasedInput<TCtrl, TP, TI, TD, TTimePoint, TFitness>;
     using StateType = RuleBasedStateWithTime<TP, TTimePoint, TFitness>;
 
+    // Named callable for combining advisor inputs.
+    struct InputCombiner {
+      RHEO_CALLABLE InputType operator()(
+        operators::PidOutput<TCtrl, TP, TI> pid_output,
+        TTimePoint timestamp,
+        TFitness target_fitness
+      ) const {
+        return InputType{
+          pid_output,
+          timestamp,
+          target_fitness
+        };
+      }
+    };
+
+    // Named callable for mapping state to adjustment output.
+    struct OutputMapper {
+      RuleBasedAdvisorConfig<TP, TTimePoint, TFitness> config;
+
+      RHEO_CALLABLE TuningAdjustment operator()(StateType state_with_time) const {
+        return determine_adjustment(state_with_time.state, config, state_with_time.timestamp);
+      }
+    };
+
     // Combine input sources
     source_fn<InputType> combined_source =
       operators::combine(pid_output_source, clock_source, target_fitness_source)
-      | operators::map_tuple(rule_based_input_combiner<TCtrl, TP, TI, TD, TTimePoint, TFitness>{});
+      | operators::map_tuple(InputCombiner{});
 
     // Initial state
     RuleBasedState<TP, TTimePoint, TFitness> initial_inner_state{
@@ -369,10 +326,7 @@ namespace rheo::autotune {
     );
 
     // Map to adjustment output
-    return operators::map(
-      state_source,
-      rule_based_output_mapper_with_time<TP, TTimePoint, TFitness>{config}
-    );
+    return operators::map(state_source, OutputMapper{config});
   }
 
   // Rule-based advisor source function factory (with scalar target fitness).
@@ -394,10 +348,35 @@ namespace rheo::autotune {
     using InputType = RuleBasedInput<TCtrl, TP, TI, TD, TTimePoint, TFitness>;
     using StateType = RuleBasedStateWithTime<TP, TTimePoint, TFitness>;
 
+    // Named callable for combining advisor inputs (scalar target).
+    struct InputCombiner {
+      TFitness target_fitness;
+
+      RHEO_CALLABLE InputType operator()(
+        operators::PidOutput<TCtrl, TP, TI> pid_output,
+        TTimePoint timestamp
+      ) const {
+        return InputType{
+          pid_output,
+          timestamp,
+          target_fitness
+        };
+      }
+    };
+
+    // Named callable for mapping state to adjustment output.
+    struct OutputMapper {
+      RuleBasedAdvisorConfig<TP, TTimePoint, TFitness> config;
+
+      RHEO_CALLABLE TuningAdjustment operator()(StateType state_with_time) const {
+        return determine_adjustment(state_with_time.state, config, state_with_time.timestamp);
+      }
+    };
+
     // Combine input sources (with scalar target)
     source_fn<InputType> combined_source =
       operators::combine(pid_output_source, clock_source)
-      | operators::map_tuple(rule_based_input_combiner_scalar_target<TCtrl, TP, TI, TD, TTimePoint, TFitness>{config.target_fitness});
+      | operators::map_tuple(InputCombiner{config.target_fitness});
 
     // Initial state
     RuleBasedState<TP, TTimePoint, TFitness> initial_inner_state{
@@ -426,10 +405,7 @@ namespace rheo::autotune {
     );
 
     // Map to adjustment output
-    return operators::map(
-      state_source,
-      rule_based_output_mapper_with_time<TP, TTimePoint, TFitness>{config}
-    );
+    return operators::map(state_source, OutputMapper{config});
   }
 
 }
