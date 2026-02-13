@@ -140,8 +140,8 @@ void setup() {
       return arduino::sht2x::format_error(error);
     }, "sht2x")
     | make_infallible<arduino::sht2x::Reading, arduino::sht2x::Error>()
-    | cache<arduino::sht2x::Reading>()
-    | throttle<arduino::sht2x::Reading>(clock, arduino_millis_clock::duration(250))
+    | cache()
+    | throttle(clock, arduino_millis_clock::duration(250))
     // We've gotta do the averaging in two parts.
     // First the temperature...
     | lift_to_tuple_left<arduino::sht2x::Humidity>(

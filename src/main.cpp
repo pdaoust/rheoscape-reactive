@@ -178,8 +178,8 @@ void setup() {
         }
         return std::nullopt;
       })
-    | throttle<std::monostate>(system_clock_source, float_millis_clock::duration(50.0))
-    | sample<std::monostate>(ui_state.get_source_fn())
+    | throttle(system_clock_source, float_millis_clock::duration(50.0))
+    | sample(ui_state.get_source_fn())
     | map_tuple([](std::monostate, UiState value) {
         return (UiState)((value + 1) % UiState::_count);
       })
@@ -193,14 +193,14 @@ void setup() {
         }
         return std::nullopt;
       })
-    | combine_with<int8_t>(ui_state.get_source_fn());
+    | combine_with(ui_state.get_source_fn());
 
   // Servo range.
   ui_editing
     | filter([](std::tuple<int8_t, UiState> value) {
         return std::get<1>(value) == EDIT_SERVO_MIN_ANGLE || std::get<1>(value) == EDIT_SERVO_MAX_ANGLE;
       })
-    | combine_with<std::tuple<int8_t, UiState>>(servo_angle_range.get_source_fn())
+    | combine_with(servo_angle_range.get_source_fn())
     | map_tuple([](std::tuple<int8_t, UiState> delta, Range<au::QuantityPoint<au::Degrees, unsigned char>> range) {
         auto clicks = std::get<0>(delta);
         UiState state = std::get<1>(delta);
@@ -233,7 +233,7 @@ void setup() {
     | filter([](std::tuple<int8_t, UiState> value) {
         return std::get<1>(value) == EDIT_RED_PWM_DUTY_CYCLE;
       })
-    | combine_with<std::tuple<int8_t, UiState>>(red_pwm_duty_cycle.get_source_fn())
+    | combine_with(red_pwm_duty_cycle.get_source_fn())
     | map_tuple([](std::tuple<int8_t, UiState> delta, au::Quantity<au::Percent, int> duty_cycle) {
         int8_t clicks = std::get<0>(delta);
         // Jump in 10% increments.
@@ -250,7 +250,7 @@ void setup() {
     | filter([](std::tuple<int8_t, UiState> value) {
         return std::get<1>(value) == EDIT_BLUE_PWM_DUTY_CYCLE;
       })
-    | combine_with<std::tuple<int8_t, UiState>>(blue_pwm_duty_cycle.get_source_fn())
+    | combine_with(blue_pwm_duty_cycle.get_source_fn())
     | map_tuple([](std::tuple<int8_t, UiState> delta, au::Quantity<au::Percent, int> duty_cycle) {
         int8_t clicks = std::get<0>(delta);
         auto new_duty_cycle = duty_cycle + au::percent(clicks * 10);
@@ -266,7 +266,7 @@ void setup() {
     | filter([](std::tuple<int8_t, UiState> value) {
         return std::get<1>(value) == EDIT_SERVO_SWEEP_DURATION;
       })
-    | combine_with<std::tuple<int8_t, UiState>>(servo_sweep_duration.get_source_fn())
+    | combine_with(servo_sweep_duration.get_source_fn())
     | map_tuple([](std::tuple<int8_t, UiState> delta, float_millis_clock::duration duration) {
         int8_t clicks = std::get<0>(delta);
         auto new_duration = duration + float_millis_clock::duration(clicks * 100);
