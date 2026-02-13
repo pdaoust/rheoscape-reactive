@@ -34,7 +34,14 @@ namespace rheo::operators {
         auto completed_cycles = floor(input_adjusted / period);
         // scalar * TInput gives TInput; TInput - TInput gives TInput.
         TInput remainder = input_adjusted - completed_cycles * period;
-        TFloat pos_in_cycle = static_cast<TFloat>(remainder) / static_cast<TFloat>(period);
+        // For std::chrono::duration, division of like durations yields a dimensionless scalar.
+        // For scalar types, convert to TFloat first to avoid integer division.
+        TFloat pos_in_cycle;
+        if constexpr (std::is_arithmetic_v<TInput>) {
+          pos_in_cycle = static_cast<TFloat>(remainder) / static_cast<TFloat>(period);
+        } else {
+          pos_in_cycle = static_cast<TFloat>(remainder / period);
+        }
         return wave_function(pos_in_cycle);
       }
     };

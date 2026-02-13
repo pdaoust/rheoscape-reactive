@@ -100,7 +100,7 @@ namespace rheo::operators {
       std::tuple<source_fn<Ts>...> sources;
 
       template <typename T1>
-      RHEO_CALLABLE auto operator()(source_fn<T1> source1) const {
+      RHEO_CALLABLE source_fn<std::tuple<T1, Ts...>> operator()(source_fn<T1> source1) const {
         return std::apply([&source1](auto... rest_sources) {
           return combine(std::move(source1), std::move(rest_sources)...);
         }, sources);
