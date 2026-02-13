@@ -53,49 +53,51 @@ namespace rheo::sources::arduino::ds18b20 {
   // then it'll request a new temperature.
   // If the sensor is disconnected, it'll return an empty optional value.
 
-  struct ds18b20_pull_handler {
-    Address address;
-    DallasTemperature* sensor;  // Value capture of pointer, not reference
-    int resolution;
-    push_fn<std::optional<au::QuantityPoint<au::Celsius, float>>> push;
-    std::shared_ptr<ds18b20_state> state;
+  source_fn<std::optional<au::QuantityPoint<au::Celsius, float>>> ds18b20(const DeviceAddress& address, DallasTemperature* sensor, int resolution) {
+    Address addr = device_address_to_array(address);
+    sensor->setResolution(addr.data(), resolution);
+    sensor->setWaitForConversion(false);
+    sensor->requestTemperaturesByAddress(addr.data());
 
-    RHEO_CALLABLE void operator()() const {
-      // Normally when I'm consuming the time in a source function,
-      // I expect a time source.
-      // But because I know I'm on the Arduino platform,
-      // we'll just use the millis clock.
-      unsigned long now = millis();
-      if (now - state->last_read > sensor->millisToWaitForConversion(resolution)) {
-        state->last_read = now;
-        float temp_c = sensor->getTempC(address.data());
-        if (temp_c == DEVICE_DISCONNECTED_C) {
-          push(std::nullopt);
-        } else {
-          push(au::celsius_pt(temp_c));
-        }
-        sensor->requestTemperaturesByAddress(address.data());
+    struct SourceBinder {
+      Address address;
+      DallasTemperature* sensor;
+      int resolution;
+
+      RHEO_CALLABLE pull_fn operator()(push_fn<std::optional<au::QuantityPoint<au::Celsius, float>>> push) const {
+        auto state = std::make_shared<ds18b20_state>(ds18b20_state{millis()});
+
+        struct PullHandler {
+          Address address;
+          DallasTemperature* sensor;
+          int resolution;
+          push_fn<std::optional<au::QuantityPoint<au::Celsius, float>>> push;
+          std::shared_ptr<ds18b20_state> state;
+
+          RHEO_CALLABLE void operator()() const {
+            // Normally when I'm consuming the time in a source function,
+            // I expect a time source.
+            // But because I know I'm on the Arduino platform,
+            // we'll just use the millis clock.
+            unsigned long now = millis();
+            if (now - state->last_read > sensor->millisToWaitForConversion(resolution)) {
+              state->last_read = now;
+              float temp_c = sensor->getTempC(address.data());
+              if (temp_c == DEVICE_DISCONNECTED_C) {
+                push(std::nullopt);
+              } else {
+                push(au::celsius_pt(temp_c));
+              }
+              sensor->requestTemperaturesByAddress(address.data());
+            }
+          }
+        };
+
+        return PullHandler{address, sensor, resolution, std::move(push), state};
       }
-    }
-  };
+    };
 
-  struct ds18b20_source_binder {
-    Address address;
-    DallasTemperature* sensor;
-    int resolution;
-
-    RHEO_CALLABLE pull_fn operator()(push_fn<std::optional<au::QuantityPoint<au::Celsius, float>>> push) const {
-      sensor->setResolution(address.data(), resolution);
-      sensor->setWaitForConversion(false);
-      sensor->requestTemperaturesByAddress(address.data());
-
-      auto state = std::make_shared<ds18b20_state>(ds18b20_state{millis()});
-      return ds18b20_pull_handler{address, sensor, resolution, std::move(push), state};
-    }
-  };
-
-  source_fn<std::optional<au::QuantityPoint<au::Celsius, float>>> ds18b20(DeviceAddress address, DallasTemperature* sensor, int resolution) {
-    return ds18b20_source_binder{device_address_to_array(address), sensor, resolution};
+    return SourceBinder{addr, sensor, resolution};
   }
 
   // A source function factory with a much nicer way of specifying a device address --
