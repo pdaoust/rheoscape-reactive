@@ -94,18 +94,6 @@ namespace rheo::operators {
       }(std::make_index_sequence<N>{});
     }
 
-    // Pipe factory for combine_with: combines the piped source with additional sources.
-    template <typename... Ts>
-    struct CombineWithPipeFactory {
-      std::tuple<source_fn<Ts>...> sources;
-
-      template <typename T1>
-      RHEO_CALLABLE source_fn<std::tuple<T1, Ts...>> operator()(source_fn<T1> source1) const {
-        return std::apply([&source1](auto... rest_sources) {
-          return combine(std::move(source1), std::move(rest_sources)...);
-        }, sources);
-      }
-    };
   }
 
   // Combine multiple sources into a tuple of their values.
@@ -219,6 +207,21 @@ namespace rheo::operators {
 
     return SourceBinder{
       std::make_tuple(std::move(first), std::move(rest)...)
+    };
+  }
+
+  namespace detail {
+    // Pipe factory for combine_with: combines the piped source with additional sources.
+    template <typename... Ts>
+    struct CombineWithPipeFactory {
+      std::tuple<source_fn<Ts>...> sources;
+
+      template <typename T1>
+      RHEO_CALLABLE source_fn<std::tuple<T1, Ts...>> operator()(source_fn<T1> source1) const {
+        return std::apply([&source1](auto... rest_sources) {
+          return combine(std::move(source1), std::move(rest_sources)...);
+        }, sources);
+      }
     };
   }
 

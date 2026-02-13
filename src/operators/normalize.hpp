@@ -32,15 +32,6 @@ namespace rheo::operators {
       }
     }
 
-    template <typename TOut, typename TIn>
-    struct NormalizePipeFactory {
-      source_fn<Range<TIn>> from_source;
-      source_fn<Range<TOut>> to_source;
-
-      RHEO_CALLABLE auto operator()(source_fn<TIn> source) const {
-        return normalize(source, from_source, to_source);
-      }
-    };
   }
 
   template <typename TOut, typename TIn>
@@ -66,6 +57,18 @@ namespace rheo::operators {
 
     return combine(source, from_source, to_source)
       | map_tuple(Combiner{});
+  }
+
+  namespace detail {
+    template <typename TOut, typename TIn>
+    struct NormalizePipeFactory {
+      source_fn<Range<TIn>> from_source;
+      source_fn<Range<TOut>> to_source;
+
+      RHEO_CALLABLE auto operator()(source_fn<TIn> source) const {
+        return normalize(source, from_source, to_source);
+      }
+    };
   }
 
   template <typename TOut, typename TIn>
