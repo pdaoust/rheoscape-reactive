@@ -98,19 +98,22 @@ namespace rheo::operators {
     };
   }
 
-  template <typename TTimePoint, typename TInterval>
-    requires concepts::TimePointAndDurationCompatible<TTimePoint, TInterval>
-  pipe_fn<TTimePoint, TTimePoint> interval(source_fn<TInterval> interval_source) {
-
-    struct PipeFactory {
+  namespace detail {
+    template <typename TInterval>
+    struct IntervalPipeFactory {
       source_fn<TInterval> interval_source;
 
-      RHEO_CALLABLE source_fn<TTimePoint> operator()(source_fn<TTimePoint> time_source) const {
+      template <typename TTimePoint>
+        requires concepts::TimePointAndDurationCompatible<TTimePoint, TInterval>
+      RHEO_CALLABLE auto operator()(source_fn<TTimePoint> time_source) const {
         return interval(time_source, interval_source);
       }
     };
+  }
 
-    return PipeFactory{interval_source};
+  template <typename TInterval>
+  auto interval(source_fn<TInterval> interval_source) {
+    return detail::IntervalPipeFactory<TInterval>{interval_source};
   }
 
   // An alias for `constant`, to make it read better!

@@ -5,46 +5,55 @@
 
 namespace rheo::operators {
 
-  // Named callable for filter's push handler - provides better stack traces in debug mode
-  template<typename T, typename FilterFn>
-  struct filter_push_handler {
-    FilterFn filterer;
-    push_fn<T> push;
-
-    RHEO_CALLABLE void operator()(T value) const {
-      if (filterer(value)) {
-        push(value);
-      }
-    }
-  };
-
-  // Named callable for filter's source binder
-  template<typename T, typename FilterFn>
-  struct filter_source_binder {
-    source_fn<T> source;
-    FilterFn filterer;
-
-    RHEO_CALLABLE pull_fn operator()(push_fn<T> push) const {
-      return source(filter_push_handler<T, FilterFn>{filterer, std::move(push)});
-    }
-  };
-
   template <typename T, typename FilterFn>
     requires concepts::Predicate<FilterFn, T>
   RHEO_CALLABLE source_fn<T> filter(source_fn<T> source, FilterFn&& filterer) {
-    return filter_source_binder<T, std::decay_t<FilterFn>>{
+    using FilterFnDecayed = std::decay_t<FilterFn>;
+
+    struct SourceBinder {
+      source_fn<T> source;
+      FilterFnDecayed filterer;
+
+      RHEO_CALLABLE pull_fn operator()(push_fn<T> push) const {
+
+        struct PushHandler {
+          FilterFnDecayed filterer;
+          push_fn<T> push;
+
+          RHEO_CALLABLE void operator()(T value) const {
+            if (filterer(value)) {
+              push(value);
+            }
+          }
+        };
+
+        return source(PushHandler{filterer, std::move(push)});
+      }
+    };
+
+    return SourceBinder{
       source,
       std::forward<FilterFn>(filterer)
     };
   }
 
-  // Pipe factory overload
+  namespace detail {
+    template <typename FilterFn>
+    struct FilterPipeFactory {
+      FilterFn filterer;
+
+      template <typename T>
+        requires concepts::Predicate<FilterFn, T>
+      RHEO_CALLABLE auto operator()(source_fn<T> source) const {
+        return filter(std::move(source), FilterFn(filterer));
+      }
+    };
+  }
+
   template <typename FilterFn>
-  auto filter(FilterFn&& filterer)
-  -> pipe_fn<arg_of<FilterFn>, arg_of<FilterFn>> {
-    using T = arg_of<FilterFn>;
-    return [filterer = std::forward<FilterFn>(filterer)](source_fn<T> source) -> source_fn<T> {
-      return filter(std::move(source), std::move(filterer));
+  auto filter(FilterFn&& filterer) {
+    return detail::FilterPipeFactory<std::decay_t<FilterFn>>{
+      std::forward<FilterFn>(filterer)
     };
   }
 

@@ -8,26 +8,25 @@ namespace rheo::sources::arduino {
 
   struct analog_pin_pull_handler {
     int pin;
-    uint8_t resolution_bits;
     push_fn<int> push;
 
     RHEO_CALLABLE void operator()() const {
-      analogReadResolution(resolution_bits);
       push(analogRead(pin));
     }
   };
 
   struct analog_pin_source_binder {
     int pin;
-    uint8_t resolution_bits;
 
     RHEO_CALLABLE pull_fn operator()(push_fn<int> push) const {
-      return analog_pin_pull_handler{pin, resolution_bits, std::move(push)};
+      return analog_pin_pull_handler{pin, std::move(push)};
     }
   };
 
   source_fn<int> analog_pin_source(int pin, uint8_t resolution_bits = 10) {
-    return analog_pin_source_binder{pin, resolution_bits};
+    pinMode(pin, INPUT);
+    analogReadResolution(resolution_bits);
+    return analog_pin_source_binder{pin};
   }
 
 }

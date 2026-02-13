@@ -19,29 +19,6 @@ namespace rheo::operators {
   //
   // The mapper function's arity must match the tuple size.
 
-  // Named callable for map_tuple's push handler.
-  template<typename TTuple, typename TOut, typename MapFn>
-  struct map_tuple_push_handler {
-    push_fn<TOut> push;
-    // Mutable to support stateful mappers (mutable lambdas).
-    mutable MapFn mapper;
-
-    RHEO_CALLABLE void operator()(TTuple value) const {
-      push(std::apply(mapper, std::move(value)));
-    }
-  };
-
-  // Named callable for map_tuple's source binder.
-  template<typename TTuple, typename TOut, typename MapFn>
-  struct map_tuple_source_binder {
-    source_fn<TTuple> source;
-    MapFn mapper;
-
-    RHEO_CALLABLE pull_fn operator()(push_fn<TOut> push) const {
-      return source(map_tuple_push_handler<TTuple, TOut, MapFn>{std::move(push), mapper});
-    }
-  };
-
   // Source function factory: map_tuple(source, mapper)
   //
   // Takes a source of tuples and a mapper function,
@@ -51,26 +28,51 @@ namespace rheo::operators {
   RHEO_CALLABLE auto map_tuple(source_fn<TTuple> source, MapFn&& mapper)
   -> source_fn<apply_result_t<std::decay_t<MapFn>, TTuple>> {
     using TOut = apply_result_t<std::decay_t<MapFn>, TTuple>;
-    return map_tuple_source_binder<TTuple, TOut, std::decay_t<MapFn>>{
+    using MapFnDecayed = std::decay_t<MapFn>;
+
+    struct SourceBinder {
+      source_fn<TTuple> source;
+      MapFnDecayed mapper;
+
+      RHEO_CALLABLE pull_fn operator()(push_fn<TOut> push) const {
+
+        struct PushHandler {
+          push_fn<TOut> push;
+          // Mutable to support stateful mappers (mutable lambdas).
+          mutable MapFnDecayed mapper;
+
+          RHEO_CALLABLE void operator()(TTuple value) const {
+            push(std::apply(mapper, std::move(value)));
+          }
+        };
+
+        return source(PushHandler{std::move(push), mapper});
+      }
+    };
+
+    return SourceBinder{
       std::move(source),
       std::forward<MapFn>(mapper)
     };
   }
 
-  // Pipe factory overload: map_tuple(mapper)
-  //
-  // Returns a pipe function that can be used with the | operator.
-  // Usage: combine(source1, source2) | map_tuple([](T1, T2) { ... })
+  namespace detail {
+    template <typename MapFn>
+    struct MapTuplePipeFactory {
+      MapFn mapper;
+
+      template <typename TTuple>
+        requires concepts::TupleMapper<MapFn, TTuple>
+      RHEO_CALLABLE auto operator()(source_fn<TTuple> source) const {
+        return map_tuple(std::move(source), MapFn(mapper));
+      }
+    };
+  }
+
   template <typename MapFn>
-  auto map_tuple(MapFn&& mapper)
-  -> pipe_fn<
-      apply_result_t<std::decay_t<MapFn>, typename callable_traits<std::decay_t<MapFn>>::args_tuple>,
-      typename callable_traits<std::decay_t<MapFn>>::args_tuple
-    > {
-    using TTuple = typename callable_traits<std::decay_t<MapFn>>::args_tuple;
-    using TOut = apply_result_t<std::decay_t<MapFn>, TTuple>;
-    return [mapper = std::forward<MapFn>(mapper)](source_fn<TTuple> source) -> source_fn<TOut> {
-      return map_tuple(std::move(source), std::move(mapper));
+  auto map_tuple(MapFn&& mapper) {
+    return detail::MapTuplePipeFactory<std::decay_t<MapFn>>{
+      std::forward<MapFn>(mapper)
     };
   }
 

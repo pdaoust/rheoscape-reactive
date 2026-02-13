@@ -93,6 +93,19 @@ namespace rheo::operators {
         );
       }(std::make_index_sequence<N>{});
     }
+
+    // Pipe factory for combine_with: combines the piped source with additional sources.
+    template <typename... Ts>
+    struct CombineWithPipeFactory {
+      std::tuple<source_fn<Ts>...> sources;
+
+      template <typename T1>
+      RHEO_CALLABLE auto operator()(source_fn<T1> source1) const {
+        return std::apply([&source1](auto... rest_sources) {
+          return combine(std::move(source1), std::move(rest_sources)...);
+        }, sources);
+      }
+    };
   }
 
   // Combine multiple sources into a tuple of their values.
@@ -210,26 +223,14 @@ namespace rheo::operators {
   }
 
   // Pipe factory: combine the piped source with additional sources into a tuple.
-  // Usage: source1 | combine_with<T1>(source2, source3)
-  //
-  // NOTE: Requires explicit T1 template parameter because pipe_fn needs to know
-  // the input type at the call site before the source is piped in.
-  template <typename T1, typename... Ts>
+  // Usage: source1 | combine_with(source2, source3)
+  template <typename... Ts>
   RHEO_CALLABLE auto combine_with(
     source_fn<Ts>... sources
-  ) -> pipe_fn<std::tuple<T1, Ts...>, T1> {
-
-    struct PipeFactory {
-      std::tuple<source_fn<Ts>...> sources;
-
-      RHEO_CALLABLE source_fn<std::tuple<T1, Ts...>> operator()(source_fn<T1> source1) const {
-        return std::apply([&source1](auto... rest_sources) {
-          return combine(std::move(source1), std::move(rest_sources)...);
-        }, sources);
-      }
+  ) {
+    return detail::CombineWithPipeFactory<Ts...>{
+      std::make_tuple(std::move(sources)...)
     };
-
-    return PipeFactory{std::make_tuple(std::move(sources)...)};
   }
 
 }

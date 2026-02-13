@@ -5,26 +5,6 @@
 
 namespace rheo::operators {
 
-  // Named callable for foreach's push handler
-  template<typename T, typename ExecFn>
-  struct foreach_push_handler {
-    ExecFn exec;
-
-    RHEO_CALLABLE void operator()(T value) const {
-      exec(value);
-    }
-  };
-
-  // Named callable for foreach's source binder
-  template<typename T, typename ExecFn>
-  struct foreach_source_binder {
-    ExecFn exec;
-
-    RHEO_CALLABLE pull_fn operator()(source_fn<T> source) const {
-      return source(foreach_push_handler<T, ExecFn>{exec});
-    }
-  };
-
   // Sink factory - creates a pullable sink that executes exec on each value.
   // Usage: source | foreach(my_exec)
   //
@@ -32,11 +12,32 @@ namespace rheo::operators {
   // producing a new source. The parameter order for sinks differs from operators:
   // - Operators: operator(source, ...) and operator_with(...) for pipe factory
   // - Sinks: foreach(exec) returns a sink that can be piped
+
+  namespace detail {
+    template <typename ExecFn>
+    struct ForeachSinkFactory {
+      ExecFn exec;
+
+      template <typename T>
+        requires concepts::Visitor<ExecFn, T>
+      RHEO_CALLABLE pull_fn operator()(source_fn<T> source) const {
+
+        struct PushHandler {
+          ExecFn exec;
+
+          RHEO_CALLABLE void operator()(T value) const {
+            exec(value);
+          }
+        };
+
+        return source(PushHandler{exec});
+      }
+    };
+  }
+
   template <typename ExecFn>
-  auto foreach(ExecFn&& exec)
-  -> pullable_sink_fn<arg_of<ExecFn>> {
-    using T = arg_of<ExecFn>;
-    return foreach_source_binder<T, std::decay_t<ExecFn>>{
+  auto foreach(ExecFn&& exec) {
+    return detail::ForeachSinkFactory<std::decay_t<ExecFn>>{
       std::forward<ExecFn>(exec)
     };
   }

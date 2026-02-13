@@ -47,17 +47,20 @@ namespace rheo::operators {
     return scan(std::move(combined), ProcessCommand::neutral, Scanner{});
   }
 
-  template <typename T>
-  pipe_fn<T, T> bang_bang(source_fn<Range<T>> bounds_source) {
-    struct PipeFactory {
+  namespace detail {
+    template <typename T>
+    struct BangBangPipeFactory {
       source_fn<Range<T>> bounds_source;
 
-      RHEO_CALLABLE source_fn<ProcessCommand> operator()(source_fn<T> process_variable_source) const {
+      RHEO_CALLABLE auto operator()(source_fn<T> process_variable_source) const {
         return bang_bang(std::move(process_variable_source), std::move(bounds_source));
       }
     };
+  }
 
-    return PipeFactory{std::move(bounds_source)};
+  template <typename T>
+  auto bang_bang(source_fn<Range<T>> bounds_source) {
+    return detail::BangBangPipeFactory<T>{std::move(bounds_source)};
   }
 
   // Drive a heater, cooler, sprinkler valve, etc.

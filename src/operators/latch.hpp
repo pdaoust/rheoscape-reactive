@@ -6,32 +6,6 @@
 
 namespace rheo::operators {
 
-  // Named callable for latch's push handler
-  template<typename T>
-  struct latch_push_handler {
-    push_fn<T> push;
-    mutable std::optional<T> last_seen_value = std::nullopt;
-
-    RHEO_CALLABLE void operator()(std::optional<T> value) const {
-      if (value.has_value()) {
-        last_seen_value = value;
-      }
-      if (last_seen_value.has_value()) {
-        push(last_seen_value.value());
-      }
-    }
-  };
-
-  // Named callable for latch's source binder
-  template<typename T>
-  struct latch_source_binder {
-    source_fn<std::optional<T>> source;
-
-    RHEO_CALLABLE pull_fn operator()(push_fn<T> push) const {
-      return source(latch_push_handler<T>{push});
-    }
-  };
-
   // Push the last non-empty value when pulled, even if the input source is empty.
   // Only starts pushing values once the first non-empty value has been received.
   //
@@ -45,7 +19,31 @@ namespace rheo::operators {
   // use `filter<std::optional<T>>(source, not_empty)`
   template <typename T>
   RHEO_CALLABLE source_fn<T> latch(source_fn<std::optional<T>> source) {
-    return latch_source_binder<T>{source};
+
+    struct SourceBinder {
+      source_fn<std::optional<T>> source;
+
+      RHEO_CALLABLE pull_fn operator()(push_fn<T> push) const {
+
+        struct PushHandler {
+          push_fn<T> push;
+          mutable std::optional<T> last_seen_value = std::nullopt;
+
+          RHEO_CALLABLE void operator()(std::optional<T> value) const {
+            if (value.has_value()) {
+              last_seen_value = value;
+            }
+            if (last_seen_value.has_value()) {
+              push(last_seen_value.value());
+            }
+          }
+        };
+
+        return source(PushHandler{push});
+      }
+    };
+
+    return SourceBinder{source};
   }
 
 }

@@ -106,21 +106,23 @@ namespace rheo::operators {
     };
   }
 
-  template <typename T, typename TTimePoint, typename TInterval>
-    requires concepts::TimePointAndDurationCompatible<TTimePoint, TInterval>
-  pipe_fn<T, T> timed_latch(source_fn<TTimePoint> clock_source, TInterval duration, T default_value) {
-
-    struct PipeFactory {
+  namespace detail {
+    template <typename T, typename TTimePoint, typename TInterval>
+    struct TimedLatchPipeFactory {
       source_fn<TTimePoint> clock_source;
       TInterval duration;
       T default_value;
 
-      RHEO_CALLABLE source_fn<T> operator()(source_fn<T> source) const {
+      RHEO_CALLABLE auto operator()(source_fn<T> source) const {
         return timed_latch(source, clock_source, duration, default_value);
       }
     };
+  }
 
-    return PipeFactory{clock_source, duration, default_value};
+  template <typename T, typename TTimePoint, typename TInterval>
+    requires concepts::TimePointAndDurationCompatible<TTimePoint, TInterval>
+  auto timed_latch(source_fn<TTimePoint> clock_source, TInterval duration, T default_value) {
+    return detail::TimedLatchPipeFactory<T, TTimePoint, TInterval>{clock_source, duration, default_value};
   }
 
 }

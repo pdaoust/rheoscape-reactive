@@ -30,32 +30,35 @@ namespace rheo::operators {
     return map(filtered, ValueExtractor{});
   }
 
-  // A pipe to toggle a value source by the given boolean toggle source.
-  template <typename T>
-  pipe_fn<T, T> toggle_on(source_fn<bool> toggle_source) {
-    struct PipeFactory {
+  namespace detail {
+    struct ToggleOnPipeFactory {
       source_fn<bool> toggle_source;
 
-      RHEO_CALLABLE source_fn<T> operator()(source_fn<T> value_source) const {
+      template <typename T>
+      RHEO_CALLABLE auto operator()(source_fn<T> value_source) const {
         return toggle(value_source, toggle_source);
       }
     };
 
-    return PipeFactory{toggle_source};
+    template <typename T>
+    struct ApplyTogglePipeFactory {
+      source_fn<T> value_source;
+
+      RHEO_CALLABLE auto operator()(source_fn<bool> toggle_source) const {
+        return toggle(value_source, toggle_source);
+      }
+    };
+  }
+
+  // A pipe to toggle a value source by the given boolean toggle source.
+  inline auto toggle_on(source_fn<bool> toggle_source) {
+    return detail::ToggleOnPipeFactory{toggle_source};
   }
 
   // A pipe that uses a toggle source to toggle the given value source.
   template <typename T>
-  pipe_fn<T, T> apply_toggle(source_fn<T> value_source) {
-    struct PipeFactory {
-      source_fn<T> value_source;
-
-      RHEO_CALLABLE source_fn<T> operator()(source_fn<bool> toggle_source) const {
-        return toggle(value_source, toggle_source);
-      }
-    };
-
-    return PipeFactory{value_source};
+  auto apply_toggle(source_fn<T> value_source) {
+    return detail::ApplyTogglePipeFactory<T>{value_source};
   }
 
 }

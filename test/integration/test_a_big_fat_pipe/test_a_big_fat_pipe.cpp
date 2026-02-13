@@ -18,8 +18,8 @@ void test_a_big_fat_pipe_actually_works() {
       return fmt::format("sht2x error {}", error).c_str();
     }, "sht2x")
     | make_infallible<std::tuple<float, float>, int>()
-    | cache<std::tuple<float, float>>()
-    | throttle<std::tuple<float, float>>(clock, mock_clock_ulong_millis::duration(250))
+    | cache()
+    | throttle(clock, mock_clock_ulong_millis::duration(250))
     // | lift_to_tuple_left<float>(
     //   exponential_moving_average<float>(
     //     clock,

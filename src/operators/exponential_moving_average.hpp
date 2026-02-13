@@ -74,7 +74,7 @@ namespace rheo::operators {
     };
 
     return combine(source, time_constant_source)
-      | timestamp<std::tuple<TVal, TInterval>>(clock_source)
+      | timestamp(clock_source)
       | scan(
         std::optional<TaggedValue<TVal, TTimePoint>>{},
         Scanner{ std::forward<TIntervalConverter>(interval_converter) }
@@ -104,43 +104,24 @@ namespace rheo::operators {
     );
   }
 
-  // Pipe version with interval converter
-  template <typename TVal, typename TTimePoint, typename TInterval, typename TIntervalConverter>
-  pipe_fn<TVal, TVal> exponential_moving_average(
-    source_fn<TTimePoint> clock_source,
-    source_fn<TInterval> time_constant_source,
-    TIntervalConverter&& interval_converter
-  ) {
-    using TIntervalConverterDecayed = std::decay_t<TIntervalConverter>;
-
-    struct PipeFactory {
+  namespace detail {
+    template <typename TVal, typename TTimePoint, typename TInterval, typename TIntervalConverter>
+    struct EmaPipeFactory {
       source_fn<TTimePoint> clock_source;
       source_fn<TInterval> time_constant_source;
-      TIntervalConverterDecayed interval_converter;
+      TIntervalConverter interval_converter;
 
-      RHEO_CALLABLE source_fn<TVal> operator()(source_fn<TVal> source) const {
+      RHEO_CALLABLE auto operator()(source_fn<TVal> source) const {
         return exponential_moving_average(source, clock_source, time_constant_source, interval_converter);
       }
     };
 
-    return PipeFactory{
-      clock_source,
-      time_constant_source,
-      std::forward<TIntervalConverter>(interval_converter)
-    };
-  }
-
-  // Pipe version for scalar time
-  template <typename TVal, typename TTimePoint>
-  pipe_fn<TVal, TVal> exponential_moving_average(
-    source_fn<TTimePoint> clock_source,
-    source_fn<TTimePoint> time_constant_source
-  ) {
-    struct PipeFactory {
+    template <typename TVal, typename TTimePoint>
+    struct EmaPipeFactoryScalar {
       source_fn<TTimePoint> clock_source;
       source_fn<TTimePoint> time_constant_source;
 
-      RHEO_CALLABLE source_fn<TVal> operator()(source_fn<TVal> source) const {
+      RHEO_CALLABLE auto operator()(source_fn<TVal> source) const {
         struct IntervalConverter {
           RHEO_CALLABLE TVal operator()(TTimePoint t) const {
             return static_cast<TVal>(t);
@@ -155,8 +136,29 @@ namespace rheo::operators {
         );
       }
     };
+  }
 
-    return PipeFactory{clock_source, time_constant_source};
+  // Pipe version with interval converter
+  template <typename TVal, typename TTimePoint, typename TInterval, typename TIntervalConverter>
+  auto exponential_moving_average(
+    source_fn<TTimePoint> clock_source,
+    source_fn<TInterval> time_constant_source,
+    TIntervalConverter&& interval_converter
+  ) {
+    return detail::EmaPipeFactory<TVal, TTimePoint, TInterval, std::decay_t<TIntervalConverter>>{
+      clock_source,
+      time_constant_source,
+      std::forward<TIntervalConverter>(interval_converter)
+    };
+  }
+
+  // Pipe version for scalar time
+  template <typename TVal, typename TTimePoint>
+  auto exponential_moving_average(
+    source_fn<TTimePoint> clock_source,
+    source_fn<TTimePoint> time_constant_source
+  ) {
+    return detail::EmaPipeFactoryScalar<TVal, TTimePoint>{clock_source, time_constant_source};
   }
 
 }

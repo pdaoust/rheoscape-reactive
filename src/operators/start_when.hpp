@@ -5,48 +5,59 @@
 
 namespace rheo::operators {
 
-  // Named callable for start_when's push handler
-  template<typename T, typename FilterFn>
-  struct start_when_push_handler {
-    FilterFn condition;
-    push_fn<T> push;
-    mutable bool started = false;
-
-    RHEO_CALLABLE void operator()(T value) const {
-      if (!started && condition(value)) {
-        started = true;
-      }
-      if (started) {
-        push(value);
-      }
-    }
-  };
-
-  // Named callable for start_when's source binder
-  template<typename T, typename FilterFn>
-  struct start_when_source_binder {
-    source_fn<T> source;
-    FilterFn condition;
-
-    RHEO_CALLABLE pull_fn operator()(push_fn<T> push) const {
-      return source(start_when_push_handler<T, FilterFn>{condition, push});
-    }
-  };
-
   template <typename T, typename FilterFn>
     requires concepts::Predicate<FilterFn, T>
   RHEO_CALLABLE source_fn<T> start_when(source_fn<T> source, FilterFn&& condition) {
-    return start_when_source_binder<T, std::decay_t<FilterFn>>{
+    using FilterFnDecayed = std::decay_t<FilterFn>;
+
+    struct SourceBinder {
+      source_fn<T> source;
+      FilterFnDecayed condition;
+
+      RHEO_CALLABLE pull_fn operator()(push_fn<T> push) const {
+
+        struct PushHandler {
+          FilterFnDecayed condition;
+          push_fn<T> push;
+          mutable bool started = false;
+
+          RHEO_CALLABLE void operator()(T value) const {
+            if (!started && condition(value)) {
+              started = true;
+            }
+            if (started) {
+              push(value);
+            }
+          }
+        };
+
+        return source(PushHandler{condition, push});
+      }
+    };
+
+    return SourceBinder{
       source,
       std::forward<FilterFn>(condition)
     };
   }
 
-  template <typename T, typename FilterFn>
-    requires concepts::Predicate<FilterFn, T>
-  RHEO_CALLABLE pipe_fn<T, T> start_when(FilterFn&& condition) {
-    return [condition = std::forward<FilterFn>(condition)](source_fn<T> source) {
-      return start_when(source, condition);
+  namespace detail {
+    template <typename FilterFn>
+    struct StartWhenPipeFactory {
+      FilterFn condition;
+
+      template <typename T>
+        requires concepts::Predicate<FilterFn, T>
+      RHEO_CALLABLE auto operator()(source_fn<T> source) const {
+        return start_when(std::move(source), FilterFn(condition));
+      }
+    };
+  }
+
+  template <typename FilterFn>
+  auto start_when(FilterFn&& condition) {
+    return detail::StartWhenPipeFactory<std::decay_t<FilterFn>>{
+      std::forward<FilterFn>(condition)
     };
   }
 

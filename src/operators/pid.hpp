@@ -436,24 +436,16 @@ namespace rheo::operators {
   // Pipe versions (simplified scalar-only for ergonomics)
   // ==========================================================================
 
-  template <typename TCalc, typename TTimePoint, typename TIntervalConverter>
-  pipe_fn<TCalc, TCalc> pid(
-    source_fn<TCalc> setpoint_source,
-    source_fn<TTimePoint> clock_source,
-    source_fn<PidWeights<TCalc, TCalc, TCalc>> weights_source,
-    std::optional<Range<TCalc>> clamp_range,
-    TIntervalConverter&& interval_converter
-  ) {
-    using TIntervalConverterDecayed = std::decay_t<TIntervalConverter>;
-
-    struct PipeFactory {
+  namespace detail {
+    template <typename TCalc, typename TTimePoint, typename TIntervalConverter>
+    struct PidPipeFactory {
       source_fn<TCalc> setpoint_source;
       source_fn<TTimePoint> clock_source;
       source_fn<PidWeights<TCalc, TCalc, TCalc>> weights_source;
       std::optional<Range<TCalc>> clamp_range;
-      TIntervalConverterDecayed interval_converter;
+      TIntervalConverter interval_converter;
 
-      RHEO_CALLABLE source_fn<TCalc> operator()(source_fn<TCalc> process_variable_source) const {
+      RHEO_CALLABLE auto operator()(source_fn<TCalc> process_variable_source) const {
         return pid<TCalc, TTimePoint>(
           process_variable_source, setpoint_source, clock_source,
           weights_source, clamp_range, interval_converter
@@ -461,54 +453,30 @@ namespace rheo::operators {
       }
     };
 
-    return PipeFactory{
-      setpoint_source,
-      clock_source,
-      weights_source,
-      clamp_range,
-      std::forward<TIntervalConverter>(interval_converter)
-    };
-  }
-
-  template <typename TCalc, typename TTimePoint>
-  pipe_fn<TCalc, TCalc> pid(
-    source_fn<TCalc> setpoint_source,
-    source_fn<TTimePoint> clock_source,
-    source_fn<PidWeights<TCalc, TCalc, TCalc>> weights_source,
-    std::optional<Range<TCalc>> clamp_range = std::nullopt
-  ) {
-    using TInterval = interval_type_t<TTimePoint>;
-
-    struct IntervalConverter {
-      RHEO_CALLABLE TCalc operator()(TInterval t) const {
-        return static_cast<TCalc>(t);
-      }
-    };
-
-    return pid<TCalc, TTimePoint>(
-      setpoint_source, clock_source, weights_source, clamp_range,
-      IntervalConverter{}
-    );
-  }
-
-  template <typename TCalc, typename TTimePoint, typename TIntervalConverter>
-  pipe_fn<PidOutput<TCalc, TCalc, TCalc>, TCalc> pid_detailed(
-    source_fn<TCalc> setpoint_source,
-    source_fn<TTimePoint> clock_source,
-    source_fn<PidWeights<TCalc, TCalc, TCalc>> weights_source,
-    std::optional<Range<TCalc>> clamp_range,
-    TIntervalConverter&& interval_converter
-  ) {
-    using TIntervalConverterDecayed = std::decay_t<TIntervalConverter>;
-
-    struct PipeFactory {
+    template <typename TCalc, typename TTimePoint>
+    struct PidPipeFactoryNoConverter {
       source_fn<TCalc> setpoint_source;
       source_fn<TTimePoint> clock_source;
       source_fn<PidWeights<TCalc, TCalc, TCalc>> weights_source;
       std::optional<Range<TCalc>> clamp_range;
-      TIntervalConverterDecayed interval_converter;
 
-      RHEO_CALLABLE source_fn<PidOutput<TCalc, TCalc, TCalc>> operator()(source_fn<TCalc> process_variable_source) const {
+      RHEO_CALLABLE auto operator()(source_fn<TCalc> process_variable_source) const {
+        return pid<TCalc, TTimePoint>(
+          process_variable_source, setpoint_source, clock_source,
+          weights_source, clamp_range
+        );
+      }
+    };
+
+    template <typename TCalc, typename TTimePoint, typename TIntervalConverter>
+    struct PidDetailedPipeFactory {
+      source_fn<TCalc> setpoint_source;
+      source_fn<TTimePoint> clock_source;
+      source_fn<PidWeights<TCalc, TCalc, TCalc>> weights_source;
+      std::optional<Range<TCalc>> clamp_range;
+      TIntervalConverter interval_converter;
+
+      RHEO_CALLABLE auto operator()(source_fn<TCalc> process_variable_source) const {
         return pid_detailed<TCalc, TTimePoint>(
           process_variable_source, setpoint_source, clock_source,
           weights_source, clamp_range, interval_converter
@@ -516,7 +484,31 @@ namespace rheo::operators {
       }
     };
 
-    return PipeFactory{
+    template <typename TCalc, typename TTimePoint>
+    struct PidDetailedPipeFactoryNoConverter {
+      source_fn<TCalc> setpoint_source;
+      source_fn<TTimePoint> clock_source;
+      source_fn<PidWeights<TCalc, TCalc, TCalc>> weights_source;
+      std::optional<Range<TCalc>> clamp_range;
+
+      RHEO_CALLABLE auto operator()(source_fn<TCalc> process_variable_source) const {
+        return pid_detailed<TCalc, TTimePoint>(
+          process_variable_source, setpoint_source, clock_source,
+          weights_source, clamp_range
+        );
+      }
+    };
+  }
+
+  template <typename TCalc, typename TTimePoint, typename TIntervalConverter>
+  auto pid(
+    source_fn<TCalc> setpoint_source,
+    source_fn<TTimePoint> clock_source,
+    source_fn<PidWeights<TCalc, TCalc, TCalc>> weights_source,
+    std::optional<Range<TCalc>> clamp_range,
+    TIntervalConverter&& interval_converter
+  ) {
+    return detail::PidPipeFactory<TCalc, TTimePoint, std::decay_t<TIntervalConverter>>{
       setpoint_source,
       clock_source,
       weights_source,
@@ -526,24 +518,50 @@ namespace rheo::operators {
   }
 
   template <typename TCalc, typename TTimePoint>
-  pipe_fn<PidOutput<TCalc, TCalc, TCalc>, TCalc> pid_detailed(
+  auto pid(
     source_fn<TCalc> setpoint_source,
     source_fn<TTimePoint> clock_source,
     source_fn<PidWeights<TCalc, TCalc, TCalc>> weights_source,
     std::optional<Range<TCalc>> clamp_range = std::nullopt
   ) {
-    using TInterval = interval_type_t<TTimePoint>;
-
-    struct IntervalConverter {
-      RHEO_CALLABLE TCalc operator()(TInterval t) const {
-        return static_cast<TCalc>(t);
-      }
+    return detail::PidPipeFactoryNoConverter<TCalc, TTimePoint>{
+      setpoint_source,
+      clock_source,
+      weights_source,
+      clamp_range
     };
+  }
 
-    return pid_detailed<TCalc, TTimePoint>(
-      setpoint_source, clock_source, weights_source, clamp_range,
-      IntervalConverter{}
-    );
+  template <typename TCalc, typename TTimePoint, typename TIntervalConverter>
+  auto pid_detailed(
+    source_fn<TCalc> setpoint_source,
+    source_fn<TTimePoint> clock_source,
+    source_fn<PidWeights<TCalc, TCalc, TCalc>> weights_source,
+    std::optional<Range<TCalc>> clamp_range,
+    TIntervalConverter&& interval_converter
+  ) {
+    return detail::PidDetailedPipeFactory<TCalc, TTimePoint, std::decay_t<TIntervalConverter>>{
+      setpoint_source,
+      clock_source,
+      weights_source,
+      clamp_range,
+      std::forward<TIntervalConverter>(interval_converter)
+    };
+  }
+
+  template <typename TCalc, typename TTimePoint>
+  auto pid_detailed(
+    source_fn<TCalc> setpoint_source,
+    source_fn<TTimePoint> clock_source,
+    source_fn<PidWeights<TCalc, TCalc, TCalc>> weights_source,
+    std::optional<Range<TCalc>> clamp_range = std::nullopt
+  ) {
+    return detail::PidDetailedPipeFactoryNoConverter<TCalc, TTimePoint>{
+      setpoint_source,
+      clock_source,
+      weights_source,
+      clamp_range
+    };
   }
 
 }

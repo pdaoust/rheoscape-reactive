@@ -12,49 +12,46 @@ namespace rheo::operators {
   // This function is useful for sharing streams with multiple sinks
   // to prevent them from consuming the values that each other expects.
 
-  // Named callable for share's push handler
-  template<typename T>
-  struct share_push_handler {
-    std::shared_ptr<std::vector<push_fn<T>>> sinks;
-
-    RHEO_CALLABLE void operator()(T value) const {
-      for (push_fn<T> sink : *sinks) {
-        sink(value);
-      }
-    }
-  };
-
-  // Named callable for share's source binder
-  template<typename T>
-  struct share_source_binder {
-    std::shared_ptr<std::vector<push_fn<T>>> sinks;
-    pull_fn pull;
-
-    RHEO_CALLABLE pull_fn operator()(push_fn<T> push) const {
-      sinks->push_back(push);
-      return pull;
-    }
-  };
-
   template <typename T>
   RHEO_CALLABLE source_fn<T> share(source_fn<T> source) {
     auto sinks = std::make_shared<std::vector<push_fn<T>>>();
-    auto pull = source(share_push_handler<T>{sinks});
 
-    return share_source_binder<T>{sinks, pull};
+    struct PushHandler {
+      std::shared_ptr<std::vector<push_fn<T>>> sinks;
+
+      RHEO_CALLABLE void operator()(T value) const {
+        for (push_fn<T> sink : *sinks) {
+          sink(value);
+        }
+      }
+    };
+
+    auto pull = source(PushHandler{sinks});
+
+    struct SourceBinder {
+      std::shared_ptr<std::vector<push_fn<T>>> sinks;
+      pull_fn pull;
+
+      RHEO_CALLABLE pull_fn operator()(push_fn<T> push) const {
+        sinks->push_back(push);
+        return pull;
+      }
+    };
+
+    return SourceBinder{sinks, pull};
   }
 
-  // Pipe factory for share
-  template<typename T>
-  struct share_pipe_factory {
-    RHEO_CALLABLE source_fn<T> operator()(source_fn<T> source) const {
-      return share(std::move(source));
-    }
-  };
+  namespace detail {
+    struct SharePipeFactory {
+      template <typename T>
+      RHEO_CALLABLE auto operator()(source_fn<T> source) const {
+        return share(std::move(source));
+      }
+    };
+  }
 
-  template <typename T>
-  pipe_fn<T, T> share() {
-    return share_pipe_factory<T>{};
+  inline auto share() {
+    return detail::SharePipeFactory{};
   }
 
 }

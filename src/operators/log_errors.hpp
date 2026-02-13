@@ -55,23 +55,26 @@ namespace rheo::operators {
     return log_errors(source, DefaultFormatter{}, topic);
   }
 
-  template <typename T, typename TErr, typename MapFn>
-  pipe_fn<Fallible<T, TErr>, Fallible<T, TErr>> log_errors(
-    MapFn&& format_error,
-    std::optional<std::string> topic = std::nullopt
-  ) {
-    using MapFnDecayed = std::decay_t<MapFn>;
-
-    struct PipeFactory {
-      MapFnDecayed format_error;
+  namespace detail {
+    template <typename T, typename TErr, typename MapFn>
+    struct LogErrorsPipeFactory {
+      MapFn format_error;
       std::optional<std::string> topic;
 
       RHEO_CALLABLE source_fn<Fallible<T, TErr>> operator()(source_fn<Fallible<T, TErr>> source) const {
-        return log_errors(source, format_error, topic);
+        return log_errors(source, MapFn(format_error), topic);
       }
     };
+  }
 
-    return PipeFactory{std::forward<MapFn>(format_error), topic};
+  template <typename T, typename TErr, typename MapFn>
+  auto log_errors(
+    MapFn&& format_error,
+    std::optional<std::string> topic = std::nullopt
+  ) {
+    return detail::LogErrorsPipeFactory<T, TErr, std::decay_t<MapFn>>{
+      std::forward<MapFn>(format_error), topic
+    };
   }
 
 }

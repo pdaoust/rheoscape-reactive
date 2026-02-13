@@ -310,6 +310,24 @@ namespace rheo::autotune {
     return operators::map(state_source, OutputMapper{config});
   }
 
+  namespace detail {
+    template <typename TP, typename TCtl, typename TTimePoint, typename TKp, typename TKi, typename TKd>
+    struct RelayAutotunePipeFactory {
+      source_fn<TP> setpoint_source;
+      source_fn<TTimePoint> clock_source;
+      RelayAutotuneConfig<TCtl, TP, TTimePoint> config;
+
+      RHEO_CALLABLE auto operator()(source_fn<TP> process_variable_source) const {
+        return relay_autotune<TP, TCtl, TTimePoint, TKp, TKi, TKd>(
+          process_variable_source,
+          setpoint_source,
+          clock_source,
+          config
+        );
+      }
+    };
+  }
+
   // Pipe version of relay_autotune.
   // Takes process_variable as the piped source.
   template <
@@ -320,29 +338,14 @@ namespace rheo::autotune {
     typename TKi = TCtl,
     typename TKd = TCtl
   >
-  pipe_fn<RelayAutotuneOutput<TCtl, TKp, TKi, TKd, TTimePoint>, TP> relay_autotune(
+  auto relay_autotune(
     source_fn<TP> setpoint_source,
     source_fn<TTimePoint> clock_source,
     RelayAutotuneConfig<TCtl, TP, TTimePoint> config
   ) {
-    struct PipeFactory {
-      source_fn<TP> setpoint_source;
-      source_fn<TTimePoint> clock_source;
-      RelayAutotuneConfig<TCtl, TP, TTimePoint> config;
-
-      RHEO_CALLABLE source_fn<RelayAutotuneOutput<TCtl, TKp, TKi, TKd, TTimePoint>> operator()(
-        source_fn<TP> process_variable_source
-      ) const {
-        return relay_autotune<TP, TCtl, TTimePoint, TKp, TKi, TKd>(
-          process_variable_source,
-          setpoint_source,
-          clock_source,
-          config
-        );
-      }
+    return detail::RelayAutotunePipeFactory<TP, TCtl, TTimePoint, TKp, TKi, TKd>{
+      setpoint_source, clock_source, config
     };
-
-    return PipeFactory{setpoint_source, clock_source, config};
   }
 
 }

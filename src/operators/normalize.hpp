@@ -31,50 +31,46 @@ namespace rheo::operators {
         return static_cast<TOut>(std::forward<TFrom>(value));
       }
     }
-  }
 
-  // Named callable for normalize's combiner function - provides better stack traces in debug mode.
-  // Note: The input type (TIn) is used in division during interpolation, so ensure TIn has
-  // sufficient precision for your needs (e.g., use float rather than int to avoid truncation).
-  template<typename TOut, typename TIn>
-  struct normalize_combiner {
-    RHEO_CALLABLE TOut operator()(TIn value, Range<TIn> from, Range<TOut> to) const {
-      if (value <= from.min) {
-        return to.min;
-      } else if (value >= from.max) {
-        return to.max;
-      } else {
-        // The arithmetic may produce a different type due to promotion (e.g., float from int division).
-        // Use convert_to to handle type conversion appropriately for both au and non-au types.
-        auto result = to.min + (to.max - to.min) * (value - from.min) / (from.max - from.min);
-        return detail::convert_to<TOut>(result);
+    template <typename TOut, typename TIn>
+    struct NormalizePipeFactory {
+      source_fn<Range<TIn>> from_source;
+      source_fn<Range<TOut>> to_source;
+
+      RHEO_CALLABLE auto operator()(source_fn<TIn> source) const {
+        return normalize(source, from_source, to_source);
       }
-    }
-  };
+    };
+  }
 
   template <typename TOut, typename TIn>
   RHEO_CALLABLE source_fn<TOut> normalize(source_fn<TIn> source, source_fn<Range<TIn>> from_source, source_fn<Range<TOut>> to_source) {
+
+    // Named callable for normalize's combiner function - provides better stack traces in debug mode.
+    // Note: The input type (TIn) is used in division during interpolation, so ensure TIn has
+    // sufficient precision for your needs (e.g., use float rather than int to avoid truncation).
+    struct Combiner {
+      RHEO_CALLABLE TOut operator()(TIn value, Range<TIn> from, Range<TOut> to) const {
+        if (value <= from.min) {
+          return to.min;
+        } else if (value >= from.max) {
+          return to.max;
+        } else {
+          // The arithmetic may produce a different type due to promotion (e.g., float from int division).
+          // Use convert_to to handle type conversion appropriately for both au and non-au types.
+          auto result = to.min + (to.max - to.min) * (value - from.min) / (from.max - from.min);
+          return detail::convert_to<TOut>(result);
+        }
+      }
+    };
+
     return combine(source, from_source, to_source)
-      | map_tuple(normalize_combiner<TOut, TIn>{});
+      | map_tuple(Combiner{});
   }
 
-  // Named callable for normalize's pipe function
   template <typename TOut, typename TIn>
-  struct normalize_pipe_binder {
-    source_fn<Range<TIn>> from_source;
-    source_fn<Range<TOut>> to_source;
-
-    RHEO_CALLABLE source_fn<TOut> operator()(source_fn<TIn> source) const {
-      return normalize(source, from_source, to_source);
-    }
-  };
-
-  template <typename TOut, typename TIn>
-  RHEO_CALLABLE pipe_fn<TOut, TIn> normalize(source_fn<Range<TIn>> from_source, source_fn<Range<TOut>> to_source) {
-    return normalize_pipe_binder<TOut, TIn>{
-      from_source,
-      to_source
-    };
+  auto normalize(source_fn<Range<TIn>> from_source, source_fn<Range<TOut>> to_source) {
+    return detail::NormalizePipeFactory<TOut, TIn>{from_source, to_source};
   }
 
 }

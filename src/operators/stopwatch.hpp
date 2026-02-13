@@ -43,24 +43,28 @@ namespace rheo::operators {
       | map_tuple(LapMapper{ std::forward<FilterFn>(lap_condition) });
   }
 
+  namespace detail {
+    template <typename TDuration, typename TTimePoint, typename FilterFn>
+    struct StopwatchPipeFactory {
+      source_fn<TTimePoint> clock_source;
+      FilterFn lap_condition;
+
+      template <typename T>
+        requires concepts::Predicate<FilterFn, T>
+      RHEO_CALLABLE auto operator()(source_fn<T> source) const {
+        return stopwatch<TDuration>(std::move(source), clock_source, FilterFn(lap_condition));
+      }
+    };
+  }
+
   // Pipe factory
   template <typename TDuration, typename TTimePoint, typename FilterFn>
     requires concepts::TimePointAndDurationCompatible<TTimePoint, TDuration>
-  auto stopwatch(source_fn<TTimePoint> clock_source, FilterFn&& lap_condition)
-  -> pipe_fn<TaggedValue<arg_of<FilterFn>, TDuration>, arg_of<FilterFn>> {
-    using T = arg_of<FilterFn>;
-    using FilterFnDecayed = std::decay_t<FilterFn>;
-
-    struct PipeFactory {
-      source_fn<TTimePoint> clock_source;
-      FilterFnDecayed lap_condition;
-
-      RHEO_CALLABLE source_fn<TaggedValue<T, TDuration>> operator()(source_fn<T> source) const {
-        return stopwatch<TDuration>(std::move(source), clock_source, std::move(lap_condition));
-      }
+  auto stopwatch(source_fn<TTimePoint> clock_source, FilterFn&& lap_condition) {
+    return detail::StopwatchPipeFactory<TDuration, TTimePoint, std::decay_t<FilterFn>>{
+      clock_source,
+      std::forward<FilterFn>(lap_condition)
     };
-
-    return PipeFactory{clock_source, std::forward<FilterFn>(lap_condition)};
   }
 
 }

@@ -90,19 +90,21 @@ namespace rheo::operators {
   // pipe_fn factories are used for chaining,
   // and you can't chain off a std::map.
 
-  // A pipe that uses a switch source to switch the given value source.
-  template <typename TKey, typename TVal>
-  pipe_fn<TKey, TVal> choose_among(std::map<TKey, source_fn<TVal>> value_source_map) {
-
-    struct PipeFactory {
+  namespace detail {
+    // A pipe that uses a switch source to switch the given value source.
+    template <typename TKey, typename TVal>
+    struct ChooseAmongPipeFactory {
       std::map<TKey, source_fn<TVal>> value_source_map;
 
-      RHEO_CALLABLE source_fn<TVal> operator()(source_fn<TKey> switch_source) const {
+      RHEO_CALLABLE auto operator()(source_fn<TKey> switch_source) const {
         return choose(std::move(value_source_map), std::move(switch_source));
       }
     };
+  }
 
-    return PipeFactory{std::move(value_source_map)};
+  template <typename TKey, typename TVal>
+  auto choose_among(std::map<TKey, source_fn<TVal>> value_source_map) {
+    return detail::ChooseAmongPipeFactory<TKey, TVal>{std::move(value_source_map)};
   }
 
 }

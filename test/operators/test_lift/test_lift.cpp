@@ -11,7 +11,7 @@ using namespace rheo::operators;
 using namespace rheo::sources;
 
 void test_lift_to_optional_can_push() {
-  auto doubling_pipe = map([](int v) { return v * 2; });
+  pipe_fn<int, int> doubling_pipe = map([](int v) { return v * 2; });
   auto lifted = lift_to_optional(doubling_pipe);
   State<std::optional<int>> state;
   auto doubled_optional_numbers = lifted(state.get_source_fn());
@@ -31,7 +31,7 @@ void test_lift_to_optional_can_push() {
 void test_lift_to_optional_can_pull() {
   // Try lifting a mapping pipe that knows nothing about optionals
   // to a mapping pipe that does.
-  auto doubling_pipe = map([](int v) { return v * 2; });
+  pipe_fn<int, int> doubling_pipe = map([](int v) { return v * 2; });
   auto lifted = lift_to_optional(doubling_pipe);
   std::vector<std::optional<int>> optional_numbers {
     3,
@@ -73,7 +73,7 @@ TEST_ASSERT_FALSE_MESSAGE(last_pushed_value.has_value(), "Should have pushed emp
 }
 
 void test_lift_to_taggedValue_lifts() {
-  auto doubling_pipe = map([](int v) { return v * 2; });
+  pipe_fn<int, int> doubling_pipe = map([](int v) { return v * 2; });
   auto lifted = lift_to_tagged_value<int>(doubling_pipe);
   std::vector<TaggedValue<int, int>> tagged_numbers {
     TaggedValue { 1, -1 },
