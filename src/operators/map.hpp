@@ -6,22 +6,21 @@
 
 namespace rheo::operators {
 
-  template <typename TIn, typename MapFn>
-    requires concepts::Transformer<MapFn, TIn>
-  RHEO_CALLABLE auto map(source_fn<TIn> source, MapFn&& mapper)
-  -> source_fn<return_of<MapFn>> {
-    using TOut = return_of<MapFn>;
-    using MapFnDecayed = std::decay_t<MapFn>;
+  namespace detail {
+    template <typename SourceT, typename MapFnT>
+    struct MapSourceBinder {
+      using TIn = source_value_t<SourceT>;
+      using value_type = std::invoke_result_t<MapFnT, TIn>;
 
-    struct SourceBinder {
-      source_fn<TIn> source;
-      MapFnDecayed mapper;
+      SourceT source;
+      MapFnT mapper;
 
-      RHEO_CALLABLE pull_fn operator()(push_fn<TOut> push) const {
+      template <typename PushFn>
+      RHEO_CALLABLE auto operator()(PushFn push) const {
 
         struct PushHandler {
-          push_fn<TOut> push;
-          MapFnDecayed mapper;
+          PushFn push;
+          MapFnT mapper;
 
           RHEO_CALLABLE void operator()(TIn value) const {
             push(mapper(value));
@@ -31,9 +30,13 @@ namespace rheo::operators {
         return source(PushHandler{std::move(push), mapper});
       }
     };
+  }
 
-    return SourceBinder{
-      source,
+  template <typename SourceT, typename MapFn>
+    requires concepts::Source<SourceT> && concepts::Transformer<MapFn, source_value_t<SourceT>>
+  RHEO_CALLABLE auto map(SourceT source, MapFn&& mapper) {
+    return detail::MapSourceBinder<SourceT, std::decay_t<MapFn>>{
+      std::move(source),
       std::forward<MapFn>(mapper)
     };
   }
@@ -43,9 +46,9 @@ namespace rheo::operators {
     struct MapPipeFactory {
       MapFn mapper;
 
-      template <typename TIn>
-        requires concepts::Transformer<MapFn, TIn>
-      RHEO_CALLABLE auto operator()(source_fn<TIn> source) const {
+      template <typename SourceT>
+        requires concepts::Source<SourceT> && concepts::Transformer<MapFn, source_value_t<SourceT>>
+      RHEO_CALLABLE auto operator()(SourceT source) const {
         return map(std::move(source), MapFn(mapper));
       }
     };

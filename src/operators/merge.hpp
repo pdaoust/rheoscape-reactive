@@ -14,15 +14,17 @@ namespace rheo::operators {
 
   // Binary merge: combines two same-type sources into one stream
 
-  // Source function factory: merge two sources
-  template <typename T>
-  source_fn<T> merge(source_fn<T> source1, source_fn<T> source2) {
+  namespace detail {
+    template <typename Source1T, typename Source2T>
+    struct MergeSourceBinder {
+      static_assert(std::is_same_v<source_value_t<Source1T>, source_value_t<Source2T>>);
+      using value_type = source_value_t<Source1T>;
 
-    struct SourceBinder {
-      source_fn<T> source1;
-      source_fn<T> source2;
+      Source1T source1;
+      Source2T source2;
 
-      RHEO_CALLABLE pull_fn operator()(push_fn<T> push) const {
+      template <typename PushFn>
+      RHEO_CALLABLE auto operator()(PushFn push) const {
 
         struct PullHandler {
           pull_fn pull1;
@@ -35,45 +37,60 @@ namespace rheo::operators {
         };
 
         pull_fn pull1 = source1(push);
-        pull_fn pull2 = source2(push);
+        pull_fn pull2 = source2(PushFn(push));
         return PullHandler{std::move(pull1), std::move(pull2)};
       }
     };
+  }
 
-    return SourceBinder{std::move(source1), std::move(source2)};
+  // Source function factory: merge two sources
+  template <typename Source1T, typename Source2T>
+    requires concepts::Source<Source1T> && concepts::Source<Source2T> &&
+             std::is_same_v<source_value_t<Source1T>, source_value_t<Source2T>>
+  auto merge(Source1T source1, Source2T source2) {
+    return detail::MergeSourceBinder<Source1T, Source2T>{
+      std::move(source1), std::move(source2)
+    };
   }
 
   namespace detail {
-    template <typename T>
+    template <typename Source2T>
     struct MergePipeFactory {
-      source_fn<T> source2;
+      Source2T source2;
 
-      RHEO_CALLABLE auto operator()(source_fn<T> source1) const {
-        return merge(source1, source2);
+      template <typename Source1T>
+        requires concepts::Source<Source1T> &&
+                 std::is_same_v<source_value_t<Source1T>, source_value_t<Source2T>>
+      RHEO_CALLABLE auto operator()(Source1T source1) const {
+        return merge(std::move(source1), Source2T(source2));
       }
     };
   }
 
   // Pipe factory: source1 | merge(source2)
-  template <typename T>
-  auto merge(source_fn<T> source2) {
-    return detail::MergePipeFactory<T>{source2};
+  template <typename Source2T>
+    requires concepts::Source<Source2T>
+  auto merge(Source2T source2) {
+    return detail::MergePipeFactory<Source2T>{std::move(source2)};
   }
 
   // Binary merge_mixed: combines two different-type sources into a variant stream
 
-  // Source function factory: merge two different-type sources into variant
-  template <typename T1, typename T2>
-  source_fn<std::variant<T1, T2>> merge_mixed(source_fn<T1> source1, source_fn<T2> source2) {
+  namespace detail {
+    template <typename Source1T, typename Source2T>
+    struct MergeMixedSourceBinder {
+      using T1 = source_value_t<Source1T>;
+      using T2 = source_value_t<Source2T>;
+      using value_type = std::variant<T1, T2>;
 
-    struct SourceBinder {
-      source_fn<T1> source1;
-      source_fn<T2> source2;
+      Source1T source1;
+      Source2T source2;
 
-      RHEO_CALLABLE pull_fn operator()(push_fn<std::variant<T1, T2>> push) const {
+      template <typename PushFn>
+      RHEO_CALLABLE auto operator()(PushFn push) const {
 
         struct PushHandler1 {
-          push_fn<std::variant<T1, T2>> push;
+          PushFn push;
 
           RHEO_CALLABLE void operator()(T1 value) const {
             push(std::variant<T1, T2>(std::move(value)));
@@ -81,7 +98,7 @@ namespace rheo::operators {
         };
 
         struct PushHandler2 {
-          push_fn<std::variant<T1, T2>> push;
+          PushFn push;
 
           RHEO_CALLABLE void operator()(T2 value) const {
             push(std::variant<T1, T2>(std::move(value)));
@@ -103,26 +120,35 @@ namespace rheo::operators {
         return PullHandler{std::move(pull1), std::move(pull2)};
       }
     };
+  }
 
-    return SourceBinder{std::move(source1), std::move(source2)};
+  // Source function factory: merge two different-type sources into variant
+  template <typename Source1T, typename Source2T>
+    requires concepts::Source<Source1T> && concepts::Source<Source2T>
+  auto merge_mixed(Source1T source1, Source2T source2) {
+    return detail::MergeMixedSourceBinder<Source1T, Source2T>{
+      std::move(source1), std::move(source2)
+    };
   }
 
   namespace detail {
-    template <typename T2>
+    template <typename Source2T>
     struct MergeMixedPipeFactory {
-      source_fn<T2> source2;
+      Source2T source2;
 
-      template <typename T1>
-      RHEO_CALLABLE auto operator()(source_fn<T1> source1) const {
-        return merge_mixed(source1, source2);
+      template <typename Source1T>
+        requires concepts::Source<Source1T>
+      RHEO_CALLABLE auto operator()(Source1T source1) const {
+        return merge_mixed(std::move(source1), Source2T(source2));
       }
     };
   }
 
   // Pipe factory: source1 | merge_mixed(source2)
-  template <typename T2>
-  auto merge_mixed(source_fn<T2> source2) {
-    return detail::MergeMixedPipeFactory<T2>{source2};
+  template <typename Source2T>
+    requires concepts::Source<Source2T>
+  auto merge_mixed(Source2T source2) {
+    return detail::MergeMixedPipeFactory<Source2T>{std::move(source2)};
   }
 
 }

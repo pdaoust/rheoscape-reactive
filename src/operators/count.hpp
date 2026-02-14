@@ -6,41 +6,43 @@
 
 namespace rheo::operators {
 
-  template <typename T>
-  RHEO_CALLABLE source_fn<size_t> count(source_fn<T> source) {
+  namespace detail {
+    template <typename SourceT>
+    struct CountSourceBinder {
+      using T = source_value_t<SourceT>;
+      using value_type = size_t;
 
-    struct SourceBinder {
-      source_fn<T> source;
+      SourceT source;
 
-      RHEO_CALLABLE pull_fn operator()(push_fn<size_t> push) const {
+      template <typename PushFn>
+      RHEO_CALLABLE auto operator()(PushFn push) const {
 
         struct PushHandler {
-          push_fn<size_t> push;
+          PushFn push;
           mutable size_t counter = 0;
 
-          RHEO_CALLABLE void operator()(T value) const {
+          RHEO_CALLABLE void operator()(T) const {
             counter++;
             push(counter);
           }
         };
 
-        return source(PushHandler{push});
+        return source(PushHandler{std::move(push)});
       }
     };
 
-    return SourceBinder{source};
-  }
+    template <typename SourceT>
+    struct TagCountSourceBinder {
+      using T = source_value_t<SourceT>;
+      using value_type = TaggedValue<T, size_t>;
 
-  template <typename T>
-  RHEO_CALLABLE source_fn<TaggedValue<T, size_t>> tag_count(source_fn<T> source) {
+      SourceT source;
 
-    struct SourceBinder {
-      source_fn<T> source;
-
-      RHEO_CALLABLE pull_fn operator()(push_fn<TaggedValue<T, size_t>> push) const {
+      template <typename PushFn>
+      RHEO_CALLABLE auto operator()(PushFn push) const {
 
         struct PushHandler {
-          push_fn<TaggedValue<T, size_t>> push;
+          PushFn push;
           mutable size_t counter = 0;
 
           RHEO_CALLABLE void operator()(T value) const {
@@ -49,24 +51,36 @@ namespace rheo::operators {
           }
         };
 
-        return source(PushHandler{push});
+        return source(PushHandler{std::move(push)});
       }
     };
+  }
 
-    return SourceBinder{source};
+  template <typename SourceT>
+    requires concepts::Source<SourceT>
+  RHEO_CALLABLE auto count(SourceT source) {
+    return detail::CountSourceBinder<SourceT>{std::move(source)};
+  }
+
+  template <typename SourceT>
+    requires concepts::Source<SourceT>
+  RHEO_CALLABLE auto tag_count(SourceT source) {
+    return detail::TagCountSourceBinder<SourceT>{std::move(source)};
   }
 
   namespace detail {
     struct CountPipeFactory {
-      template <typename T>
-      RHEO_CALLABLE auto operator()(source_fn<T> source) const {
+      template <typename SourceT>
+        requires concepts::Source<SourceT>
+      RHEO_CALLABLE auto operator()(SourceT source) const {
         return count(std::move(source));
       }
     };
 
     struct TagCountPipeFactory {
-      template <typename T>
-      RHEO_CALLABLE auto operator()(source_fn<T> source) const {
+      template <typename SourceT>
+        requires concepts::Source<SourceT>
+      RHEO_CALLABLE auto operator()(SourceT source) const {
         return tag_count(std::move(source));
       }
     };

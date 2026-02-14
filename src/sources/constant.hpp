@@ -30,7 +30,7 @@ namespace rheo::sources {
   } // namespace detail
 
   template <typename T>
-  source_fn<T> constant(T value) {
+  auto constant(T value) {
     return detail::constant_source_binder<T>{std::move(value)};
   }
 

@@ -11,25 +11,30 @@ namespace rheo::operators {
   //
   // PATTERN NOTE: This operator intentionally has no pipe factory (no zero-argument
   // latch() overload) because latch() with a source argument IS already a pipe
-  // function - it takes source_fn<optional<T>> and returns source_fn<T>. You can
-  // use it directly with the pipe operator: optional_source | latch
+  // function - it takes a source of optional<T> and returns a source of T. You can
+  // use it directly with the pipe operator: optional_source | latch()
   //
   // If you only want to push non-empty values
   // rather than remembering the last non-empty value and pushing it when pulled,
   // use `filter<std::optional<T>>(source, not_empty)`
-  template <typename T>
-  RHEO_CALLABLE source_fn<T> latch(source_fn<std::optional<T>> source) {
 
-    struct SourceBinder {
-      source_fn<std::optional<T>> source;
+  namespace detail {
+    template <typename SourceT>
+    struct LatchSourceBinder {
+      using OptT = source_value_t<SourceT>;
+      using value_type = typename OptT::value_type;
 
-      RHEO_CALLABLE pull_fn operator()(push_fn<T> push) const {
+      SourceT source;
+
+      template <typename PushFn>
+      RHEO_CALLABLE auto operator()(PushFn push) const {
+        using T = value_type;
 
         struct PushHandler {
-          push_fn<T> push;
+          PushFn push;
           mutable std::optional<T> last_seen_value = std::nullopt;
 
-          RHEO_CALLABLE void operator()(std::optional<T> value) const {
+          RHEO_CALLABLE void operator()(OptT value) const {
             if (value.has_value()) {
               last_seen_value = value;
             }
@@ -39,11 +44,29 @@ namespace rheo::operators {
           }
         };
 
-        return source(PushHandler{push});
+        return source(PushHandler{std::move(push)});
       }
     };
+  }
 
-    return SourceBinder{source};
+  template <typename SourceT>
+    requires concepts::Source<SourceT> && is_optional_v<source_value_t<SourceT>>
+  RHEO_CALLABLE auto latch(SourceT source) {
+    return detail::LatchSourceBinder<SourceT>{std::move(source)};
+  }
+
+  namespace detail {
+    struct LatchPipeFactory {
+      template <typename SourceT>
+        requires concepts::Source<SourceT> && is_optional_v<source_value_t<SourceT>>
+      RHEO_CALLABLE auto operator()(SourceT source) const {
+        return latch(std::move(source));
+      }
+    };
+  }
+
+  inline auto latch() {
+    return detail::LatchPipeFactory{};
   }
 
 }

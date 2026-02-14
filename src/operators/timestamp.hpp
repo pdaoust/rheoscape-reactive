@@ -8,33 +8,39 @@
 
 namespace rheo::operators {
 
-  template <typename T, typename TTimePoint>
-  source_fn<TaggedValue<T, TTimePoint>> timestamp(source_fn<T> source, source_fn<TTimePoint> clock_source) {
+  template <typename SourceT, typename ClockSourceT>
+    requires concepts::Source<SourceT> && concepts::Source<ClockSourceT>
+  auto timestamp(SourceT source, ClockSourceT clock_source) {
+    using T = source_value_t<SourceT>;
+    using TTimePoint = source_value_t<ClockSourceT>;
+
     struct Tagger {
       RHEO_CALLABLE TaggedValue<T, TTimePoint> operator()(T value, TTimePoint timestamp) const {
         return TaggedValue<T, TTimePoint>{ value, timestamp };
       }
     };
 
-    return combine(source, clock_source)
+    return combine(std::move(source), std::move(clock_source))
       | map_tuple(Tagger{});
   }
 
   namespace detail {
-    template <typename TTimePoint>
+    template <typename ClockSourceT>
     struct TimestampPipeFactory {
-      source_fn<TTimePoint> clock_source;
+      ClockSourceT clock_source;
 
-      template <typename T>
-      RHEO_CALLABLE auto operator()(source_fn<T> source) const {
-        return timestamp(source, clock_source);
+      template <typename SourceT>
+        requires concepts::Source<SourceT>
+      RHEO_CALLABLE auto operator()(SourceT source) const {
+        return timestamp(std::move(source), ClockSourceT(clock_source));
       }
     };
   }
 
-  template <typename TTimePoint>
-  auto timestamp(source_fn<TTimePoint> clock_source) {
-    return detail::TimestampPipeFactory<TTimePoint>{clock_source};
+  template <typename ClockSourceT>
+    requires concepts::Source<ClockSourceT>
+  auto timestamp(ClockSourceT clock_source) {
+    return detail::TimestampPipeFactory<ClockSourceT>{std::move(clock_source)};
   }
 
 }

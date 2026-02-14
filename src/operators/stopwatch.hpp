@@ -14,9 +14,13 @@ namespace rheo::operators {
   // and it wouldn't restart the stopwatch at 0 for every value
   // while the temperature was above 20.
 
-  template <typename TDuration, typename T, typename TTimePoint, typename FilterFn>
-    requires concepts::TimePointAndDurationCompatible<TTimePoint, TDuration>
-  source_fn<TaggedValue<T, TDuration>> stopwatch(source_fn<T> source, source_fn<TTimePoint> clock_source, FilterFn&& lap_condition) {
+  template <typename TDuration, typename SourceT, typename ClockSourceT, typename FilterFn>
+    requires concepts::Source<SourceT> && concepts::Source<ClockSourceT> &&
+             concepts::TimePointAndDurationCompatible<source_value_t<ClockSourceT>, TDuration> &&
+             concepts::Predicate<FilterFn, source_value_t<SourceT>>
+  auto stopwatch(SourceT source, ClockSourceT clock_source, FilterFn&& lap_condition) {
+    using T = source_value_t<SourceT>;
+    using TTimePoint = source_value_t<ClockSourceT>;
     using FilterFnDecayed = std::decay_t<FilterFn>;
 
     // This is kinda sneaky. We're turning `combine` into a reducer here,
@@ -39,30 +43,32 @@ namespace rheo::operators {
       }
     };
 
-    return combine(source, clock_source)
+    return combine(std::move(source), std::move(clock_source))
       | map_tuple(LapMapper{ std::forward<FilterFn>(lap_condition) });
   }
 
   namespace detail {
-    template <typename TDuration, typename TTimePoint, typename FilterFn>
+    template <typename TDuration, typename ClockSourceT, typename FilterFn>
     struct StopwatchPipeFactory {
-      source_fn<TTimePoint> clock_source;
+      ClockSourceT clock_source;
       FilterFn lap_condition;
 
-      template <typename T>
-        requires concepts::Predicate<FilterFn, T>
-      RHEO_CALLABLE auto operator()(source_fn<T> source) const {
-        return stopwatch<TDuration>(std::move(source), clock_source, FilterFn(lap_condition));
+      template <typename SourceT>
+        requires concepts::Source<SourceT> &&
+                 concepts::Predicate<FilterFn, source_value_t<SourceT>>
+      RHEO_CALLABLE auto operator()(SourceT source) const {
+        return stopwatch<TDuration>(std::move(source), ClockSourceT(clock_source), FilterFn(lap_condition));
       }
     };
   }
 
   // Pipe factory
-  template <typename TDuration, typename TTimePoint, typename FilterFn>
-    requires concepts::TimePointAndDurationCompatible<TTimePoint, TDuration>
-  auto stopwatch(source_fn<TTimePoint> clock_source, FilterFn&& lap_condition) {
-    return detail::StopwatchPipeFactory<TDuration, TTimePoint, std::decay_t<FilterFn>>{
-      clock_source,
+  template <typename TDuration, typename ClockSourceT, typename FilterFn>
+    requires concepts::Source<ClockSourceT> &&
+             concepts::TimePointAndDurationCompatible<source_value_t<ClockSourceT>, TDuration>
+  auto stopwatch(ClockSourceT clock_source, FilterFn&& lap_condition) {
+    return detail::StopwatchPipeFactory<TDuration, ClockSourceT, std::decay_t<FilterFn>>{
+      std::move(clock_source),
       std::forward<FilterFn>(lap_condition)
     };
   }

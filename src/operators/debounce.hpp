@@ -13,15 +13,16 @@ namespace rheo::operators {
   // in which there will be no values pushed at all,
   // because it's checking whether the upstream source's initial value is stable.
 
-  template <typename T, typename TTimePoint, typename TInterval>
-    requires concepts::TimePointAndDurationCompatible<TTimePoint, TInterval>
-  source_fn<T> debounce(source_fn<T> source, source_fn<TTimePoint> clock_source, TInterval interval) {
+  namespace detail {
+    template <typename TimestampedSourceT, typename T, typename TTimePoint, typename TInterval>
+    struct DebounceSourceBinder {
+      using value_type = T;
 
-    struct SourceBinder {
-      source_fn<TaggedValue<T, TTimePoint>> timestamped;
+      TimestampedSourceT timestamped;
       TInterval interval;
 
-      RHEO_CALLABLE pull_fn operator()(push_fn<T> push) const {
+      template <typename PushFn>
+      RHEO_CALLABLE auto operator()(PushFn push) const {
         // We only want to push a value that's the same as the previously pushed value
         // if the push happens as a consequence of a pull.
         // It doesn't make sense for a push stream to force a debounced value to get emitted
@@ -30,7 +31,7 @@ namespace rheo::operators {
 
         struct PushHandler {
           TInterval interval;
-          push_fn<T> push;
+          PushFn push;
           std::shared_ptr<Wrapper<bool>> did_pull;
           mutable std::optional<TaggedValue<T, TTimePoint>> testing_new_state;
           mutable std::optional<T> current_state;
@@ -94,30 +95,40 @@ namespace rheo::operators {
         return PullHandler{did_pull, std::move(inner_pull)};
       }
     };
+  }
 
-    return SourceBinder{
-      timestamp(source, clock_source),
-      interval
+  template <typename SourceT, typename ClockSourceT, typename TInterval>
+    requires concepts::Source<SourceT> && concepts::Source<ClockSourceT> &&
+             concepts::TimePointAndDurationCompatible<source_value_t<ClockSourceT>, TInterval>
+  auto debounce(SourceT source, ClockSourceT clock_source, TInterval interval) {
+    using T = source_value_t<SourceT>;
+    using TTimePoint = source_value_t<ClockSourceT>;
+
+    auto timestamped = timestamp(std::move(source), std::move(clock_source));
+    return detail::DebounceSourceBinder<decltype(timestamped), T, TTimePoint, TInterval>{
+      std::move(timestamped), interval
     };
   }
 
   namespace detail {
-    template <typename TTimePoint, typename TInterval>
+    template <typename ClockSourceT, typename TInterval>
     struct DebouncePipeFactory {
-      source_fn<TTimePoint> clock_source;
+      ClockSourceT clock_source;
       TInterval interval;
 
-      template <typename T>
-      RHEO_CALLABLE auto operator()(source_fn<T> source) const {
-        return debounce(source, clock_source, interval);
+      template <typename SourceT>
+        requires concepts::Source<SourceT>
+      RHEO_CALLABLE auto operator()(SourceT source) const {
+        return debounce(std::move(source), ClockSourceT(clock_source), interval);
       }
     };
   }
 
-  template <typename TTimePoint, typename TInterval>
-    requires concepts::TimePointAndDurationCompatible<TTimePoint, TInterval>
-  auto debounce(source_fn<TTimePoint> clock_source, TInterval interval) {
-    return detail::DebouncePipeFactory<TTimePoint, TInterval>{clock_source, interval};
+  template <typename ClockSourceT, typename TInterval>
+    requires concepts::Source<ClockSourceT> &&
+             concepts::TimePointAndDurationCompatible<source_value_t<ClockSourceT>, TInterval>
+  auto debounce(ClockSourceT clock_source, TInterval interval) {
+    return detail::DebouncePipeFactory<ClockSourceT, TInterval>{std::move(clock_source), interval};
   }
 
 }

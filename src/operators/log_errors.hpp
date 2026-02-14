@@ -9,24 +9,28 @@
 
 namespace rheo::operators {
 
-  template <typename T, typename TErr, typename MapFn>
-  source_fn<Fallible<T, TErr>> log_errors(
-    source_fn<Fallible<T, TErr>> source,
+  template <typename SourceT, typename MapFn>
+    requires concepts::Source<SourceT>
+  auto log_errors(
+    SourceT source,
     MapFn&& format_error,
     std::optional<std::string> topic = std::nullopt
   ) {
+    using FallibleT = source_value_t<SourceT>;
+    using T = typename FallibleT::ok_type;
+    using TErr = typename FallibleT::error_type;
     using MapFnDecayed = std::decay_t<MapFn>;
 
     struct ErrorLogger {
       std::optional<std::string> topic;
       MapFnDecayed format_error;
 
-      RHEO_CALLABLE void operator()(source_fn<Fallible<T, TErr>> source) const {
+      RHEO_CALLABLE void operator()(source_fn<FallibleT> source) const {
         struct PushHandler {
           std::optional<std::string> topic;
           MapFnDecayed format_error;
 
-          RHEO_CALLABLE void operator()(Fallible<T, TErr> value) const {
+          RHEO_CALLABLE void operator()(FallibleT value) const {
             if (value.is_error()) {
               logging::error(topic, format_error(value.error()));
             }
@@ -37,22 +41,26 @@ namespace rheo::operators {
       }
     };
 
-    return tee(source, ErrorLogger{topic, std::forward<MapFn>(format_error)});
+    return tee(std::move(source), ErrorLogger{topic, std::forward<MapFn>(format_error)});
   }
 
   // Overload with default formatter
-  template <typename T, typename TErr>
-  source_fn<Fallible<T, TErr>> log_errors(
-    source_fn<Fallible<T, TErr>> source,
+  template <typename SourceT>
+    requires concepts::Source<SourceT>
+  auto log_errors(
+    SourceT source,
     std::optional<std::string> topic = std::nullopt
   ) {
+    using FallibleT = source_value_t<SourceT>;
+    using TErr = typename FallibleT::error_type;
+
     struct DefaultFormatter {
       RHEO_CALLABLE std::string operator()(TErr value) const {
         return fmt::format("{}", value);
       }
     };
 
-    return log_errors(source, DefaultFormatter{}, topic);
+    return log_errors(std::move(source), DefaultFormatter{}, topic);
   }
 
   namespace detail {
@@ -61,8 +69,10 @@ namespace rheo::operators {
       MapFn format_error;
       std::optional<std::string> topic;
 
-      RHEO_CALLABLE source_fn<Fallible<T, TErr>> operator()(source_fn<Fallible<T, TErr>> source) const {
-        return log_errors(source, MapFn(format_error), topic);
+      template <typename SourceT>
+        requires concepts::Source<SourceT>
+      RHEO_CALLABLE auto operator()(SourceT source) const {
+        return log_errors(std::move(source), MapFn(format_error), topic);
       }
     };
   }

@@ -5,20 +5,21 @@
 
 namespace rheo::operators {
 
-  template <typename T, typename FilterFn>
-    requires concepts::Predicate<FilterFn, T>
-  RHEO_CALLABLE source_fn<T> start_when(source_fn<T> source, FilterFn&& condition) {
-    using FilterFnDecayed = std::decay_t<FilterFn>;
+  namespace detail {
+    template <typename SourceT, typename FilterFnT>
+    struct StartWhenSourceBinder {
+      using value_type = source_value_t<SourceT>;
 
-    struct SourceBinder {
-      source_fn<T> source;
-      FilterFnDecayed condition;
+      SourceT source;
+      FilterFnT condition;
 
-      RHEO_CALLABLE pull_fn operator()(push_fn<T> push) const {
+      template <typename PushFn>
+      RHEO_CALLABLE auto operator()(PushFn push) const {
+        using T = value_type;
 
         struct PushHandler {
-          FilterFnDecayed condition;
-          push_fn<T> push;
+          FilterFnT condition;
+          PushFn push;
           mutable bool started = false;
 
           RHEO_CALLABLE void operator()(T value) const {
@@ -31,12 +32,16 @@ namespace rheo::operators {
           }
         };
 
-        return source(PushHandler{condition, push});
+        return source(PushHandler{condition, std::move(push)});
       }
     };
+  }
 
-    return SourceBinder{
-      source,
+  template <typename SourceT, typename FilterFn>
+    requires concepts::Source<SourceT> && concepts::Predicate<FilterFn, source_value_t<SourceT>>
+  RHEO_CALLABLE auto start_when(SourceT source, FilterFn&& condition) {
+    return detail::StartWhenSourceBinder<SourceT, std::decay_t<FilterFn>>{
+      std::move(source),
       std::forward<FilterFn>(condition)
     };
   }
@@ -46,9 +51,9 @@ namespace rheo::operators {
     struct StartWhenPipeFactory {
       FilterFn condition;
 
-      template <typename T>
-        requires concepts::Predicate<FilterFn, T>
-      RHEO_CALLABLE auto operator()(source_fn<T> source) const {
+      template <typename SourceT>
+        requires concepts::Source<SourceT> && concepts::Predicate<FilterFn, source_value_t<SourceT>>
+      RHEO_CALLABLE auto operator()(SourceT source) const {
         return start_when(std::move(source), FilterFn(condition));
       }
     };

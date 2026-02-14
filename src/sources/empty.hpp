@@ -27,7 +27,7 @@ namespace rheo::sources {
   } // namespace detail
 
   template <typename T>
-  source_fn<T> empty() {
+  auto empty() {
     return detail::empty_source_binder<T>{};
   }
 

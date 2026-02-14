@@ -21,6 +21,10 @@ namespace rheo {
 
   template <typename T, typename TErr>
   class Fallible {
+    public:
+      using ok_type = T;
+      using error_type = TErr;
+
     private:
       bool _has_value;
       union {

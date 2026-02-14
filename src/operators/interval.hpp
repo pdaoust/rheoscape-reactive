@@ -27,15 +27,18 @@ namespace rheo::operators {
   //    filter(time_source, [](ts) { return !(ts % interval); }
   // But with something that would allow it to snap to time intervals if it missed one
 
-  template <typename TTimePoint, typename TInterval>
-    requires concepts::TimePointAndDurationCompatible<TTimePoint, TInterval>
-  source_fn<TTimePoint> interval(source_fn<TTimePoint> time_source, source_fn<TInterval> interval_source) {
+  namespace detail {
+    template <typename TimeSourceT, typename IntervalSourceT>
+    struct IntervalSourceBinder {
+      using TTimePoint = source_value_t<TimeSourceT>;
+      using TInterval = source_value_t<IntervalSourceT>;
+      using value_type = TTimePoint;
 
-    struct SourceBinder {
-      source_fn<TTimePoint> time_source;
-      source_fn<TInterval> interval_source;
+      TimeSourceT time_source;
+      IntervalSourceT interval_source;
 
-      RHEO_CALLABLE pull_fn operator()(push_fn<TTimePoint> push) const {
+      template <typename PushFn>
+      RHEO_CALLABLE auto operator()(PushFn push) const {
         auto last_interval = std::make_shared<std::optional<TInterval>>();
         auto last_interval_timestamp = std::make_shared<std::optional<TTimePoint>>();
 
@@ -51,7 +54,7 @@ namespace rheo::operators {
           std::shared_ptr<std::optional<TInterval>> last_interval;
           std::shared_ptr<std::optional<TTimePoint>> last_interval_timestamp;
           pull_fn pull_next_interval;
-          push_fn<TTimePoint> push;
+          PushFn push;
 
           RHEO_CALLABLE void operator()(TTimePoint timestamp) const {
             if (!last_interval->has_value()) {
@@ -91,29 +94,36 @@ namespace rheo::operators {
         });
       }
     };
+  }
 
-    return SourceBinder{
+  template <typename TimeSourceT, typename IntervalSourceT>
+    requires concepts::Source<TimeSourceT> && concepts::Source<IntervalSourceT> &&
+             concepts::TimePointAndDurationCompatible<source_value_t<TimeSourceT>, source_value_t<IntervalSourceT>>
+  auto interval(TimeSourceT time_source, IntervalSourceT interval_source) {
+    return detail::IntervalSourceBinder<TimeSourceT, IntervalSourceT>{
       std::move(time_source),
       std::move(interval_source)
     };
   }
 
   namespace detail {
-    template <typename TInterval>
+    template <typename IntervalSourceT>
     struct IntervalPipeFactory {
-      source_fn<TInterval> interval_source;
+      IntervalSourceT interval_source;
 
-      template <typename TTimePoint>
-        requires concepts::TimePointAndDurationCompatible<TTimePoint, TInterval>
-      RHEO_CALLABLE auto operator()(source_fn<TTimePoint> time_source) const {
-        return interval(time_source, interval_source);
+      template <typename TimeSourceT>
+        requires concepts::Source<TimeSourceT> &&
+                 concepts::TimePointAndDurationCompatible<source_value_t<TimeSourceT>, source_value_t<IntervalSourceT>>
+      RHEO_CALLABLE auto operator()(TimeSourceT time_source) const {
+        return interval(std::move(time_source), IntervalSourceT(interval_source));
       }
     };
   }
 
-  template <typename TInterval>
-  auto interval(source_fn<TInterval> interval_source) {
-    return detail::IntervalPipeFactory<TInterval>{interval_source};
+  template <typename IntervalSourceT>
+    requires concepts::Source<IntervalSourceT>
+  auto interval(IntervalSourceT interval_source) {
+    return detail::IntervalPipeFactory<IntervalSourceT>{std::move(interval_source)};
   }
 
   // An alias for `constant`, to make it read better!

@@ -15,29 +15,35 @@ namespace rheo::operators {
   // pulling on it will do nothing.
   // This function is useful for logging or forking data to another pipeline.
 
-  template <typename T, typename SinkFn>
-  RHEO_CALLABLE source_fn<T> tee(source_fn<T> source, SinkFn&& sink) {
-    using SinkFnDecayed = std::decay_t<SinkFn>;
+  namespace detail {
+    template <typename SourceT, typename SinkFnT>
+    struct TeeSourceBinder {
+      using value_type = source_value_t<SourceT>;
 
-    struct SourceBinder {
-      source_fn<T> source;
-      SinkFnDecayed sink;
+      SourceT source;
+      SinkFnT sink;
 
-      RHEO_CALLABLE pull_fn operator()(push_fn<T> push_primary) const {
+      template <typename PushFn>
+      RHEO_CALLABLE auto operator()(PushFn push_primary) const {
+        using T = value_type;
         auto push_secondary = make_wrapper_shared<push_fn<T>>();
 
+        // SecondarySource is a mini-source that the sink binds to.
+        // It stores the secondary push in a shared_ptr so PushHandler can use it.
+        // Uses push_fn<T> (type-erased) because the sink may provide any push type.
         struct SecondarySource {
+          using value_type = T;
           std::shared_ptr<Wrapper<push_fn<T>>> push_secondary;
 
           RHEO_CALLABLE pull_fn operator()(push_fn<T> push) const {
-            (*push_secondary).value = std::forward<push_fn<T>>(push);
+            (*push_secondary).value = std::move(push);
             // The tee isn't allowed to pull
             return [](){};
           }
         };
 
         struct PushHandler {
-          push_fn<T> push_primary;
+          PushFn push_primary;
           std::shared_ptr<Wrapper<push_fn<T>>> push_secondary;
 
           RHEO_CALLABLE void operator()(T value) const {
@@ -48,12 +54,16 @@ namespace rheo::operators {
 
         sink(SecondarySource{push_secondary});
 
-        return source(PushHandler{push_primary, push_secondary});
+        return source(PushHandler{std::move(push_primary), push_secondary});
       }
     };
+  }
 
-    return SourceBinder{
-      source,
+  template <typename SourceT, typename SinkFn>
+    requires concepts::Source<SourceT>
+  RHEO_CALLABLE auto tee(SourceT source, SinkFn&& sink) {
+    return detail::TeeSourceBinder<SourceT, std::decay_t<SinkFn>>{
+      std::move(source),
       std::forward<SinkFn>(sink)
     };
   }
@@ -63,8 +73,9 @@ namespace rheo::operators {
     struct TeePipeFactory {
       SinkFn sink;
 
-      template <typename T>
-      RHEO_CALLABLE auto operator()(source_fn<T> source) const {
+      template <typename SourceT>
+        requires concepts::Source<SourceT>
+      RHEO_CALLABLE auto operator()(SourceT source) const {
         return tee(std::move(source), SinkFn(sink));
       }
     };

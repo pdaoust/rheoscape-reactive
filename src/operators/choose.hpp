@@ -16,12 +16,11 @@ namespace rheo::operators {
   // until _all_ of its upstream sources are also ended.
   // However, it will end if the switch key source ends, regardless of the other upstream sources.
 
-  template <typename TKey, typename TVal>
-  source_fn<TVal> choose(
-    std::map<TKey, source_fn<TVal>> value_source_map,
-    source_fn<TKey> switch_source
-  ) {
-    struct SourceBinder {
+  namespace detail {
+    template <typename TKey, typename TVal>
+    struct ChooseSourceBinder {
+      using value_type = TVal;
+
       std::map<TKey, source_fn<TVal>> value_source_map;
       source_fn<TKey> switch_source;
 
@@ -79,10 +78,18 @@ namespace rheo::operators {
         return PullHandler{switch_state, pull_value_fns, std::move(pull_switch_source)};
       }
     };
+  }
 
-    return SourceBinder{
+  template <typename TKey, typename TVal, typename SwitchSourceT>
+    requires concepts::Source<SwitchSourceT> &&
+             std::is_same_v<source_value_t<SwitchSourceT>, TKey>
+  auto choose(
+    std::map<TKey, source_fn<TVal>> value_source_map,
+    SwitchSourceT switch_source
+  ) {
+    return detail::ChooseSourceBinder<TKey, TVal>{
       std::move(value_source_map),
-      std::move(switch_source)
+      source_fn<TKey>(std::move(switch_source))
     };
   }
 
@@ -96,8 +103,11 @@ namespace rheo::operators {
     struct ChooseAmongPipeFactory {
       std::map<TKey, source_fn<TVal>> value_source_map;
 
-      RHEO_CALLABLE auto operator()(source_fn<TKey> switch_source) const {
-        return choose(std::move(value_source_map), std::move(switch_source));
+      template <typename SwitchSourceT>
+        requires concepts::Source<SwitchSourceT> &&
+                 std::is_same_v<source_value_t<SwitchSourceT>, TKey>
+      RHEO_CALLABLE auto operator()(SwitchSourceT switch_source) const {
+        return choose(std::map(value_source_map), std::move(switch_source));
       }
     };
   }

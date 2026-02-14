@@ -19,27 +19,23 @@ namespace rheo::operators {
   //
   // The mapper function's arity must match the tuple size.
 
-  // Source function factory: map_tuple(source, mapper)
-  //
-  // Takes a source of tuples and a mapper function,
-  // returns a source that emits the result of applying the mapper to each tuple.
-  template <typename TTuple, typename MapFn>
-    requires concepts::TupleMapper<MapFn, TTuple>
-  RHEO_CALLABLE auto map_tuple(source_fn<TTuple> source, MapFn&& mapper)
-  -> source_fn<apply_result_t<std::decay_t<MapFn>, TTuple>> {
-    using TOut = apply_result_t<std::decay_t<MapFn>, TTuple>;
-    using MapFnDecayed = std::decay_t<MapFn>;
+  namespace detail {
+    template <typename SourceT, typename MapFnT>
+    struct MapTupleSourceBinder {
+      using TTuple = source_value_t<SourceT>;
+      using value_type = apply_result_t<MapFnT, TTuple>;
 
-    struct SourceBinder {
-      source_fn<TTuple> source;
-      MapFnDecayed mapper;
+      SourceT source;
+      MapFnT mapper;
 
-      RHEO_CALLABLE pull_fn operator()(push_fn<TOut> push) const {
+      template <typename PushFn>
+      RHEO_CALLABLE auto operator()(PushFn push) const {
+        using TOut = value_type;
 
         struct PushHandler {
-          push_fn<TOut> push;
+          PushFn push;
           // Mutable to support stateful mappers (mutable lambdas).
-          mutable MapFnDecayed mapper;
+          mutable MapFnT mapper;
 
           RHEO_CALLABLE void operator()(TTuple value) const {
             push(std::apply(mapper, std::move(value)));
@@ -49,8 +45,16 @@ namespace rheo::operators {
         return source(PushHandler{std::move(push), mapper});
       }
     };
+  }
 
-    return SourceBinder{
+  // Source function factory: map_tuple(source, mapper)
+  //
+  // Takes a source of tuples and a mapper function,
+  // returns a source that emits the result of applying the mapper to each tuple.
+  template <typename SourceT, typename MapFn>
+    requires concepts::Source<SourceT> && concepts::TupleMapper<MapFn, source_value_t<SourceT>>
+  RHEO_CALLABLE auto map_tuple(SourceT source, MapFn&& mapper) {
+    return detail::MapTupleSourceBinder<SourceT, std::decay_t<MapFn>>{
       std::move(source),
       std::forward<MapFn>(mapper)
     };
@@ -61,9 +65,9 @@ namespace rheo::operators {
     struct MapTuplePipeFactory {
       MapFn mapper;
 
-      template <typename TTuple>
-        requires concepts::TupleMapper<MapFn, TTuple>
-      RHEO_CALLABLE auto operator()(source_fn<TTuple> source) const {
+      template <typename SourceT>
+        requires concepts::Source<SourceT> && concepts::TupleMapper<MapFn, source_value_t<SourceT>>
+      RHEO_CALLABLE auto operator()(SourceT source) const {
         return map_tuple(std::move(source), MapFn(mapper));
       }
     };

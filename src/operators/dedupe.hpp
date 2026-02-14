@@ -2,30 +2,33 @@
 
 #include <functional>
 #include <optional>
+#include <memory>
 #include <core_types.hpp>
 
 namespace rheo::operators {
 
   // Only push the first received instance of a value.
   //
-  // PATTERN NOTE: This operator intentionally has no pipe factory (no zero-argument
-  // dedupe() overload) because dedupe() with a source argument IS already a pipe
-  // function - it takes source_fn<T> and returns source_fn<T>. You can use it
-  // directly with the pipe operator: source | dedupe
-  template <typename T>
-  RHEO_CALLABLE source_fn<T> dedupe(source_fn<T> source) {
+  // Usage: dedupe(source) or source | dedupe()
 
-    struct SourceBinder {
-      source_fn<T> source;
+  namespace detail {
+    template <typename SourceT>
+    struct DedupeSourceBinder {
+      using value_type = source_value_t<SourceT>;
 
-      RHEO_CALLABLE pull_fn operator()(push_fn<T> push) const {
+      SourceT source;
+
+      template <typename PushFn>
+      RHEO_CALLABLE auto operator()(PushFn push) const {
+        using T = value_type;
 
         struct PushHandler {
-          push_fn<T> push;
+          PushFn push;
           std::shared_ptr<std::optional<T>> last_seen_value;
 
-          PushHandler(push_fn<T> push)
-            : push(push), last_seen_value(std::make_shared<std::optional<T>>(std::nullopt)) {}
+          PushHandler(PushFn push)
+            : push(std::move(push)),
+              last_seen_value(std::make_shared<std::optional<T>>(std::nullopt)) {}
 
           RHEO_CALLABLE void operator()(T value) const {
             if (!last_seen_value->has_value() || last_seen_value->value() != value) {
@@ -35,11 +38,29 @@ namespace rheo::operators {
           }
         };
 
-        return source(PushHandler{push});
+        return source(PushHandler{std::move(push)});
       }
     };
+  }
 
-    return SourceBinder{source};
+  template <typename SourceT>
+    requires concepts::Source<SourceT>
+  RHEO_CALLABLE auto dedupe(SourceT source) {
+    return detail::DedupeSourceBinder<SourceT>{std::move(source)};
+  }
+
+  namespace detail {
+    struct DedupePipeFactory {
+      template <typename SourceT>
+        requires concepts::Source<SourceT>
+      RHEO_CALLABLE auto operator()(SourceT source) const {
+        return dedupe(std::move(source));
+      }
+    };
+  }
+
+  inline auto dedupe() {
+    return detail::DedupePipeFactory{};
   }
 
 }

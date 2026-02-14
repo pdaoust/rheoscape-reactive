@@ -18,9 +18,10 @@ namespace rheo::operators {
     struct ForeachSinkFactory {
       ExecFn exec;
 
-      template <typename T>
-        requires concepts::Visitor<ExecFn, T>
-      RHEO_CALLABLE pull_fn operator()(source_fn<T> source) const {
+      template <typename SourceT>
+        requires concepts::Source<SourceT> && concepts::Visitor<ExecFn, source_value_t<SourceT>>
+      RHEO_CALLABLE pull_fn operator()(SourceT source) const {
+        using T = source_value_t<SourceT>;
 
         struct PushHandler {
           ExecFn exec;
@@ -44,10 +45,10 @@ namespace rheo::operators {
 
   // Convenience overload that immediately binds source to sink.
   // Usage: foreach(source, my_exec) - equivalent to (source | foreach(my_exec))
-  template <typename T, typename ExecFn>
-    requires concepts::Visitor<ExecFn, T>
-  pull_fn foreach(source_fn<T> source, ExecFn&& exec) {
-    return foreach(std::forward<ExecFn>(exec))(source);
+  template <typename SourceT, typename ExecFn>
+    requires concepts::Source<SourceT> && concepts::Visitor<ExecFn, source_value_t<SourceT>>
+  pull_fn foreach(SourceT source, ExecFn&& exec) {
+    return foreach(std::forward<ExecFn>(exec))(std::move(source));
   }
 
 }

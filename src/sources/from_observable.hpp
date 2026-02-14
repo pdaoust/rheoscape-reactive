@@ -40,8 +40,7 @@ namespace rheo::sources {
   } // namespace detail
 
   template <typename SubscribeFn>
-  auto from_observable(SubscribeFn&& subscribe_fn)
-  -> source_fn<source_value_type_t<std::decay_t<SubscribeFn>>> {
+  auto from_observable(SubscribeFn&& subscribe_fn) {
     using T = source_value_type_t<std::decay_t<SubscribeFn>>;
     return detail::from_observable_source_binder<std::decay_t<SubscribeFn>, T>{
       std::forward<SubscribeFn>(subscribe_fn)

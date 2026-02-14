@@ -4,6 +4,7 @@
 #include <core_types.hpp>
 #include <Endable.hpp>
 #include <types/Wrapper.hpp>
+#include <operators/unwrap.hpp>
 
 namespace rheo::operators {
 
@@ -11,18 +12,21 @@ namespace rheo::operators {
   // starting the second one after the first one has ended.
 
   // First overload: Endable<T> + T -> T
-  template <typename T>
-  source_fn<T> concat(source_fn<Endable<T>> source1, source_fn<T> source2) {
+  namespace detail {
+    template <typename Source1T, typename Source2T>
+    struct ConcatSourceBinder {
+      using T = source_value_t<Source2T>;
+      using value_type = T;
 
-    struct SourceBinder {
-      source_fn<Endable<T>> source1;
-      source_fn<T> source2;
+      Source1T source1;
+      Source2T source2;
 
-      RHEO_CALLABLE pull_fn operator()(push_fn<T> push) const {
+      template <typename PushFn>
+      RHEO_CALLABLE auto operator()(PushFn push) const {
         auto source1HasEnded = make_wrapper_shared<bool>(false);
 
         struct Source1PushHandler {
-          push_fn<T> push;
+          PushFn push;
           std::shared_ptr<Wrapper<bool>> source1HasEnded;
 
           RHEO_CALLABLE void operator()(Endable<T> value) const {
@@ -35,7 +39,7 @@ namespace rheo::operators {
         };
 
         struct Source2PushHandler {
-          push_fn<T> push;
+          PushFn push;
           std::shared_ptr<Wrapper<bool>> source1HasEnded;
 
           RHEO_CALLABLE void operator()(T value) const {
@@ -69,47 +73,36 @@ namespace rheo::operators {
         };
       }
     };
-
-    return SourceBinder{std::move(source1), std::move(source2)};
   }
 
-  namespace detail {
-    template <typename T>
-    struct ConcatPipeFactory {
-      source_fn<T> source2;
-
-      // The piped source is source_fn<T>, and the existing source2 is also source_fn<T>.
-      // For concat, the pipe version takes a source_fn<T> (not Endable),
-      // but the original concat(source1, source2) signature expects Endable<T> for source1.
-      // However, the existing pipe factory concat(source2) had signature pipe_fn<T, T>,
-      // meaning it passed source_fn<T> directly. Looking at the original code,
-      // it seems the pipe factory was for the case where both are source_fn<T>
-      // and we don't actually use the Endable overload.
-      // Let's preserve the original behavior.
-      RHEO_CALLABLE auto operator()(source_fn<T> source1) const {
-        return concat(source1, source2);
-      }
+  template <typename Source1T, typename Source2T>
+    requires concepts::Source<Source1T> && concepts::Source<Source2T> &&
+             is_endable_v<source_value_t<Source1T>> &&
+             std::is_same_v<endable_inner_t<source_value_t<Source1T>>, source_value_t<Source2T>> &&
+             (!is_endable_v<source_value_t<Source2T>>)
+  auto concat(Source1T source1, Source2T source2) {
+    return detail::ConcatSourceBinder<Source1T, Source2T>{
+      std::move(source1), std::move(source2)
     };
   }
 
-  template <typename T>
-  auto concat(source_fn<T> source2) {
-    return detail::ConcatPipeFactory<T>{source2};
-  }
-
   // Second overload: Endable<T> + Endable<T> -> Endable<T>
-  template <typename T>
-  source_fn<Endable<T>> concat(source_fn<Endable<T>> source1, source_fn<Endable<T>> source2) {
+  namespace detail {
+    template <typename Source1T, typename Source2T>
+    struct ConcatEndableSourceBinder {
+      using EndableT = source_value_t<Source1T>;
+      using T = endable_inner_t<EndableT>;
+      using value_type = Endable<T>;
 
-    struct SourceBinder {
-      source_fn<Endable<T>> source1;
-      source_fn<Endable<T>> source2;
+      Source1T source1;
+      Source2T source2;
 
-      RHEO_CALLABLE pull_fn operator()(push_fn<Endable<T>> push) const {
+      template <typename PushFn>
+      RHEO_CALLABLE auto operator()(PushFn push) const {
         auto source1HasEnded = make_wrapper_shared<bool>(false);
 
         struct Source1PushHandler {
-          push_fn<Endable<T>> push;
+          PushFn push;
           std::shared_ptr<Wrapper<bool>> source1HasEnded;
 
           RHEO_CALLABLE void operator()(Endable<T> value) const {
@@ -122,7 +115,7 @@ namespace rheo::operators {
         };
 
         struct Source2PushHandler {
-          push_fn<Endable<T>> push;
+          PushFn push;
           std::shared_ptr<Wrapper<bool>> source1HasEnded;
 
           RHEO_CALLABLE void operator()(Endable<T> value) const {
@@ -160,8 +153,35 @@ namespace rheo::operators {
         };
       }
     };
+  }
 
-    return SourceBinder{std::move(source1), std::move(source2)};
+  template <typename Source1T, typename Source2T>
+    requires concepts::Source<Source1T> && concepts::Source<Source2T> &&
+             is_endable_v<source_value_t<Source1T>> && is_endable_v<source_value_t<Source2T>> &&
+             std::is_same_v<source_value_t<Source1T>, source_value_t<Source2T>>
+  auto concat(Source1T source1, Source2T source2) {
+    return detail::ConcatEndableSourceBinder<Source1T, Source2T>{
+      std::move(source1), std::move(source2)
+    };
+  }
+
+  namespace detail {
+    template <typename Source2T>
+    struct ConcatPipeFactory {
+      Source2T source2;
+
+      template <typename Source1T>
+        requires concepts::Source<Source1T>
+      RHEO_CALLABLE auto operator()(Source1T source1) const {
+        return concat(std::move(source1), Source2T(source2));
+      }
+    };
+  }
+
+  template <typename Source2T>
+    requires concepts::Source<Source2T>
+  auto concat(Source2T source2) {
+    return detail::ConcatPipeFactory<Source2T>{std::move(source2)};
   }
 
 }

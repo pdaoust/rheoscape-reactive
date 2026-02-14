@@ -94,38 +94,21 @@ namespace rheo::operators {
       }(std::make_index_sequence<N>{});
     }
 
-  }
+    template <typename... SourceTs>
+    struct CombineSourceBinder {
+      using value_type = std::tuple<source_value_t<SourceTs>...>;
+      static constexpr size_t N = sizeof...(SourceTs);
 
-  // Combine multiple sources into a tuple of their values.
-  //
-  // When any source pushes a value, combine will:
-  // 1. Reset all stored values (clearing any stale data from previous cascades)
-  // 2. Store the pushed value
-  // 3. Pull all other sources to get their current values
-  // 4. If all sources responded to their pulls with pushes, emit a tuple of all values
-  // 5. If any source has a no-op pull (didn't respond), no emission occurs
-  //
-  // Usage: combine(source1, source2, source3)
-  // To transform the tuple, use: combine(...) | map_tuple(mapper)
-  template <typename T1, typename... Ts>
-    requires (sizeof...(Ts) >= 1)
-  RHEO_CALLABLE auto combine(
-    source_fn<T1> first,
-    source_fn<Ts>... rest
-  ) -> source_fn<std::tuple<T1, Ts...>> {
-    using TOut = std::tuple<T1, Ts...>;
-    static constexpr size_t N = sizeof...(Ts) + 1;
+      std::tuple<SourceTs...> sources;
 
-    struct SourceBinder {
-      using ValuesType = std::tuple<std::optional<T1>, std::optional<Ts>...>;
-      using PullsType = std::tuple<
-        decltype((void)std::declval<T1>(), std::optional<pull_fn>()),
-        decltype((void)std::declval<Ts>(), std::optional<pull_fn>())...
-      >;
+      template <typename PushFn>
+      RHEO_CALLABLE auto operator()(PushFn push) const {
+        using TOut = value_type;
+        using ValuesType = std::tuple<std::optional<source_value_t<SourceTs>>...>;
+        using PullsType = std::tuple<
+          decltype((void)std::declval<source_value_t<SourceTs>>(), std::optional<pull_fn>())...
+        >;
 
-      std::tuple<source_fn<T1>, source_fn<Ts>...> sources;
-
-      RHEO_CALLABLE pull_fn operator()(push_fn<TOut> push) const {
         auto current_values = std::make_shared<ValuesType>();
         auto pull_functions = std::make_shared<PullsType>();
         // Shared flag to track whether we're in a pull cascade.
@@ -138,10 +121,10 @@ namespace rheo::operators {
         [&]<size_t... Is>(std::index_sequence<Is...>) {
           (
             [&]<size_t I>() {
-              using TValue = std::tuple_element_t<I, std::tuple<T1, Ts...>>;
+              using TValue = std::tuple_element_t<I, std::tuple<source_value_t<SourceTs>...>>;
 
               struct PushHandler {
-                push_fn<TOut> push;
+                PushFn push;
                 std::shared_ptr<ValuesType> current_values;
                 std::shared_ptr<PullsType> pull_functions;
                 std::shared_ptr<bool> in_cascade;
@@ -204,20 +187,29 @@ namespace rheo::operators {
         return PullHandler{pull_functions};
       }
     };
+  }
 
-    return SourceBinder{
-      std::make_tuple(std::move(first), std::move(rest)...)
+  // Combine multiple sources into a tuple of their values.
+  //
+  // Usage: combine(source1, source2, source3)
+  // To transform the tuple, use: combine(...) | map_tuple(mapper)
+  template <typename... SourceTs>
+    requires (sizeof...(SourceTs) >= 2) && (concepts::Source<SourceTs> && ...)
+  RHEO_CALLABLE auto combine(SourceTs... sources) {
+    return detail::CombineSourceBinder<SourceTs...>{
+      std::make_tuple(std::move(sources)...)
     };
   }
 
   namespace detail {
     // Pipe factory for combine_with: combines the piped source with additional sources.
-    template <typename... Ts>
+    template <typename... RestSourceTs>
     struct CombineWithPipeFactory {
-      std::tuple<source_fn<Ts>...> sources;
+      std::tuple<RestSourceTs...> sources;
 
-      template <typename T1>
-      RHEO_CALLABLE source_fn<std::tuple<T1, Ts...>> operator()(source_fn<T1> source1) const {
+      template <typename Source1T>
+        requires concepts::Source<Source1T>
+      RHEO_CALLABLE auto operator()(Source1T source1) const {
         return std::apply([&source1](auto... rest_sources) {
           return combine(std::move(source1), std::move(rest_sources)...);
         }, sources);
@@ -227,11 +219,10 @@ namespace rheo::operators {
 
   // Pipe factory: combine the piped source with additional sources into a tuple.
   // Usage: source1 | combine_with(source2, source3)
-  template <typename... Ts>
-  RHEO_CALLABLE auto combine_with(
-    source_fn<Ts>... sources
-  ) {
-    return detail::CombineWithPipeFactory<Ts...>{
+  template <typename... SourceTs>
+    requires (concepts::Source<SourceTs> && ...)
+  RHEO_CALLABLE auto combine_with(SourceTs... sources) {
+    return detail::CombineWithPipeFactory<SourceTs...>{
       std::make_tuple(std::move(sources)...)
     };
   }

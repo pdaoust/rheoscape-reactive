@@ -11,23 +11,21 @@ namespace rheo::operators {
   // Similar to tee, but takes a simple callback rather than a sink.
   // Useful for logging, debugging, or other side effects.
 
-  // Source function factory - creates a source that executes exec on each value,
-  // then passes it downstream.
-  // Usage: inspect(source, my_callback)
-  template <typename T, typename ExecFn>
-    requires concepts::Visitor<ExecFn, T>
-  source_fn<T> inspect(source_fn<T> source, ExecFn&& exec) {
-    using ExecFnDecayed = std::decay_t<ExecFn>;
+  namespace detail {
+    template <typename SourceT, typename ExecFnT>
+    struct InspectSourceBinder {
+      using value_type = source_value_t<SourceT>;
 
-    struct SourceBinder {
-      source_fn<T> source;
-      ExecFnDecayed exec;
+      SourceT source;
+      ExecFnT exec;
 
-      RHEO_CALLABLE pull_fn operator()(push_fn<T> push_downstream) const {
+      template <typename PushFn>
+      RHEO_CALLABLE auto operator()(PushFn push_downstream) const {
+        using T = value_type;
 
         struct PushHandler {
-          push_fn<T> push_downstream;
-          ExecFnDecayed const& exec;
+          PushFn push_downstream;
+          ExecFnT exec;
 
           RHEO_CALLABLE void operator()(T value) const {
             // Pass as const reference to prevent exec from consuming the value.
@@ -37,12 +35,19 @@ namespace rheo::operators {
           }
         };
 
-        return source(PushHandler{push_downstream, exec});
+        return source(PushHandler{std::move(push_downstream), exec});
       }
     };
+  }
 
-    return SourceBinder{
-      source,
+  // Source function factory - creates a source that executes exec on each value,
+  // then passes it downstream.
+  // Usage: inspect(source, my_callback)
+  template <typename SourceT, typename ExecFn>
+    requires concepts::Source<SourceT> && concepts::Visitor<ExecFn, source_value_t<SourceT>>
+  RHEO_CALLABLE auto inspect(SourceT source, ExecFn&& exec) {
+    return detail::InspectSourceBinder<SourceT, std::decay_t<ExecFn>>{
+      std::move(source),
       std::forward<ExecFn>(exec)
     };
   }
@@ -52,9 +57,9 @@ namespace rheo::operators {
     struct InspectPipeFactory {
       ExecFn exec;
 
-      template <typename T>
-        requires concepts::Visitor<ExecFn, T>
-      RHEO_CALLABLE auto operator()(source_fn<T> source) const {
+      template <typename SourceT>
+        requires concepts::Source<SourceT> && concepts::Visitor<ExecFn, source_value_t<SourceT>>
+      RHEO_CALLABLE auto operator()(SourceT source) const {
         return inspect(std::move(source), ExecFn(exec));
       }
     };

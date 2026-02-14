@@ -23,11 +23,14 @@ namespace rheo::operators {
   // no up or down values will be pushed until it goes out of bounds.
   // After that, it'll keep pushing in a direction until it passes the other bound,
   // just like a thermostat.
-  template <typename T>
-  source_fn<ProcessCommand> bang_bang(
-    source_fn<T> process_variable_source,
-    source_fn<Range<T>> bounds_source
+  template <typename PVSourceT, typename BoundsSourceT>
+    requires concepts::Source<PVSourceT> && concepts::Source<BoundsSourceT>
+  auto bang_bang(
+    PVSourceT process_variable_source,
+    BoundsSourceT bounds_source
   ) {
+    using T = source_value_t<PVSourceT>;
+
     struct Scanner {
       RHEO_CALLABLE ProcessCommand operator()(ProcessCommand acc, std::tuple<T, Range<T>> value) const {
         if (std::get<0>(value) < std::get<1>(value).min) {
@@ -43,24 +46,27 @@ namespace rheo::operators {
       }
     };
 
-    auto combined = combine(process_variable_source, bounds_source);
+    auto combined = combine(std::move(process_variable_source), std::move(bounds_source));
     return scan(std::move(combined), ProcessCommand::neutral, Scanner{});
   }
 
   namespace detail {
-    template <typename T>
+    template <typename BoundsSourceT>
     struct BangBangPipeFactory {
-      source_fn<Range<T>> bounds_source;
+      BoundsSourceT bounds_source;
 
-      RHEO_CALLABLE auto operator()(source_fn<T> process_variable_source) const {
-        return bang_bang(std::move(process_variable_source), std::move(bounds_source));
+      template <typename PVSourceT>
+        requires concepts::Source<PVSourceT>
+      RHEO_CALLABLE auto operator()(PVSourceT process_variable_source) const {
+        return bang_bang(std::move(process_variable_source), BoundsSourceT(bounds_source));
       }
     };
   }
 
-  template <typename T>
-  auto bang_bang(source_fn<Range<T>> bounds_source) {
-    return detail::BangBangPipeFactory<T>{std::move(bounds_source)};
+  template <typename BoundsSourceT>
+    requires concepts::Source<BoundsSourceT>
+  auto bang_bang(BoundsSourceT bounds_source) {
+    return detail::BangBangPipeFactory<BoundsSourceT>{std::move(bounds_source)};
   }
 
   // Drive a heater, cooler, sprinkler valve, etc.

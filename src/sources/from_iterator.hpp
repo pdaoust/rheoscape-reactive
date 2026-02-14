@@ -55,7 +55,7 @@ namespace rheo::sources {
   } // namespace detail
 
   template <typename TIter>
-  source_fn<Endable<typename TIter::value_type>> from_iterator(TIter i_begin, TIter i_end) {
+  auto from_iterator(TIter i_begin, TIter i_end) {
     return detail::from_iterator_source_binder<TIter>{i_begin, i_end};
   }
 

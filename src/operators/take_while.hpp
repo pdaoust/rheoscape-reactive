@@ -6,23 +6,21 @@
 
 namespace rheo::operators {
 
-  // Re-emit values from the source function until a condition is met,
-  // then end the source.
+  namespace detail {
+    template <typename SourceT, typename FilterFnT>
+    struct TakeWhileSourceBinder {
+      using T = source_value_t<SourceT>;
+      using value_type = Endable<T>;
 
-  template <typename T, typename FilterFn>
-    requires concepts::Predicate<FilterFn, T>
-  RHEO_CALLABLE source_fn<Endable<T>> take_while(source_fn<T> source, FilterFn&& condition) {
-    using FilterFnDecayed = std::decay_t<FilterFn>;
+      SourceT source;
+      FilterFnT condition;
 
-    struct SourceBinder {
-      source_fn<T> source;
-      FilterFnDecayed condition;
-
-      RHEO_CALLABLE pull_fn operator()(push_fn<Endable<T>> push) const {
+      template <typename PushFn>
+      RHEO_CALLABLE auto operator()(PushFn push) const {
 
         struct PushHandler {
-          FilterFnDecayed condition;
-          push_fn<Endable<T>> push;
+          FilterFnT condition;
+          PushFn push;
           mutable bool running = true;
 
           RHEO_CALLABLE void operator()(T&& value) const {
@@ -37,14 +35,38 @@ namespace rheo::operators {
           }
         };
 
-        return source(PushHandler{condition, push});
+        return source(PushHandler{condition, std::move(push)});
+      }
+    };
+  }
+
+  // Re-emit values from the source function until a condition is met,
+  // then end the source.
+
+  template <typename SourceT, typename FilterFn>
+    requires concepts::Source<SourceT> && concepts::Predicate<FilterFn, source_value_t<SourceT>>
+  RHEO_CALLABLE auto take_while(SourceT source, FilterFn&& condition) {
+    return detail::TakeWhileSourceBinder<SourceT, std::decay_t<FilterFn>>{
+      std::move(source),
+      std::forward<FilterFn>(condition)
+    };
+  }
+
+  template <typename SourceT, typename FilterFn>
+    requires concepts::Source<SourceT> && concepts::Predicate<FilterFn, source_value_t<SourceT>>
+  RHEO_CALLABLE auto take_until(SourceT source, FilterFn&& condition) {
+    using FilterFnDecayed = std::decay_t<FilterFn>;
+    using T = source_value_t<SourceT>;
+
+    struct NegatingPredicate {
+      FilterFnDecayed condition;
+
+      RHEO_CALLABLE bool operator()(T value) const {
+        return !condition(value);
       }
     };
 
-    return SourceBinder{
-      source,
-      std::forward<FilterFn>(condition)
-    };
+    return take_while(std::move(source), NegatingPredicate{std::forward<FilterFn>(condition)});
   }
 
   namespace detail {
@@ -52,9 +74,9 @@ namespace rheo::operators {
     struct TakeWhilePipeFactory {
       FilterFn condition;
 
-      template <typename T>
-        requires concepts::Predicate<FilterFn, T>
-      RHEO_CALLABLE auto operator()(source_fn<T> source) const {
+      template <typename SourceT>
+        requires concepts::Source<SourceT> && concepts::Predicate<FilterFn, source_value_t<SourceT>>
+      RHEO_CALLABLE auto operator()(SourceT source) const {
         return take_while(std::move(source), FilterFn(condition));
       }
     };
@@ -63,9 +85,9 @@ namespace rheo::operators {
     struct TakeUntilPipeFactory {
       FilterFn condition;
 
-      template <typename T>
-        requires concepts::Predicate<FilterFn, T>
-      RHEO_CALLABLE auto operator()(source_fn<T> source) const {
+      template <typename SourceT>
+        requires concepts::Source<SourceT> && concepts::Predicate<FilterFn, source_value_t<SourceT>>
+      RHEO_CALLABLE auto operator()(SourceT source) const {
         return take_until(std::move(source), FilterFn(condition));
       }
     };
@@ -76,22 +98,6 @@ namespace rheo::operators {
     return detail::TakeWhilePipeFactory<std::decay_t<FilterFn>>{
       std::forward<FilterFn>(condition)
     };
-  }
-
-  template <typename T, typename FilterFn>
-    requires concepts::Predicate<FilterFn, T>
-  RHEO_CALLABLE source_fn<Endable<T>> take_until(source_fn<T> source, FilterFn&& condition) {
-    using FilterFnDecayed = std::decay_t<FilterFn>;
-
-    struct NegatingPredicate {
-      FilterFnDecayed condition;
-
-      RHEO_CALLABLE bool operator()(T value) const {
-        return !condition(value);
-      }
-    };
-
-    return take_while(source, NegatingPredicate{std::forward<FilterFn>(condition)});
   }
 
   template <typename FilterFn>

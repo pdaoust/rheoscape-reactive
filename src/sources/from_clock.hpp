@@ -29,7 +29,7 @@ namespace rheo::sources {
   } // namespace detail
 
   template <typename TClock>
-  source_fn<typename TClock::time_point> from_clock() {
+  auto from_clock() {
     return detail::from_clock_source_binder<TClock>{};
   }
 

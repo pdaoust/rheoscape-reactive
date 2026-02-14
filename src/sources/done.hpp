@@ -35,7 +35,7 @@ namespace rheo::sources {
   } // namespace detail
 
   template <typename T>
-  source_fn<Endable<T>> done() {
+  auto done() {
     return detail::done_source_binder<T>{};
   }
 

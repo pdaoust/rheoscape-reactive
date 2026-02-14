@@ -6,22 +6,22 @@
 
 namespace rheo::operators {
 
-  template <typename TIn, typename FilterMapFn>
-    requires concepts::FilterMapper<FilterMapFn, TIn>
-  auto filter_map(source_fn<TIn> source, FilterMapFn&& filter_mapper)
-  -> source_fn<typename return_of<FilterMapFn>::value_type> {
-    using TOut = typename return_of<FilterMapFn>::value_type;
-    using FilterMapFnDecayed = std::decay_t<FilterMapFn>;
+  namespace detail {
+    template <typename SourceT, typename FilterMapFnT>
+    struct FilterMapSourceBinder {
+      using TIn = source_value_t<SourceT>;
+      using value_type = typename std::invoke_result_t<FilterMapFnT, TIn>::value_type;
 
-    struct SourceBinder {
-      source_fn<TIn> source;
-      FilterMapFnDecayed filter_mapper;
+      SourceT source;
+      FilterMapFnT filter_mapper;
 
-      RHEO_CALLABLE pull_fn operator()(push_fn<TOut> push) const {
+      template <typename PushFn>
+      RHEO_CALLABLE auto operator()(PushFn push) const {
+        using TOut = value_type;
 
         struct PushHandler {
-          FilterMapFnDecayed filter_mapper;
-          push_fn<TOut> push;
+          FilterMapFnT filter_mapper;
+          PushFn push;
 
           RHEO_CALLABLE void operator()(TIn value) const {
             std::optional<TOut> maybe_mapped = filter_mapper(value);
@@ -31,12 +31,16 @@ namespace rheo::operators {
           }
         };
 
-        return source(PushHandler{filter_mapper, push});
+        return source(PushHandler{filter_mapper, std::move(push)});
       }
     };
+  }
 
-    return SourceBinder{
-      source,
+  template <typename SourceT, typename FilterMapFn>
+    requires concepts::Source<SourceT> && concepts::FilterMapper<FilterMapFn, source_value_t<SourceT>>
+  RHEO_CALLABLE auto filter_map(SourceT source, FilterMapFn&& filter_mapper) {
+    return detail::FilterMapSourceBinder<SourceT, std::decay_t<FilterMapFn>>{
+      std::move(source),
       std::forward<FilterMapFn>(filter_mapper)
     };
   }
@@ -46,9 +50,9 @@ namespace rheo::operators {
     struct FilterMapPipeFactory {
       FilterMapFn filter_mapper;
 
-      template <typename TIn>
-        requires concepts::FilterMapper<FilterMapFn, TIn>
-      RHEO_CALLABLE auto operator()(source_fn<TIn> source) const {
+      template <typename SourceT>
+        requires concepts::Source<SourceT> && concepts::FilterMapper<FilterMapFn, source_value_t<SourceT>>
+      RHEO_CALLABLE auto operator()(SourceT source) const {
         return filter_map(std::move(source), FilterMapFn(filter_mapper));
       }
     };

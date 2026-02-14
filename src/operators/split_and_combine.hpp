@@ -18,7 +18,7 @@ namespace rheo::operators {
     map_fn<TPipeIn2, TIn> mapper2,
     pipe_fn<TPipeOut2, TPipeIn2> pipe2,
     CombineFn combiner
-  ) -> source_fn<std::invoke_result_t<CombineFn, TPipeOut1, TPipeOut2>> {
+  ) {
     return combine(pipe1(map(source, mapper1)), pipe2(map(source, mapper2)))
       | map_tuple(combiner);
   }
@@ -32,8 +32,10 @@ namespace rheo::operators {
       pipe_fn<TPipeOut2, TPipeIn2> pipe2;
       CombineFn combiner;
 
-      RHEO_CALLABLE auto operator()(source_fn<TIn> source) const {
-        return split_and_combine(source, mapper1, pipe1, mapper2, pipe2, combiner);
+      template <typename SourceT>
+        requires concepts::Source<SourceT>
+      RHEO_CALLABLE auto operator()(SourceT source) const {
+        return split_and_combine(source_fn<TIn>(std::move(source)), mapper1, pipe1, mapper2, pipe2, combiner);
       }
     };
 
@@ -45,8 +47,10 @@ namespace rheo::operators {
       pipe_fn<T2, T2> pipe2;
       CombineFn combiner;
 
-      RHEO_CALLABLE auto operator()(source_fn<T> source) const {
-        return split_and_combine<T, T1, T2>(source, mapper1, pipe1, mapper2, pipe2, combiner);
+      template <typename SourceT>
+        requires concepts::Source<SourceT>
+      RHEO_CALLABLE auto operator()(SourceT source) const {
+        return split_and_combine<T, T1, T2>(source_fn<T>(std::move(source)), mapper1, pipe1, mapper2, pipe2, combiner);
       }
     };
   }
@@ -74,7 +78,7 @@ namespace rheo::operators {
     map_fn<T2, T> mapper2,
     pipe_fn<T2, T2> pipe2,
     CombineFn combiner
-  ) -> source_fn<std::invoke_result_t<CombineFn, T1, T2>> {
+  ) {
     return split_and_combine<T, T1, T1, T2, T2>(source, mapper1, pipe1, mapper2, pipe2, combiner);
   }
 

@@ -4,6 +4,7 @@ namespace rheo {
 
   template <typename T>
   struct Range {
+    using value_type = T;
     const T min;
     const T max;
 

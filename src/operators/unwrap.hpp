@@ -29,45 +29,44 @@ namespace rheo::operators {
 
   // ---- unwrap_optional ----
 
-  template <typename T>
-  RHEO_CALLABLE source_fn<T> unwrap_optional(source_fn<std::optional<T>> source) {
+  namespace detail {
+    template <typename SourceT>
+    struct UnwrapOptionalSourceBinder {
+      using OptT = source_value_t<SourceT>;
+      using value_type = typename OptT::value_type;
 
-    struct SourceBinder {
-      source_fn<std::optional<T>> source;
+      SourceT source;
 
-      RHEO_CALLABLE pull_fn operator()(push_fn<T> push) const {
+      template <typename PushFn>
+      RHEO_CALLABLE auto operator()(PushFn push) const {
+        using T = value_type;
 
         struct PushHandler {
-          push_fn<T> push;
+          PushFn push;
 
-          RHEO_CALLABLE void operator()(std::optional<T> value) const {
+          RHEO_CALLABLE void operator()(OptT value) const {
             if (value.has_value()) {
               push(value.value());
             }
           }
         };
 
-        return source(PushHandler{push});
+        return source(PushHandler{std::move(push)});
       }
     };
-
-    return SourceBinder{source};
   }
 
-  // Generic overload: accepts any Source whose value_type is std::optional<T>
   template <typename SourceT>
-    requires (concepts::Source<SourceT> && is_optional_v<source_value_t<SourceT>>
-              && !std::is_same_v<std::decay_t<SourceT>, source_fn<source_value_t<SourceT>>>)
-  RHEO_CALLABLE auto unwrap_optional(SourceT&& source) {
-    using ValT = source_value_t<SourceT>;
-    return unwrap_optional(source_fn<ValT>(std::forward<SourceT>(source)));
+    requires concepts::Source<SourceT> && is_optional_v<source_value_t<SourceT>>
+  RHEO_CALLABLE auto unwrap_optional(SourceT source) {
+    return detail::UnwrapOptionalSourceBinder<SourceT>{std::move(source)};
   }
 
   namespace detail {
     struct UnwrapOptionalPipeFactory {
-      template <typename TIn>
-        requires is_optional_v<TIn>
-      RHEO_CALLABLE auto operator()(source_fn<TIn> source) const {
+      template <typename SourceT>
+        requires concepts::Source<SourceT> && is_optional_v<source_value_t<SourceT>>
+      RHEO_CALLABLE auto operator()(SourceT source) const {
         return unwrap_optional(std::move(source));
       }
     };
@@ -79,102 +78,100 @@ namespace rheo::operators {
 
   // ---- unwrap_fallible ----
 
-  template <typename T, typename TErr>
-  RHEO_CALLABLE source_fn<T> unwrap_fallible(source_fn<Fallible<T, TErr>> source) {
+  namespace detail {
+    template <typename SourceT>
+    struct UnwrapFallibleSourceBinder {
+      using FallibleT = source_value_t<SourceT>;
+      using value_type = typename fallible_inner<FallibleT>::value_type;
 
-    struct SourceBinder {
-      source_fn<Fallible<T, TErr>> source;
+      SourceT source;
 
-      RHEO_CALLABLE pull_fn operator()(push_fn<T> push) const {
+      template <typename PushFn>
+      RHEO_CALLABLE auto operator()(PushFn push) const {
+        using T = value_type;
 
         struct PushHandler {
-          push_fn<T> push;
+          PushFn push;
 
-          RHEO_CALLABLE void operator()(Fallible<T, TErr> value) const {
+          RHEO_CALLABLE void operator()(FallibleT value) const {
             if (value.is_ok()) {
               push(value);
             }
           }
         };
 
-        return source(PushHandler{push});
+        return source(PushHandler{std::move(push)});
       }
     };
-
-    return SourceBinder{source};
   }
 
-  // Generic overload: accepts any Source whose value_type is Fallible<T, TErr>
   template <typename SourceT>
-    requires (concepts::Source<SourceT> && is_fallible_v<source_value_t<SourceT>>
-              && !std::is_same_v<std::decay_t<SourceT>, source_fn<source_value_t<SourceT>>>)
-  RHEO_CALLABLE auto unwrap_fallible(SourceT&& source) {
-    using ValT = source_value_t<SourceT>;
-    return unwrap_fallible(source_fn<ValT>(std::forward<SourceT>(source)));
+    requires concepts::Source<SourceT> && is_fallible_v<source_value_t<SourceT>>
+  RHEO_CALLABLE auto unwrap_fallible(SourceT source) {
+    return detail::UnwrapFallibleSourceBinder<SourceT>{std::move(source)};
   }
 
-  // unwrap_fallible pipe factory still needs explicit template args
-  // because we can't deduce whether TIn is Fallible<T, TErr> generically.
-  template <typename T, typename TErr>
-  pipe_fn<T, Fallible<T, TErr>> unwrap_fallible() {
-
-    struct PipeFactory {
-      RHEO_CALLABLE source_fn<T> operator()(source_fn<Fallible<T, TErr>> source) const {
-        return unwrap_fallible(source);
+  namespace detail {
+    struct UnwrapFalliblePipeFactory {
+      template <typename SourceT>
+        requires concepts::Source<SourceT> && is_fallible_v<source_value_t<SourceT>>
+      RHEO_CALLABLE auto operator()(SourceT source) const {
+        return unwrap_fallible(std::move(source));
       }
     };
+  }
 
-    return PipeFactory{};
+  inline auto unwrap_fallible() {
+    return detail::UnwrapFalliblePipeFactory{};
   }
 
   // ---- unwrap_endable ----
 
-  template <typename T>
-  RHEO_CALLABLE source_fn<T> unwrap_endable(source_fn<Endable<T>> source) {
+  namespace detail {
+    template <typename SourceT>
+    struct UnwrapEndableSourceBinder {
+      using EndableT = source_value_t<SourceT>;
+      using value_type = endable_inner_t<EndableT>;
 
-    struct SourceBinder {
-      source_fn<Endable<T>> source;
+      SourceT source;
 
-      RHEO_CALLABLE pull_fn operator()(push_fn<T> push) const {
+      template <typename PushFn>
+      RHEO_CALLABLE auto operator()(PushFn push) const {
+        using T = value_type;
 
         struct PushHandler {
-          push_fn<T> push;
+          PushFn push;
 
-          RHEO_CALLABLE void operator()(Endable<T> value) const {
+          RHEO_CALLABLE void operator()(EndableT value) const {
             if (value.has_value()) {
               push(value.value());
             }
           }
         };
 
-        return source(PushHandler{push});
+        return source(PushHandler{std::move(push)});
       }
     };
-
-    return SourceBinder{source};
   }
 
-  // Generic overload: accepts any Source whose value_type is Endable<T>
   template <typename SourceT>
-    requires (concepts::Source<SourceT> && is_endable_v<source_value_t<SourceT>>
-              && !std::is_same_v<std::decay_t<SourceT>, source_fn<source_value_t<SourceT>>>)
-  RHEO_CALLABLE auto unwrap_endable(SourceT&& source) {
-    using ValT = source_value_t<SourceT>;
-    return unwrap_endable(source_fn<ValT>(std::forward<SourceT>(source)));
+    requires concepts::Source<SourceT> && is_endable_v<source_value_t<SourceT>>
+  RHEO_CALLABLE auto unwrap_endable(SourceT source) {
+    return detail::UnwrapEndableSourceBinder<SourceT>{std::move(source)};
   }
 
-  // unwrap_endable pipe factory still needs explicit template args
-  // because we can't deduce whether TIn is Endable<T> generically.
-  template <typename T>
-  pipe_fn<T, Endable<T>> unwrap_endable() {
-
-    struct PipeFactory {
-      RHEO_CALLABLE source_fn<T> operator()(source_fn<Endable<T>> source) const {
-        return unwrap_endable(source);
+  namespace detail {
+    struct UnwrapEndablePipeFactory {
+      template <typename SourceT>
+        requires concepts::Source<SourceT> && is_endable_v<source_value_t<SourceT>>
+      RHEO_CALLABLE auto operator()(SourceT source) const {
+        return unwrap_endable(std::move(source));
       }
     };
+  }
 
-    return PipeFactory{};
+  inline auto unwrap_endable() {
+    return detail::UnwrapEndablePipeFactory{};
   }
 
 }

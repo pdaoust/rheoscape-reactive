@@ -20,17 +20,20 @@ namespace rheo::operators {
   // you'll still get the value that triggered the latch period
   // rather than whatever it is now.
 
-  template <typename T, typename TTimePoint, typename TInterval>
-    requires concepts::TimePointAndDurationCompatible<TTimePoint, TInterval>
-  source_fn<T> timed_latch(source_fn<T> source, source_fn<TTimePoint> clock_source, TInterval duration, T default_value) {
+  namespace detail {
+    template <typename SourceT, typename ClockSourceT, typename TInterval>
+    struct TimedLatchSourceBinder {
+      using T = source_value_t<SourceT>;
+      using TTimePoint = source_value_t<ClockSourceT>;
+      using value_type = T;
 
-    struct SourceBinder {
-      source_fn<T> source;
-      source_fn<TTimePoint> clock_source;
+      SourceT source;
+      ClockSourceT clock_source;
       TInterval duration;
       T default_value;
 
-      RHEO_CALLABLE pull_fn operator()(push_fn<T> push) const {
+      template <typename PushFn>
+      RHEO_CALLABLE auto operator()(PushFn push) const {
         auto last_timestamp = std::make_shared<std::optional<TTimePoint>>();
 
         struct ClockPushHandler {
@@ -55,7 +58,7 @@ namespace rheo::operators {
         struct PushHandler {
           TInterval duration;
           T default_value;
-          push_fn<T> push;
+          PushFn push;
           std::shared_ptr<std::optional<TTimePoint>> last_timestamp;
           pull_fn pull_clock;
           std::shared_ptr<std::optional<TTimePoint>> latch_start_timestamp;
@@ -97,8 +100,13 @@ namespace rheo::operators {
         });
       }
     };
+  }
 
-    return SourceBinder{
+  template <typename SourceT, typename ClockSourceT, typename TInterval>
+    requires concepts::Source<SourceT> && concepts::Source<ClockSourceT> &&
+             concepts::TimePointAndDurationCompatible<source_value_t<ClockSourceT>, TInterval>
+  auto timed_latch(SourceT source, ClockSourceT clock_source, TInterval duration, source_value_t<SourceT> default_value) {
+    return detail::TimedLatchSourceBinder<SourceT, ClockSourceT, TInterval>{
       std::move(source),
       std::move(clock_source),
       duration,
@@ -107,22 +115,27 @@ namespace rheo::operators {
   }
 
   namespace detail {
-    template <typename T, typename TTimePoint, typename TInterval>
+    template <typename T, typename ClockSourceT, typename TInterval>
     struct TimedLatchPipeFactory {
-      source_fn<TTimePoint> clock_source;
+      ClockSourceT clock_source;
       TInterval duration;
       T default_value;
 
-      RHEO_CALLABLE auto operator()(source_fn<T> source) const {
-        return timed_latch(source, clock_source, duration, default_value);
+      template <typename SourceT>
+        requires concepts::Source<SourceT>
+      RHEO_CALLABLE auto operator()(SourceT source) const {
+        return timed_latch(std::move(source), ClockSourceT(clock_source), duration, T(default_value));
       }
     };
   }
 
-  template <typename T, typename TTimePoint, typename TInterval>
-    requires concepts::TimePointAndDurationCompatible<TTimePoint, TInterval>
-  auto timed_latch(source_fn<TTimePoint> clock_source, TInterval duration, T default_value) {
-    return detail::TimedLatchPipeFactory<T, TTimePoint, TInterval>{clock_source, duration, default_value};
+  template <typename ClockSourceT, typename TInterval, typename T>
+    requires concepts::Source<ClockSourceT> &&
+             concepts::TimePointAndDurationCompatible<source_value_t<ClockSourceT>, TInterval>
+  auto timed_latch(ClockSourceT clock_source, TInterval duration, T default_value) {
+    return detail::TimedLatchPipeFactory<T, ClockSourceT, TInterval>{
+      std::move(clock_source), duration, std::move(default_value)
+    };
   }
 
 }

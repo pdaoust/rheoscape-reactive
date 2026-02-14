@@ -17,10 +17,11 @@ namespace rheo::operators {
   // getting the cached value followed by the upstream value.
   // (Currently this doesn't exist because everything in rheoscape is single-threaded.)
 
-  template <typename T>
-  RHEO_CALLABLE source_fn<T> cache(source_fn<T> source) {
+  namespace detail {
+    template <typename T>
+    struct CacheSourceBinder {
+      using value_type = T;
 
-    struct SourceBinder {
       source_fn<T> source;
 
       RHEO_CALLABLE pull_fn operator()(push_fn<T> push) const {
@@ -84,14 +85,20 @@ namespace rheo::operators {
         return PullFunction{shared_push, pull, last_seen_value, is_within_pull, did_push_within_pull};
       }
     };
+  }
 
-    return SourceBinder{source};
+  template <typename SourceT>
+    requires concepts::Source<SourceT>
+  RHEO_CALLABLE auto cache(SourceT source) {
+    using T = source_value_t<SourceT>;
+    return detail::CacheSourceBinder<T>{source_fn<T>(std::move(source))};
   }
 
   namespace detail {
     struct CachePipeFactory {
-      template <typename T>
-      RHEO_CALLABLE auto operator()(source_fn<T> source) const {
+      template <typename SourceT>
+        requires concepts::Source<SourceT>
+      RHEO_CALLABLE auto operator()(SourceT source) const {
         return cache(std::move(source));
       }
     };

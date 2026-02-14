@@ -362,6 +362,12 @@ namespace rheo {
       std::invocable<F, TAcc, TIn> &&
       std::convertible_to<std::invoke_result_t<F, TAcc, TIn>, TAcc>;
 
+    // FlatMapper: Function that returns std::vector<T>
+    template<typename F, typename TIn, typename TOut>
+    concept FlatMapper =
+      std::invocable<F, TIn> &&
+      std::convertible_to<std::invoke_result_t<F, TIn>, std::vector<TOut>>;
+
     // FilterMapper: Function that returns std::optional<T> (for filter_map operations)
     template<typename F, typename TIn>
     concept FilterMapper =

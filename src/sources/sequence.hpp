@@ -64,12 +64,12 @@ namespace rheo::sources {
   } // namespace detail
 
   template <typename T>
-  source_fn<Endable<T>> sequence(T i_begin, T i_end, T step = 1) {
+  auto sequence(T i_begin, T i_end, T step = 1) {
     return detail::sequence_source_binder<T>{i_begin, i_end, step};
   }
 
   template <typename T>
-  source_fn<T> sequence_open(T i_begin, T step = 1) {
+  auto sequence_open(T i_begin, T step = 1) {
     return operators::unwrap_endable(sequence(i_begin, std::numeric_limits<T>::max(), step));
   }
 

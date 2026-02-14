@@ -10,19 +10,20 @@ namespace rheo::operators {
   // dropping everything in between.
   // Not guaranteed to be precisely spaced by the interval.
 
-  template <typename T, typename TTimePoint, typename TInterval>
-    requires concepts::TimePointAndDurationCompatible<TTimePoint, TInterval>
-  source_fn<T> throttle(source_fn<T> source, source_fn<TTimePoint> clock_source, TInterval interval) {
+  namespace detail {
+    template <typename TimestampedSourceT, typename T, typename TTimePoint, typename TInterval>
+    struct ThrottleSourceBinder {
+      using value_type = T;
 
-    struct SourceBinder {
-      source_fn<TaggedValue<T, TTimePoint>> timestamped;
+      TimestampedSourceT timestamped;
       TInterval interval;
 
-      RHEO_CALLABLE pull_fn operator()(push_fn<T> push) const {
+      template <typename PushFn>
+      RHEO_CALLABLE auto operator()(PushFn push) const {
 
         struct PushHandler {
           TInterval interval;
-          push_fn<T> push;
+          PushFn push;
           mutable std::optional<TTimePoint> interval_start;
 
           RHEO_CALLABLE void operator()(TaggedValue<T, TTimePoint> value) const {
@@ -40,30 +41,40 @@ namespace rheo::operators {
         return timestamped(PushHandler{interval, std::move(push), std::nullopt});
       }
     };
+  }
 
-    return SourceBinder{
-      timestamp(source, clock_source),
-      interval
+  template <typename SourceT, typename ClockSourceT, typename TInterval>
+    requires concepts::Source<SourceT> && concepts::Source<ClockSourceT> &&
+             concepts::TimePointAndDurationCompatible<source_value_t<ClockSourceT>, TInterval>
+  auto throttle(SourceT source, ClockSourceT clock_source, TInterval interval) {
+    using T = source_value_t<SourceT>;
+    using TTimePoint = source_value_t<ClockSourceT>;
+
+    auto timestamped = timestamp(std::move(source), std::move(clock_source));
+    return detail::ThrottleSourceBinder<decltype(timestamped), T, TTimePoint, TInterval>{
+      std::move(timestamped), interval
     };
   }
 
   namespace detail {
-    template <typename TTimePoint, typename TInterval>
+    template <typename ClockSourceT, typename TInterval>
     struct ThrottlePipeFactory {
-      source_fn<TTimePoint> clock_source;
+      ClockSourceT clock_source;
       TInterval interval;
 
-      template <typename T>
-      RHEO_CALLABLE auto operator()(source_fn<T> source) const {
-        return throttle(source, clock_source, interval);
+      template <typename SourceT>
+        requires concepts::Source<SourceT>
+      RHEO_CALLABLE auto operator()(SourceT source) const {
+        return throttle(std::move(source), ClockSourceT(clock_source), interval);
       }
     };
   }
 
-  template <typename TTimePoint, typename TInterval>
-    requires concepts::TimePointAndDurationCompatible<TTimePoint, TInterval>
-  auto throttle(source_fn<TTimePoint> clock_source, TInterval interval) {
-    return detail::ThrottlePipeFactory<TTimePoint, TInterval>{clock_source, interval};
+  template <typename ClockSourceT, typename TInterval>
+    requires concepts::Source<ClockSourceT> &&
+             concepts::TimePointAndDurationCompatible<source_value_t<ClockSourceT>, TInterval>
+  auto throttle(ClockSourceT clock_source, TInterval interval) {
+    return detail::ThrottlePipeFactory<ClockSourceT, TInterval>{std::move(clock_source), interval};
   }
 
 }

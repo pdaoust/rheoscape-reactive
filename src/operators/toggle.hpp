@@ -11,8 +11,12 @@ namespace rheo::operators {
   // Toggle a value source on and off with a boolean toggle source.
   // It's off until the toggle source pushes the first true value.
   // This source ends when either of its sources ends.
-  template <typename T>
-  source_fn<T> toggle(source_fn<T> value_source, source_fn<bool> toggle_source) {
+  template <typename ValueSourceT, typename ToggleSourceT>
+    requires concepts::Source<ValueSourceT> && concepts::Source<ToggleSourceT> &&
+             std::is_same_v<source_value_t<ToggleSourceT>, bool>
+  auto toggle(ValueSourceT value_source, ToggleSourceT toggle_source) {
+    using T = source_value_t<ValueSourceT>;
+
     struct TogglePredicate {
       RHEO_CALLABLE bool operator()(std::tuple<T, bool> value) const {
         return std::get<1>(value);
@@ -25,40 +29,49 @@ namespace rheo::operators {
       }
     };
 
-    auto combined = combine(value_source, toggle_source);
-    auto filtered = filter(combined, TogglePredicate{});
-    return map(filtered, ValueExtractor{});
+    auto combined = combine(std::move(value_source), std::move(toggle_source));
+    auto filtered = filter(std::move(combined), TogglePredicate{});
+    return map(std::move(filtered), ValueExtractor{});
   }
 
   namespace detail {
+    template <typename ToggleSourceT>
     struct ToggleOnPipeFactory {
-      source_fn<bool> toggle_source;
+      ToggleSourceT toggle_source;
 
-      template <typename T>
-      RHEO_CALLABLE auto operator()(source_fn<T> value_source) const {
-        return toggle(value_source, toggle_source);
+      template <typename ValueSourceT>
+        requires concepts::Source<ValueSourceT>
+      RHEO_CALLABLE auto operator()(ValueSourceT value_source) const {
+        return toggle(std::move(value_source), ToggleSourceT(toggle_source));
       }
     };
 
-    template <typename T>
+    template <typename ValueSourceT>
     struct ApplyTogglePipeFactory {
-      source_fn<T> value_source;
+      ValueSourceT value_source;
 
-      RHEO_CALLABLE auto operator()(source_fn<bool> toggle_source) const {
-        return toggle(value_source, toggle_source);
+      template <typename ToggleSourceT>
+        requires concepts::Source<ToggleSourceT> &&
+                 std::is_same_v<source_value_t<ToggleSourceT>, bool>
+      RHEO_CALLABLE auto operator()(ToggleSourceT toggle_source) const {
+        return toggle(ValueSourceT(value_source), std::move(toggle_source));
       }
     };
   }
 
   // A pipe to toggle a value source by the given boolean toggle source.
-  inline auto toggle_on(source_fn<bool> toggle_source) {
-    return detail::ToggleOnPipeFactory{toggle_source};
+  template <typename ToggleSourceT>
+    requires concepts::Source<ToggleSourceT> &&
+             std::is_same_v<source_value_t<ToggleSourceT>, bool>
+  auto toggle_on(ToggleSourceT toggle_source) {
+    return detail::ToggleOnPipeFactory<ToggleSourceT>{std::move(toggle_source)};
   }
 
   // A pipe that uses a toggle source to toggle the given value source.
-  template <typename T>
-  auto apply_toggle(source_fn<T> value_source) {
-    return detail::ApplyTogglePipeFactory<T>{value_source};
+  template <typename ValueSourceT>
+    requires concepts::Source<ValueSourceT>
+  auto apply_toggle(ValueSourceT value_source) {
+    return detail::ApplyTogglePipeFactory<ValueSourceT>{std::move(value_source)};
   }
 
 }

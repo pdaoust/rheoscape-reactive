@@ -5,20 +5,21 @@
 
 namespace rheo::operators {
 
-  template <typename T, typename FilterFn>
-    requires concepts::Predicate<FilterFn, T>
-  RHEO_CALLABLE source_fn<T> filter(source_fn<T> source, FilterFn&& filterer) {
-    using FilterFnDecayed = std::decay_t<FilterFn>;
+  namespace detail {
+    template <typename SourceT, typename FilterFnT>
+    struct FilterSourceBinder {
+      using value_type = source_value_t<SourceT>;
 
-    struct SourceBinder {
-      source_fn<T> source;
-      FilterFnDecayed filterer;
+      SourceT source;
+      FilterFnT filterer;
 
-      RHEO_CALLABLE pull_fn operator()(push_fn<T> push) const {
+      template <typename PushFn>
+      RHEO_CALLABLE auto operator()(PushFn push) const {
+        using T = value_type;
 
         struct PushHandler {
-          FilterFnDecayed filterer;
-          push_fn<T> push;
+          FilterFnT filterer;
+          PushFn push;
 
           RHEO_CALLABLE void operator()(T value) const {
             if (filterer(value)) {
@@ -30,9 +31,13 @@ namespace rheo::operators {
         return source(PushHandler{filterer, std::move(push)});
       }
     };
+  }
 
-    return SourceBinder{
-      source,
+  template <typename SourceT, typename FilterFn>
+    requires concepts::Source<SourceT> && concepts::Predicate<FilterFn, source_value_t<SourceT>>
+  RHEO_CALLABLE auto filter(SourceT source, FilterFn&& filterer) {
+    return detail::FilterSourceBinder<SourceT, std::decay_t<FilterFn>>{
+      std::move(source),
       std::forward<FilterFn>(filterer)
     };
   }
@@ -42,9 +47,9 @@ namespace rheo::operators {
     struct FilterPipeFactory {
       FilterFn filterer;
 
-      template <typename T>
-        requires concepts::Predicate<FilterFn, T>
-      RHEO_CALLABLE auto operator()(source_fn<T> source) const {
+      template <typename SourceT>
+        requires concepts::Source<SourceT> && concepts::Predicate<FilterFn, source_value_t<SourceT>>
+      RHEO_CALLABLE auto operator()(SourceT source) const {
         return filter(std::move(source), FilterFn(filterer));
       }
     };

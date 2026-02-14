@@ -34,8 +34,11 @@ namespace rheo::operators {
 
   }
 
-  template <typename TOut, typename TIn>
-  RHEO_CALLABLE source_fn<TOut> normalize(source_fn<TIn> source, source_fn<Range<TIn>> from_source, source_fn<Range<TOut>> to_source) {
+  template <typename SourceT, typename FromSourceT, typename ToSourceT>
+    requires concepts::Source<SourceT> && concepts::Source<FromSourceT> && concepts::Source<ToSourceT>
+  RHEO_CALLABLE auto normalize(SourceT source, FromSourceT from_source, ToSourceT to_source) {
+    using TIn = source_value_t<SourceT>;
+    using TOut = typename source_value_t<ToSourceT>::value_type;
 
     // Named callable for normalize's combiner function - provides better stack traces in debug mode.
     // Note: The input type (TIn) is used in division during interpolation, so ensure TIn has
@@ -55,25 +58,31 @@ namespace rheo::operators {
       }
     };
 
-    return combine(source, from_source, to_source)
+    return combine(std::move(source), std::move(from_source), std::move(to_source))
       | map_tuple(Combiner{});
   }
 
   namespace detail {
-    template <typename TOut, typename TIn>
+    template <typename FromSourceT, typename ToSourceT>
     struct NormalizePipeFactory {
-      source_fn<Range<TIn>> from_source;
-      source_fn<Range<TOut>> to_source;
+      using TOut = typename source_value_t<ToSourceT>::value_type;
+      FromSourceT from_source;
+      ToSourceT to_source;
 
-      RHEO_CALLABLE auto operator()(source_fn<TIn> source) const {
-        return normalize(source, from_source, to_source);
+      template <typename SourceT>
+        requires concepts::Source<SourceT>
+      RHEO_CALLABLE auto operator()(SourceT source) const {
+        return normalize(std::move(source), FromSourceT(from_source), ToSourceT(to_source));
       }
     };
   }
 
-  template <typename TOut, typename TIn>
-  auto normalize(source_fn<Range<TIn>> from_source, source_fn<Range<TOut>> to_source) {
-    return detail::NormalizePipeFactory<TOut, TIn>{from_source, to_source};
+  template <typename FromSourceT, typename ToSourceT>
+    requires concepts::Source<FromSourceT> && concepts::Source<ToSourceT>
+  auto normalize(FromSourceT from_source, ToSourceT to_source) {
+    return detail::NormalizePipeFactory<FromSourceT, ToSourceT>{
+      std::move(from_source), std::move(to_source)
+    };
   }
 
 }

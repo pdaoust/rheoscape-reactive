@@ -13,26 +13,22 @@ namespace rheo::operators {
   // To transform the tuple, use: sample(...) | map_tuple(mapper)
   // This source ends if either stream ends.
 
-  // Source function factory: sample(event_source, sample_source)
-  //
-  // Samples sample_source every time event_source pushes a value.
-  // Returns a tuple of (event_value, sampled_value).
-  template <typename TEvent, typename TSample>
-  source_fn<std::tuple<TEvent, TSample>> sample(
-    source_fn<TEvent> event_source,
-    source_fn<TSample> sample_source
-  ) {
-    using TOut = std::tuple<TEvent, TSample>;
+  namespace detail {
+    template <typename EventSourceT, typename SampleSourceT>
+    struct SampleSourceBinder {
+      using TEvent = source_value_t<EventSourceT>;
+      using TSample = source_value_t<SampleSourceT>;
+      using value_type = std::tuple<TEvent, TSample>;
 
-    struct SourceBinder {
-      source_fn<TEvent> event_source;
-      source_fn<TSample> sample_source;
+      EventSourceT event_source;
+      SampleSourceT sample_source;
 
-      RHEO_CALLABLE pull_fn operator()(push_fn<TOut> push) const {
+      template <typename PushFn>
+      RHEO_CALLABLE auto operator()(PushFn push) const {
         auto last_event_value = std::make_shared<std::optional<TEvent>>(std::nullopt);
 
         struct SamplePushHandler {
-          push_fn<TOut> push;
+          PushFn push;
           std::shared_ptr<std::optional<TEvent>> last_event_value;
 
           RHEO_CALLABLE void operator()(TSample sample_value) const {
@@ -68,8 +64,16 @@ namespace rheo::operators {
         });
       }
     };
+  }
 
-    return SourceBinder{
+  // Source function factory: sample(event_source, sample_source)
+  //
+  // Samples sample_source every time event_source pushes a value.
+  // Returns a tuple of (event_value, sampled_value).
+  template <typename EventSourceT, typename SampleSourceT>
+    requires concepts::Source<EventSourceT> && concepts::Source<SampleSourceT>
+  auto sample(EventSourceT event_source, SampleSourceT sample_source) {
+    return detail::SampleSourceBinder<EventSourceT, SampleSourceT>{
       std::move(event_source),
       std::move(sample_source)
     };
@@ -80,13 +84,14 @@ namespace rheo::operators {
     //
     // Samples sample_source every time the piped event source pushes a value.
     // Returns a tuple of (event_value, sampled_value).
-    template <typename TSample>
+    template <typename SampleSourceT>
     struct SamplePipeFactory {
-      source_fn<TSample> sample_source;
+      SampleSourceT sample_source;
 
-      template <typename TEvent>
-      RHEO_CALLABLE auto operator()(source_fn<TEvent> event_source) const {
-        return sample(std::move(event_source), sample_source);
+      template <typename EventSourceT>
+        requires concepts::Source<EventSourceT>
+      RHEO_CALLABLE auto operator()(EventSourceT event_source) const {
+        return sample(std::move(event_source), SampleSourceT(sample_source));
       }
     };
 
@@ -94,25 +99,28 @@ namespace rheo::operators {
     //
     // The inverse of sample(): samples the piped source every time event_source pushes.
     // Returns a tuple of (event_value, sampled_value).
-    template <typename TEvent>
+    template <typename EventSourceT>
     struct SampleEveryPipeFactory {
-      source_fn<TEvent> event_source;
+      EventSourceT event_source;
 
-      template <typename TSample>
-      RHEO_CALLABLE auto operator()(source_fn<TSample> sample_source) const {
-        return sample(event_source, std::move(sample_source));
+      template <typename SampleSourceT>
+        requires concepts::Source<SampleSourceT>
+      RHEO_CALLABLE auto operator()(SampleSourceT sample_source) const {
+        return sample(EventSourceT(event_source), std::move(sample_source));
       }
     };
   }
 
-  template <typename TSample>
-  auto sample(source_fn<TSample> sample_source) {
-    return detail::SamplePipeFactory<TSample>{sample_source};
+  template <typename SampleSourceT>
+    requires concepts::Source<SampleSourceT>
+  auto sample(SampleSourceT sample_source) {
+    return detail::SamplePipeFactory<SampleSourceT>{std::move(sample_source)};
   }
 
-  template <typename TEvent>
-  auto sample_every(source_fn<TEvent> event_source) {
-    return detail::SampleEveryPipeFactory<TEvent>{event_source};
+  template <typename EventSourceT>
+    requires concepts::Source<EventSourceT>
+  auto sample_every(EventSourceT event_source) {
+    return detail::SampleEveryPipeFactory<EventSourceT>{std::move(event_source)};
   }
 
 }
