@@ -22,6 +22,7 @@
 #include <operators/merge.hpp>
 #include <operators/normalize.hpp>
 #include <operators/pid.hpp>
+#include <operators/quadrature_encode.hpp>
 #include <operators/sample.hpp>
 #include <operators/scan.hpp>
 #include <operators/share.hpp>
