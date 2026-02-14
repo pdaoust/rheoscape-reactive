@@ -317,6 +317,32 @@ namespace rheo {
   template<typename T>
   inline constexpr bool is_optional_v = is_optional<T>::value;
 
+  // Helper to check if a type is std::vector<T> for some T,
+  // and to extract the element type.
+  template<typename T>
+  struct is_vector : std::false_type {};
+
+  template<typename T, typename Alloc>
+  struct is_vector<std::vector<T, Alloc>> : std::true_type {};
+
+  template<typename T>
+  inline constexpr bool is_vector_v = is_vector<T>::value;
+
+  // Extract the element type from a std::vector<T>.
+  template<typename V>
+  struct vector_value_type;
+
+  template<typename T, typename Alloc>
+  struct vector_value_type<std::vector<T, Alloc>> { using type = T; };
+
+  template<typename V>
+  using vector_value_t = typename vector_value_type<V>::type;
+
+  // Extract the output element type from a flat-map function's return vector.
+  // Given F(TIn) -> std::vector<TOut>, yields TOut.
+  template<typename F, typename TIn>
+  using flat_map_value_t = vector_value_t<std::invoke_result_t<F, TIn>>;
+
   namespace concepts {
 
     // Note: Source concept is defined earlier in the file (before operator|).
@@ -362,11 +388,12 @@ namespace rheo {
       std::invocable<F, TAcc, TIn> &&
       std::convertible_to<std::invoke_result_t<F, TAcc, TIn>, TAcc>;
 
-    // FlatMapper: Function that returns std::vector<T>
-    template<typename F, typename TIn, typename TOut>
+    // FlatMapper: Function that takes TIn and returns std::vector<TOut> for some TOut.
+    // Use flat_map_value_t<F, TIn> to extract TOut.
+    template<typename F, typename TIn>
     concept FlatMapper =
       std::invocable<F, TIn> &&
-      std::convertible_to<std::invoke_result_t<F, TIn>, std::vector<TOut>>;
+      is_vector_v<std::invoke_result_t<F, TIn>>;
 
     // FilterMapper: Function that returns std::optional<T> (for filter_map operations)
     template<typename F, typename TIn>

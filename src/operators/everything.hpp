@@ -10,6 +10,7 @@
 #include <operators/exponential_moving_average.hpp>
 #include <operators/filter.hpp>
 #include <operators/filter_map.hpp>
+#include <operators/flat_map.hpp>
 #include <operators/foreach.hpp>
 #include <operators/inspect.hpp>
 #include <operators/interval.hpp>
