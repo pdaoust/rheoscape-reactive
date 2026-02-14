@@ -8,6 +8,7 @@
 namespace rheo::operators {
 
   // Only push the first received instance of a value.
+  // This essentially turns a continuous value stream into a stream of change events.
   //
   // Usage: dedupe(source) or source | dedupe()
 
