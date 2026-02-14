@@ -104,19 +104,35 @@ namespace rheo {
   template <typename T>
   using source_fn = std::function<pull_fn(push_fn<T>)>;
 
-  // Helper trait to extract the value type from a source_fn.
+  // Helper trait to extract the value type from a source.
+  //
+  // Two paths:
+  // 1. Structs with `using value_type = T;` (our SourceBinders)
+  // 2. Callables whose first arg is push_fn<T> (lambdas, std::function)
+  //
+  // The primary template handles path 1 (value_type member).
+  // Specializations handle path 2 (callable inspection).
+  template<typename T, typename = void>
+  struct source_value_type {};
+
+  // Path 1: struct with explicit value_type member
   template<typename T>
-  struct source_value_type {
-    static_assert(std::is_same_v<T, void>, "type must be a source function");
+  struct source_value_type<T, std::void_t<typename T::value_type>> {
+    using type = typename T::value_type;
   };
 
+  // Path 2: source_fn<T> (backward compat, also covers std::function)
   template<typename T>
-  struct source_value_type<source_fn<T>> {
-      using type = T;
+  struct source_value_type<source_fn<T>, void> {
+    using type = T;
   };
 
   template<typename T>
   using source_value_type_t = typename source_value_type<T>::type;
+
+  // Convenience alias (preferred going forward)
+  template<typename T>
+  using source_value_t = typename source_value_type<std::decay_t<T>>::type;
 
   // A function that receives a source function,
   // binds itself to the source
@@ -176,6 +192,15 @@ namespace rheo {
   template <typename TOut, typename TIn>
   using pipe_fn = sink_fn<source_fn<TOut>, TIn>;
 
+  // Forward-declare the Source concept so operator| can use it.
+  // Full concept definitions are in the concepts namespace below.
+  namespace concepts {
+    template <typename S>
+    concept Source = requires {
+      typename source_value_type<std::decay_t<S>>::type;
+    };
+  }
+
   // Ergonomic chaining of source and sink using the `|` operator.
   // This lets you go:
   //
@@ -184,17 +209,20 @@ namespace rheo {
   //     | filter([](int v) { return v > 5; }); // always true for a stream of nines
   //     | map([](int v) { return fmt::format("{}", v); })
   //     | foreach([](std::string v) { std::cout << v << std::endl; });
-  template <typename SinkFn, typename TIn>
-  auto operator|(source_fn<TIn> left, SinkFn&& right)
-  -> decltype(std::declval<SinkFn>()(std::declval<source_fn<TIn>>())) {
-    return right(left);
-  }
 
-  // Overload for better casting of pipe function output.
-  template <typename TOut, typename TIn>
-  auto operator|(source_fn<TIn> left, pipe_fn<TOut, TIn> right)
-  -> source_fn<TOut> {
-    return right(left);
+  // Generic overload: works with any Source (concrete SourceBinders, source_fn, etc.)
+  // During migration, unconverted pipe factories accept source_fn<TIn> which can't be
+  // deduced from a concrete source type. The if-constexpr fallback converts to source_fn
+  // so unconverted operators keep working alongside converted ones.
+  template <typename SourceT, typename SinkFn>
+    requires concepts::Source<std::decay_t<SourceT>>
+  decltype(auto) operator|(SourceT&& left, SinkFn&& right) {
+    if constexpr (std::is_invocable_v<SinkFn&&, SourceT&&>) {
+      return std::forward<SinkFn>(right)(std::forward<SourceT>(left));
+    } else {
+      using T = source_value_t<SourceT>;
+      return std::forward<SinkFn>(right)(source_fn<T>(std::forward<SourceT>(left)));
+    }
   }
 
   // Some types for common functional operators.
@@ -290,6 +318,8 @@ namespace rheo {
   inline constexpr bool is_optional_v = is_optional<T>::value;
 
   namespace concepts {
+
+    // Note: Source concept is defined earlier in the file (before operator|).
 
     // Base callable concept - anything invocable with given arguments
     template<typename F, typename... Args>

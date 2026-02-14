@@ -5,25 +5,32 @@
 
 namespace rheo::sources {
 
-  template <typename TClock>
-  struct from_clock_pull_handler {
-    push_fn<typename TClock::time_point> push;
+  namespace detail {
 
-    RHEO_CALLABLE void operator()() const {
-      push(TClock::now());
-    }
-  };
+    template <typename TClock, typename PushFn>
+    struct from_clock_pull_handler {
+      PushFn push;
 
-  template <typename TClock>
-  struct from_clock_source_binder {
-    RHEO_CALLABLE pull_fn operator()(push_fn<typename TClock::time_point> push) const {
-      return from_clock_pull_handler<TClock>{std::move(push)};
-    }
-  };
+      RHEO_CALLABLE void operator()() const {
+        push(TClock::now());
+      }
+    };
+
+    template <typename TClock>
+    struct from_clock_source_binder {
+      using value_type = typename TClock::time_point;
+
+      template <typename PushFn>
+      RHEO_CALLABLE auto operator()(PushFn push) const {
+        return from_clock_pull_handler<TClock, PushFn>{std::move(push)};
+      }
+    };
+
+  } // namespace detail
 
   template <typename TClock>
   source_fn<typename TClock::time_point> from_clock() {
-    return from_clock_source_binder<TClock>{};
+    return detail::from_clock_source_binder<TClock>{};
   }
 
   template <typename TClock>
