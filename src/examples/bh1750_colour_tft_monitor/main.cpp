@@ -136,24 +136,24 @@ void setup() {
   auto clock = from_clock<arduino_millis_clock>();
   auto temp_and_hum = arduino::sht2x::sht2x(&Wire);
   auto temp_and_hum_smooth = temp_and_hum
-    | log_errors<arduino::sht2x::Reading, arduino::sht2x::Error>([](arduino::sht2x::Error error) {
+    | log_errors([](arduino::sht2x::Error error) {
       return arduino::sht2x::format_error(error);
     }, "sht2x")
-    | make_infallible<arduino::sht2x::Reading, arduino::sht2x::Error>()
+    | make_infallible()
     | cache()
     | throttle(clock, arduino_millis_clock::duration(250))
     // We've gotta do the averaging in two parts.
     // First the temperature...
-    | lift_to_tuple_left<arduino::sht2x::Humidity>(
-      exponential_moving_average<arduino::sht2x::Temperature>(
+    | lift_to_tuple_left(
+      exponential_moving_average(
         clock,
         arduino_millis_clock::duration(1000),
         map_chrono_to_scalar<unsigned long, typename arduino_millis_clock::duration>
       )
     )
     /// ... Then the humidity.
-    | lift_to_tuple_right<arduino::sht2x::Temperature>(
-      exponential_moving_average<arduino::sht2x::Humidity>(
+    | lift_to_tuple_right(
+      exponential_moving_average(
         clock,
         arduino_millis_clock::duration(1000),
         map_chrono_to_scalar<unsigned long, typename arduino_millis_clock::duration>
