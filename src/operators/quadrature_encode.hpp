@@ -13,8 +13,8 @@ namespace rheo::operators {
   }
 
   enum QuadratureEncodeDirection {
-    Clockwise,
-    CounterClockwise,
+    Clockwise = 1,
+    CounterClockwise = -1,
   };
 
   template <typename SourceAT, typename SourceBT>
