@@ -16,6 +16,7 @@ using namespace rheo::sinks;
 using namespace rheo::sinks::arduino;
 using namespace rheo::sinks::arduino::gfx;
 using namespace rheo::sources;
+using namespace rheo::sources::arduino;
 
 #ifndef LOG_LEVEL
 #define LOG_LEVEL logging::LOG_LEVEL_DEBUG
@@ -33,9 +34,11 @@ const uint8_t red_pwm_pin = 12;
 const uint8_t blue_pwm_pin = 13;
 const uint32_t laser_pwm_frequency = 1000;
 
-using EncoderEvent = std::variant<std::monostate, int8_t>;
-
-EventSource<EncoderEvent> encoder_events;
+pull_fn pull_servo;
+pull_fn pull_display;
+pull_fn pull_red_pwm;
+pull_fn pull_blue_pwm;
+pull_fn pull_heartbeat;
 
 enum UiState {
   EDIT_SERVO_SWEEP_DURATION,
@@ -46,39 +49,6 @@ enum UiState {
   // Hack to introspect the number of UI states.
   _count
 };
-
-int8_t encoder_quarter_clicks = 0;
-std::atomic<int8_t> encoder_clicks = 0;
-uint8_t last_encoder_knob_state = 3;
-static const int8_t encoder_states_lookup[]  = { 0, -1, 1, 0, 1, 0, 0, -1, -1, 0, 0, 1, 0, 1, -1, 0 };
-
-void encoder_knob_interrupt() {
-  // IMPORTANT: No Serial I/O in interrupt handlers - it's too slow and causes lockups!
-  // Read both pins together to minimize timing skew.
-  uint8_t current_state = (digitalRead(encoder_a_pin) << 1) | digitalRead(encoder_b_pin);
-  uint8_t combined = ((last_encoder_knob_state & 0x03) << 2) | current_state;
-  last_encoder_knob_state = current_state;
-  encoder_quarter_clicks += encoder_states_lookup[combined];
-  if (encoder_quarter_clicks > 3) {
-    encoder_clicks.fetch_add(1, std::memory_order_relaxed);
-    encoder_quarter_clicks = 0;
-  } else if (encoder_quarter_clicks < -3) {
-    encoder_clicks.fetch_add(-1, std::memory_order_relaxed);
-    encoder_quarter_clicks = 0;
-  }
-}
-
-std::atomic<uint8_t> encoder_button_released_count = 0;
-
-void encoder_button_interrupt() {
-  encoder_button_released_count ++;
-}
-
-pull_fn pull_servo;
-pull_fn pull_display;
-pull_fn pull_red_pwm;
-pull_fn pull_blue_pwm;
-pull_fn pull_heartbeat;
 
 Adafruit_SSD1306 display(128, 64, &Wire, -1);
 
@@ -131,13 +101,6 @@ void setup() {
   display.display();
   delay(2000);
 
-  pinMode(encoder_btn_pin, INPUT_PULLUP);
-  pinMode(encoder_a_pin, INPUT_PULLUP);
-  pinMode(encoder_b_pin, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(encoder_a_pin), encoder_knob_interrupt, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(encoder_b_pin), encoder_knob_interrupt, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(encoder_btn_pin), encoder_button_interrupt, RISING);
-
   static auto system_clock_source = from_clock<arduino_millis_clock>()
     | map(to_duration<arduino_millis_clock>)
     | map(duration_to_clock<float_millis_clock, arduino_millis_clock>);
@@ -170,44 +133,43 @@ void setup() {
   // Set up the editors.
   static State<UiState> ui_state(EDIT_SERVO_SWEEP_DURATION);
 
+  // First, the button and encoder.
+  auto encoder_a_pin_source = digital_pin_source(encoder_a_pin, INPUT_PULLUP) | dedupe();
+  auto encoder_b_pin_source = digital_pin_source(encoder_b_pin, INPUT_PULLUP) | dedupe();
+  auto encoder_source = quadrature_encode(encoder_a_pin_source, encoder_b_pin_source);
+  auto encoder_button_source = digital_pin_source(encoder_btn_pin, INPUT_PULLUP)
+    | debounce(system_clock_source, float_millis_clock::duration(50.0f))
+    // We only want release events.
+    // Turn continuous values into change events.
+    | dedupe()
+    // Then only take true values (released is HIGH).
+    | filter([](bool v) { return v == HIGH; });
+
   // Change to edit next UI state on encoder button release.
-  encoder_events.get_source_fn()
-    | filter_map([](EncoderEvent event) -> std::optional<std::monostate> {
-        if (std::holds_alternative<std::monostate>(event)) {
-          return std::monostate{};
-        }
-        return std::nullopt;
-      })
-    | throttle(system_clock_source, float_millis_clock::duration(50.0))
+  encoder_button_source
     | sample(ui_state.get_source_fn())
-    | map_tuple([](std::monostate, UiState value) {
+    | map_tuple([](bool _, UiState value) {
         return (UiState)((value + 1) % UiState::_count);
       })
     | ui_state.get_setter_sink_fn();
 
   // Depending on what element of the UI is being edited, apply encoder turns to that element.
-  static auto ui_editing = encoder_events.get_source_fn()
-    | filter_map([](EncoderEvent event) -> std::optional<int8_t> {
-        if (std::holds_alternative<int8_t>(event)) {
-          return std::get<int8_t>(event);
-        }
-        return std::nullopt;
-      })
+  static auto ui_editing = encoder_source
     | combine_with(ui_state.get_source_fn());
 
   // Servo range.
   ui_editing
-    | filter([](std::tuple<int8_t, UiState> value) {
+    | filter([](std::tuple<QuadratureEncodeDirection, UiState> value) {
         return std::get<1>(value) == EDIT_SERVO_MIN_ANGLE || std::get<1>(value) == EDIT_SERVO_MAX_ANGLE;
       })
     | combine_with(servo_angle_range.get_source_fn())
-    | map_tuple([](std::tuple<int8_t, UiState> delta, Range<au::QuantityPoint<au::Degrees, unsigned char>> range) {
-        auto clicks = std::get<0>(delta);
+    | map_tuple([](std::tuple<QuadratureEncodeDirection, UiState> delta, Range<au::QuantityPoint<au::Degrees, unsigned char>> range) {
+        auto direction = (int)std::get<0>(delta);
         UiState state = std::get<1>(delta);
 
         if (state == EDIT_SERVO_MIN_ANGLE) {
           // Compute in int to avoid overflow, then clamp and cast back.
-          int new_min_raw = static_cast<int>(range.min.in(au::Degrees{})) + clicks;
+          int new_min_raw = static_cast<int>(range.min.in(au::Degrees{})) + direction;
           if (new_min_raw >= 0 && new_min_raw <= range.max.in(au::Degrees{})) {
             return Range<au::QuantityPoint<au::Degrees, unsigned char>>{
               au::make_quantity_point<au::Degrees, unsigned char>(static_cast<unsigned char>(new_min_raw)),
@@ -215,7 +177,7 @@ void setup() {
             };
           }
         } else if (state == EDIT_SERVO_MAX_ANGLE) {
-          int new_max_raw = static_cast<int>(range.max.in(au::Degrees{})) + clicks;
+          int new_max_raw = static_cast<int>(range.max.in(au::Degrees{})) + direction;
           if (new_max_raw >= range.min.in(au::Degrees{}) && new_max_raw <= 180) {
             return Range<au::QuantityPoint<au::Degrees, unsigned char>>{
               range.min,
@@ -230,14 +192,14 @@ void setup() {
 
   // Red PWM duty cycle.
   ui_editing
-    | filter([](std::tuple<int8_t, UiState> value) {
+    | filter([](std::tuple<QuadratureEncodeDirection, UiState> value) {
         return std::get<1>(value) == EDIT_RED_PWM_DUTY_CYCLE;
       })
     | combine_with(red_pwm_duty_cycle.get_source_fn())
-    | map_tuple([](std::tuple<int8_t, UiState> delta, au::Quantity<au::Percent, int> duty_cycle) {
-        int8_t clicks = std::get<0>(delta);
+    | map_tuple([](std::tuple<QuadratureEncodeDirection, UiState> delta, au::Quantity<au::Percent, int> duty_cycle) {
+        auto direction = (int)std::get<0>(delta);
         // Jump in 10% increments.
-        auto new_duty_cycle = duty_cycle + au::percent(clicks * 10);
+        auto new_duty_cycle = duty_cycle + au::percent(direction * 10);
         if (new_duty_cycle >= au::percent(0) && new_duty_cycle <= au::percent(100)) {
           return new_duty_cycle;
         }
@@ -247,13 +209,13 @@ void setup() {
 
   // Blue PWM duty cycle.
   ui_editing
-    | filter([](std::tuple<int8_t, UiState> value) {
+    | filter([](std::tuple<QuadratureEncodeDirection, UiState> value) {
         return std::get<1>(value) == EDIT_BLUE_PWM_DUTY_CYCLE;
       })
     | combine_with(blue_pwm_duty_cycle.get_source_fn())
-    | map_tuple([](std::tuple<int8_t, UiState> delta, au::Quantity<au::Percent, int> duty_cycle) {
-        int8_t clicks = std::get<0>(delta);
-        auto new_duty_cycle = duty_cycle + au::percent(clicks * 10);
+    | map_tuple([](std::tuple<QuadratureEncodeDirection, UiState> delta, au::Quantity<au::Percent, int> duty_cycle) {
+        auto direction = (int)std::get<0>(delta);
+        auto new_duty_cycle = duty_cycle + au::percent(direction * 10);
         if (new_duty_cycle >= au::percent(0) && new_duty_cycle <= au::percent(100)) {
           return new_duty_cycle;
         }
@@ -263,13 +225,13 @@ void setup() {
 
   // Servo sweep duration.
   ui_editing
-    | filter([](std::tuple<int8_t, UiState> value) {
+    | filter([](std::tuple<QuadratureEncodeDirection, UiState> value) {
         return std::get<1>(value) == EDIT_SERVO_SWEEP_DURATION;
       })
     | combine_with(servo_sweep_duration.get_source_fn())
-    | map_tuple([](std::tuple<int8_t, UiState> delta, float_millis_clock::duration duration) {
-        int8_t clicks = std::get<0>(delta);
-        auto new_duration = duration + float_millis_clock::duration(clicks * 100);
+    | map_tuple([](std::tuple<QuadratureEncodeDirection, UiState> delta, float_millis_clock::duration duration) {
+        auto direction = (int)std::get<0>(delta);
+        auto new_duration = duration + float_millis_clock::duration(direction * 100);
         if (new_duration.count() >= 2000 && new_duration.count() <= 60000) {
           return new_duration;
         }
@@ -372,19 +334,6 @@ void setup() {
 bool last_read_encoder_button_state = HIGH;
 
 void loop() {
-  // Read encoder state and emit events.
-  if (encoder_button_released_count > 0) {
-    // Button has been released at least once.
-    for (int i = 0; i < encoder_button_released_count; i ++) {
-      encoder_events.push(std::monostate{});
-    }
-    encoder_button_released_count = 0;
-  }
-  if (encoder_clicks) {
-    int8_t clicks = encoder_clicks.exchange(0);
-    encoder_events.push(clicks);
-  }
-
   pull_servo();
   pull_red_pwm();
   pull_blue_pwm();
