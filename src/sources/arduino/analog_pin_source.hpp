@@ -1,33 +1,39 @@
 #pragma once
 
-#include <functional>
 #include <core_types.hpp>
 #include <Arduino.h>
 
 namespace rheo::sources::arduino {
 
-  source_fn<int> analog_pin_source(int pin, uint8_t resolution_bits = 10) {
-    pinMode(pin, INPUT);
-    analogReadResolution(resolution_bits);
+  namespace detail {
 
-    struct SourceBinder {
+    template <typename PushFn>
+    struct analog_pin_pull_handler {
       int pin;
+      PushFn push;
 
-      RHEO_CALLABLE pull_fn operator()(push_fn<int> push) const {
-        struct PullHandler {
-          int pin;
-          push_fn<int> push;
-
-          RHEO_CALLABLE void operator()() const {
-            push(analogRead(pin));
-          }
-        };
-
-        return PullHandler{pin, std::move(push)};
+      RHEO_CALLABLE void operator()() const {
+        push(analogRead(pin));
       }
     };
 
-    return SourceBinder{pin};
+    struct analog_pin_source_binder {
+      using value_type = int;
+      int pin;
+
+      template <typename PushFn>
+        requires concepts::Visitor<PushFn, int>
+      RHEO_CALLABLE auto operator()(PushFn push) const {
+        return analog_pin_pull_handler<PushFn>{pin, std::move(push)};
+      }
+    };
+
+  } // namespace detail
+
+  auto analog_pin_source(int pin, uint8_t resolution_bits = 10) {
+    pinMode(pin, INPUT);
+    analogReadResolution(resolution_bits);
+    return detail::analog_pin_source_binder{pin};
   }
 
 }

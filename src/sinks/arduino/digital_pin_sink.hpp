@@ -1,31 +1,35 @@
 #pragma once
 
-#include <functional>
 #include <core_types.hpp>
 #include <Arduino.h>
 
 namespace rheo::sinks::arduino {
 
-  pullable_sink_fn<bool> digital_pin_sink(int pin) {
-    pinMode(pin, OUTPUT);
+  namespace detail {
 
-    struct SinkBinder {
+    struct digital_pin_push_handler {
       int pin;
 
-      RHEO_CALLABLE pull_fn operator()(source_fn<bool> source) const {
-        struct PushHandler {
-          int pin;
-
-          RHEO_CALLABLE void operator()(bool value) const {
-            digitalWrite(pin, value);
-          }
-        };
-
-        return source(PushHandler{pin});
+      RHEO_CALLABLE void operator()(bool value) const {
+        digitalWrite(pin, value);
       }
     };
 
-    return SinkBinder{pin};
+    struct digital_pin_sink_binder {
+      int pin;
+
+      template <typename SourceFn>
+        requires concepts::SourceOf<SourceFn, bool>
+      RHEO_CALLABLE auto operator()(SourceFn source) const {
+        return source(digital_pin_push_handler{pin});
+      }
+    };
+
+  } // namespace detail
+
+  auto digital_pin_sink(int pin) {
+    pinMode(pin, OUTPUT);
+    return detail::digital_pin_sink_binder{pin};
   }
 
 }

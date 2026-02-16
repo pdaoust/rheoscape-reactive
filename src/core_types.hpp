@@ -134,6 +134,12 @@ namespace rheo {
   template<typename T>
   using source_value_t = typename source_value_type<std::decay_t<T>>::type;
 
+  // TODO: sink_fn, cap_fn, pullable_sink_fn, and pipe_fn are type-erased
+  // sink aliases that predate the concepts-based approach.
+  // Now that sinks use generic SourceFn parameters constrained by
+  // concepts::SourceOf, these aliases are only needed for backward
+  // compatibility and could be removed once all consumers are migrated.
+
   // A function that receives a source function,
   // binds itself to the source
   // (that is, passes it a push function that handles values pushed to it
@@ -347,6 +353,11 @@ namespace rheo {
 
     // Note: Source concept is defined earlier in the file (before operator|).
 
+    // SourceOf: Convenience concept for sinks that need to constrain
+    // a source to emit a specific value type.
+    template <typename S, typename T>
+    concept SourceOf = Source<S> && std::same_as<source_value_t<S>, T>;
+
     // Base callable concept - anything invocable with given arguments
     template<typename F, typename... Args>
     concept Callable = std::invocable<F, Args...>;
@@ -410,7 +421,29 @@ namespace rheo {
       { (t1 - t2) >= d } -> std::convertible_to<bool>;
     };
 
+    // Deserializable: A type that can be validated after raw deserialization
+    // (e.g., from EEPROM via memcpy).
+    // Scalars are always considered valid (no way to detect garbage).
+    // Non-scalar types must provide `bool is_valid() const`.
+    template <typename T>
+    concept Deserializable = std::is_scalar_v<T> || requires(const T& t) {
+      { t.is_valid() } -> std::convertible_to<bool>;
+    };
+
   } // namespace concepts
+
+  // Check whether a deserialized value is valid.
+  // Encapsulates the two arms of the Deserializable concept
+  // so callers don't need to know which arm applies.
+  template <typename T>
+    requires concepts::Deserializable<T>
+  bool is_deserialized_valid(const T& value) {
+    if constexpr (std::is_scalar_v<T>) {
+      return true;
+    } else {
+      return value.is_valid();
+    }
+  }
 
   // ============================================================================
   // Apply Result Type Trait

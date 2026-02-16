@@ -1,6 +1,6 @@
 #pragma once
 
-#include <functional>
+#include <memory>
 #include <core_types.hpp>
 #include <types/au_all_units_noio.hpp>
 #include <Arduino.h>
@@ -10,30 +10,34 @@
 #include <Servo.h>
 #endif
 
-
 namespace rheo::sinks::arduino {
 
-  pullable_sink_fn<au::QuantityPoint<au::Degrees, uint8_t>> servo_sink(int pin) {
-    struct SinkBinder {
-      int pin;
+  namespace detail {
 
-      RHEO_CALLABLE pull_fn operator()(source_fn<au::QuantityPoint<au::Degrees, uint8_t>> source) const {
-        auto servo = std::make_shared<Servo>();
-        servo->attach(pin);
+    struct servo_push_handler {
+      std::shared_ptr<Servo> servo;
 
-        struct PushHandler {
-          std::shared_ptr<Servo> servo;
-
-          RHEO_CALLABLE void operator()(au::QuantityPoint<au::Degrees, uint8_t> value) const {
-            servo->write(static_cast<int>(value.in(au::Degrees{})));
-          }
-        };
-
-        return source(PushHandler{std::move(servo)});
+      RHEO_CALLABLE void operator()(au::QuantityPoint<au::Degrees, uint8_t> value) const {
+        servo->write(static_cast<int>(value.in(au::Degrees{})));
       }
     };
 
-    return SinkBinder{pin};
+    struct servo_sink_binder {
+      int pin;
+
+      template <typename SourceFn>
+        requires concepts::SourceOf<SourceFn, au::QuantityPoint<au::Degrees, uint8_t>>
+      RHEO_CALLABLE auto operator()(SourceFn source) const {
+        auto servo = std::make_shared<Servo>();
+        servo->attach(pin);
+        return source(servo_push_handler{std::move(servo)});
+      }
+    };
+
+  } // namespace detail
+
+  auto servo_sink(int pin) {
+    return detail::servo_sink_binder{pin};
   }
 
 }

@@ -1,6 +1,5 @@
 #pragma once
 
-#include <functional>
 #include <memory>
 #include <core_types.hpp>
 #include <types/au_all_units_noio.hpp>
@@ -10,30 +9,37 @@
 
 namespace rheo::sources::arduino {
 
-  source_fn<au::Quantity<au::Lux, float>> bh1750(uint8_t address, TwoWire* i2c, BH1750::Mode mode = BH1750::Mode::CONTINUOUS_HIGH_RES_MODE) {
-    auto sensor = std::make_shared<BH1750>();
-    sensor->begin(mode, address, i2c);
+  namespace detail {
 
-    struct SourceBinder {
+    template <typename PushFn>
+    struct bh1750_pull_handler {
       std::shared_ptr<BH1750> sensor;
+      PushFn push;
 
-      RHEO_CALLABLE pull_fn operator()(push_fn<au::Quantity<au::Lux, float>> push) const {
-        struct PullHandler {
-          std::shared_ptr<BH1750> sensor;
-          push_fn<au::Quantity<au::Lux, float>> push;
-
-          RHEO_CALLABLE void operator()() const {
-            if (sensor->measurementReady()) {
-              push(au::lux(sensor->readLightLevel()));
-            }
-          }
-        };
-
-        return PullHandler{sensor, std::move(push)};
+      RHEO_CALLABLE void operator()() const {
+        if (sensor->measurementReady()) {
+          push(au::lux(sensor->readLightLevel()));
+        }
       }
     };
 
-    return SourceBinder{sensor};
+    struct bh1750_source_binder {
+      using value_type = au::Quantity<au::Lux, float>;
+      std::shared_ptr<BH1750> sensor;
+
+      template <typename PushFn>
+        requires concepts::Visitor<PushFn, value_type>
+      RHEO_CALLABLE auto operator()(PushFn push) const {
+        return bh1750_pull_handler<PushFn>{sensor, std::move(push)};
+      }
+    };
+
+  } // namespace detail
+
+  auto bh1750(uint8_t address, TwoWire* i2c, BH1750::Mode mode = BH1750::Mode::CONTINUOUS_HIGH_RES_MODE) {
+    auto sensor = std::make_shared<BH1750>();
+    sensor->begin(mode, address, i2c);
+    return detail::bh1750_source_binder{sensor};
   }
 
 }
