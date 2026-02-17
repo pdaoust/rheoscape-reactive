@@ -10,10 +10,10 @@ namespace rheo {
   class State;
 
   // Named callable for State's pull handler
-  template <typename T>
+  template <typename T, typename PushFn>
   struct state_pull_handler {
     State<T>* state;
-    push_fn<T> push;
+    PushFn push;
 
     RHEO_CALLABLE void operator()() const {
       auto value = state->try_get();
@@ -27,10 +27,13 @@ namespace rheo {
   // Named callable for State's source binder
   template <typename T>
   struct state_source_binder {
+    using value_type = T;
     State<T>* state;
     bool initial_push;
 
-    RHEO_CALLABLE pull_fn operator()(push_fn<T> push) const {
+    template <typename PushFn>
+      requires concepts::Visitor<PushFn, T>
+    RHEO_CALLABLE auto operator()(PushFn push) const {
       return state->add_sink(std::move(push), initial_push);
     }
   };
@@ -50,8 +53,10 @@ namespace rheo {
     State<T>* state;
     bool push_on_set;
 
-    RHEO_CALLABLE void operator()(source_fn<T> source) const {
-      source(state->get_setter_push_fn(push_on_set));
+    template <typename SourceFn>
+      requires concepts::SourceOf<SourceFn, T>
+    RHEO_CALLABLE auto operator()(SourceFn source) const {
+      return source(state->get_setter_push_fn(push_on_set));
     }
   };
 
@@ -94,8 +99,13 @@ namespace rheo {
       }
 
       // This can be used as-is as a source function.
-      pull_fn add_sink(push_fn<T> push, bool initial_push = true) {
-        _sinks.push_back(push);
+      // The PushFn is type-erased into push_fn<T> for storage
+      // in the internal sinks vector, but the returned pull handler
+      // retains the concrete PushFn type.
+      template <typename PushFn>
+        requires concepts::Visitor<PushFn, T>
+      auto add_sink(PushFn push, bool initial_push = true) {
+        _sinks.push_back(push_fn<T>(push));
         if (initial_push) {
           if (_value.has_value()) {
             // Push the initial value.
@@ -106,18 +116,18 @@ namespace rheo {
         // The pull function consumes errors
         // and turns them into meaningful action
         // (or meaningful inaction).
-        return state_pull_handler<T>{this, std::move(push)};
+        return state_pull_handler<T, PushFn>{this, std::move(push)};
       }
 
-      source_fn<T> get_source_fn(bool initial_push = true) {
+      auto get_source_fn(bool initial_push = true) {
         return state_source_binder<T>{this, initial_push};
       }
 
-      push_fn<T> get_setter_push_fn(bool push_on_set = true) {
+      auto get_setter_push_fn(bool push_on_set = true) {
         return state_push_handler<T>{this, push_on_set};
       }
 
-      cap_fn<T> get_setter_sink_fn(bool push_on_set = true) {
+      auto get_setter_sink_fn(bool push_on_set = true) {
         return state_sink_binder<T>{this, push_on_set};
       }
   };

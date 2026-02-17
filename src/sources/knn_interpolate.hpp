@@ -123,7 +123,7 @@ namespace rheo::sources {
   //   combine: Function to combine weighted values (default: weighted average)
   //
   // Returns:
-  //   source_fn<std::optional<TValue>> - nullopt if storage is empty
+  //   A source of std::optional<TValue> - nullopt if storage is empty
   //
   // Usage:
   //   auto interpolated = knn_interpolate(
@@ -132,15 +132,17 @@ namespace rheo::sources {
   //     3  // Use 3 nearest neighbors
   //   );
   template <
+    typename KeySourceFn,
     typename TKey,
     typename TValue,
-    typename TDistance = float,
-    size_t N = 64,
+    typename TDistance,
+    size_t N,
     typename WeightFn = weight_fn<TDistance>,
     typename CombineFn = combine_fn<TValue, TDistance>
   >
-  source_fn<std::optional<TValue>> knn_interpolate(
-    source_fn<TKey> key_source,
+    requires concepts::SourceOf<KeySourceFn, TKey>
+  auto knn_interpolate(
+    KeySourceFn key_source,
     const KnnStorage<TKey, TValue, TDistance, N>& storage,
     size_t k,
     WeightFn weight = inverse_distance_weight<TDistance>,
@@ -149,10 +151,38 @@ namespace rheo::sources {
     using Mapper = knn_interpolate_mapper<TKey, TValue, TDistance, N, WeightFn, CombineFn>;
 
     return operators::map(
-      key_source,
+      std::move(key_source),
       Mapper{&storage, k, weight, combine}
     );
   }
+
+  namespace detail {
+
+    // Pipe factory for knn_interpolate.
+    template <
+      typename TKey,
+      typename TValue,
+      typename TDistance,
+      size_t N,
+      typename WeightFn,
+      typename CombineFn
+    >
+    struct knn_interpolate_pipe_factory {
+      const KnnStorage<TKey, TValue, TDistance, N>* storage;
+      size_t k;
+      WeightFn weight;
+      CombineFn combine;
+
+      template <typename KeySourceFn>
+        requires concepts::SourceOf<KeySourceFn, TKey>
+      auto operator()(KeySourceFn key_source) const {
+        return knn_interpolate<TValue, TDistance, N>(
+          std::move(key_source), *storage, k, weight, combine
+        );
+      }
+    };
+
+  } // namespace detail
 
   // Pipe version of knn_interpolate.
   template <
@@ -163,14 +193,14 @@ namespace rheo::sources {
     typename WeightFn = weight_fn<TDistance>,
     typename CombineFn = combine_fn<TValue, TDistance>
   >
-  pipe_fn<std::optional<TValue>, TKey> knn_interpolate(
+  auto knn_interpolate(
     const KnnStorage<TKey, TValue, TDistance, N>& storage,
     size_t k,
     WeightFn weight = inverse_distance_weight<TDistance>,
     CombineFn combine = weighted_average_scalar<TValue, TDistance>
   ) {
-    return [&storage, k, weight, combine](source_fn<TKey> key_source) {
-      return knn_interpolate(key_source, storage, k, weight, combine);
+    return detail::knn_interpolate_pipe_factory<TKey, TValue, TDistance, N, WeightFn, CombineFn>{
+      &storage, k, weight, combine
     };
   }
 
