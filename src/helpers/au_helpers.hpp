@@ -6,7 +6,7 @@
 #include <util.hpp>
 #include <operators/lift.hpp>
 
-namespace rheo {
+namespace rheo::helpers {
 
   using TempC = au::QuantityPoint<au::Celsius, float>;
   using DegC = au::Quantity<au::Celsius, float>;
@@ -92,13 +92,13 @@ namespace rheo {
 template <typename TUnit, typename TRep>
 struct fmt::formatter<au::Quantity<TUnit, TRep>> : fmt::formatter<std::string> {
   auto format(const au::Quantity<TUnit, TRep>& qty, format_context& ctx) const {
-    return fmt::formatter<std::string>::format(rheo::au_to_string(qty), ctx);
+    return fmt::formatter<std::string>::format(au_to_string(qty), ctx);
   }
 };
 
 template <typename TUnit, typename TRep>
 struct fmt::formatter<au::QuantityPoint<TUnit, TRep>> : fmt::formatter<std::string> {
   auto format(const au::QuantityPoint<TUnit, TRep>& qty, format_context& ctx) const {
-    return fmt::formatter<std::string>::format(rheo::au_to_string(qty), ctx);
+    return fmt::formatter<std::string>::format(au_to_string(qty), ctx);
   }
 };

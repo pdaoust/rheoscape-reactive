@@ -11,6 +11,7 @@
 #include <Adafruit_SSD1306.h>
 
 using namespace rheo;
+using namespace rheo::helpers;
 using namespace rheo::operators;
 using namespace rheo::sinks;
 using namespace rheo::sinks::arduino;

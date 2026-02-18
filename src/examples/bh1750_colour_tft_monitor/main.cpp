@@ -10,6 +10,7 @@
 #endif
 
 using namespace rheo;
+using namespace rheo::helpers;
 using namespace rheo::operators;
 using namespace rheo::sources;
 using namespace rheo::ui;
