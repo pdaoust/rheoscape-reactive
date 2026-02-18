@@ -17,23 +17,21 @@ namespace rheo::operators {
     CounterClockwise = -1,
   };
 
-  template <typename SourceAT, typename SourceBT>
-    requires concepts::Source<SourceAT> && concepts::Source<SourceBT>
-      && std::is_same_v<bool, typename SourceAT::value_type> && std::is_same_v<bool, typename SourceBT::value_type>
-  RHEO_CALLABLE auto quadrature_encode(SourceAT source_a, SourceBT source_b) {
-    using source_a_type = typename SourceAT::value_type;
-    using source_b_type = typename SourceBT::value_type;
+  template <typename SourceT>
+    requires concepts::Source<SourceT>
+      && std::is_same_v<std::tuple<bool, bool>, typename SourceT::value_type>
+  RHEO_CALLABLE auto quadrature_encode(SourceT source) {
     using acc_type = std::tuple<int8_t, int8_t, uint8_t>;
 
-    return combine(std::move(source_a), std::move(source_b))
-      | scan(
+    return scan(
+        source,
         acc_type(0, 0, 3),
-        [](acc_type acc, std::tuple<source_a_type, source_b_type> value) {
+        [](acc_type acc, std::tuple<bool, bool> value) {
           int8_t encoder_quarter_clicks = std::get<0>(acc);
           int8_t encoder_click = 0;
           uint8_t last_encoder_state = std::get<2>(acc);
-          bool a = static_cast<bool>(std::get<0>(value));
-          bool b = static_cast<bool>(std::get<1>(value));
+          bool a = std::get<0>(value);
+          bool b = std::get<1>(value);
 
           uint8_t current_state = (a << 1) | b;
           uint8_t combined = ((last_encoder_state & 0x03) << 2) | current_state;

@@ -10,8 +10,11 @@ using namespace rheo::sources;
 
 // Helper: create an unwrapped bool source from a vector.
 // The vector must outlive the source.
-auto make_pin_source(std::vector<bool>& values) {
-  return unwrap_endable(from_iterator(values.begin(), values.end()));
+auto make_pin_source(std::vector<bool>& a_values, std::vector<bool>& b_values) {
+  return combine(
+    unwrap_endable(from_iterator(a_values.begin(), a_values.end())),
+    unwrap_endable(from_iterator(b_values.begin(), b_values.end()))
+  );
 }
 
 // Quadrature state encoding: state = (A << 1) | B.
@@ -31,7 +34,7 @@ void test_one_clockwise_detent() {
   std::vector<bool> a_vals = { 1, 0, 0, 1, 1 };
   std::vector<bool> b_vals = { 1, 1, 0, 0, 1 };
 
-  auto encoded = quadrature_encode(make_pin_source(a_vals), make_pin_source(b_vals));
+  auto encoded = quadrature_encode(make_pin_source(a_vals, b_vals));
 
   std::vector<QuadratureEncodeDirection> results;
   pull_fn pull = encoded([&results](QuadratureEncodeDirection d) {
@@ -51,7 +54,7 @@ void test_one_counter_clockwise_detent() {
   std::vector<bool> a_vals = { 1, 1, 0, 0, 1 };
   std::vector<bool> b_vals = { 1, 0, 0, 1, 1 };
 
-  auto encoded = quadrature_encode(make_pin_source(a_vals), make_pin_source(b_vals));
+  auto encoded = quadrature_encode(make_pin_source(a_vals, b_vals));
 
   std::vector<QuadratureEncodeDirection> results;
   pull_fn pull = encoded([&results](QuadratureEncodeDirection d) {
@@ -71,7 +74,7 @@ void test_two_clockwise_detents() {
   std::vector<bool> a_vals = { 1, 0, 0, 1, 1, 0, 0, 1, 1 };
   std::vector<bool> b_vals = { 1, 1, 0, 0, 1, 1, 0, 0, 1 };
 
-  auto encoded = quadrature_encode(make_pin_source(a_vals), make_pin_source(b_vals));
+  auto encoded = quadrature_encode(make_pin_source(a_vals, b_vals));
 
   std::vector<QuadratureEncodeDirection> results;
   pull_fn pull = encoded([&results](QuadratureEncodeDirection d) {
@@ -94,7 +97,7 @@ void test_direction_reversal() {
   std::vector<bool> a_vals = { 1, 0, 0, 1, 1, 1, 0, 0, 1 };
   std::vector<bool> b_vals = { 1, 1, 0, 0, 1, 0, 0, 1, 1 };
 
-  auto encoded = quadrature_encode(make_pin_source(a_vals), make_pin_source(b_vals));
+  auto encoded = quadrature_encode(make_pin_source(a_vals, b_vals));
 
   std::vector<QuadratureEncodeDirection> results;
   pull_fn pull = encoded([&results](QuadratureEncodeDirection d) {
@@ -119,7 +122,7 @@ void test_incomplete_turn_debounces() {
   std::vector<bool> a_vals = { 1, 0, 0, 0, 1 };
   std::vector<bool> b_vals = { 1, 1, 0, 1, 1 };
 
-  auto encoded = quadrature_encode(make_pin_source(a_vals), make_pin_source(b_vals));
+  auto encoded = quadrature_encode(make_pin_source(a_vals, b_vals));
 
   std::vector<QuadratureEncodeDirection> results;
   pull_fn pull = encoded([&results](QuadratureEncodeDirection d) {
@@ -139,7 +142,7 @@ void test_no_change_produces_no_output() {
   std::vector<bool> a_vals = { 1, 1, 1, 1 };
   std::vector<bool> b_vals = { 1, 1, 1, 1 };
 
-  auto encoded = quadrature_encode(make_pin_source(a_vals), make_pin_source(b_vals));
+  auto encoded = quadrature_encode(make_pin_source(a_vals, b_vals));
 
   std::vector<QuadratureEncodeDirection> results;
   pull_fn pull = encoded([&results](QuadratureEncodeDirection d) {
