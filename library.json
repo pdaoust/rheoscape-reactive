@@ -1,0 +1,41 @@
+{
+  "$schema": "https://raw.githubusercontent.com/platformio/platformio-core/develop/platformio/assets/schema/library.json",
+  "name": "rheoscape-reactive",
+  "version": "0.1.0",
+  "description": "Functional reactive programming library for embedded systems, linking data sources and sinks with composable operators",
+  "keywords": ["reactive", "frp", "embedded", "iot", "streams", "functional"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pdaoust/rheoscape-reactive.git"
+  },
+  "authors": [
+    {
+      "name": "Paul d'Aoust",
+      "url": "https://github.com/pdaoust"
+    }
+  ],
+  "license": "GPL-3.0-only",
+  "frameworks": ["arduino"],
+  "platforms": ["espressif32", "raspberrypi"],
+  "headers": "rheoscape.hpp",
+  "build": {
+    "srcFilter": [
+      "+<*>",
+      "-<main.cpp>",
+      "-<main_toe_thing.cpp>",
+      "-<next-steps-*.md>"
+    ],
+    "flags": ["-std=gnu++20"]
+  },
+  "examples": [
+    {
+      "name": "BH1750 Colour TFT Monitor",
+      "base": "examples/bh1750_colour_tft_monitor",
+      "files": ["main.cpp"]
+    }
+  ],
+  "dependencies": {
+    "fmtlib/fmt": "^8.1.1",
+    "bblanchon/ArduinoJson": "^7.4.2"
+  }
+}
