@@ -6,7 +6,7 @@
 #include <operators/scan.hpp>
 #include <operators/combine.hpp>
 #include <operators/map.hpp>
-#include <operators/map_tuple.hpp>
+#include <operators/map.hpp>
 #include <operators/pid_autotune/autotune_types.hpp>
 
 namespace rheo::autotune {
@@ -281,7 +281,7 @@ namespace rheo::autotune {
     // Combine input sources
     source_fn<InputType> combined_source =
       operators::combine(process_variable_source, setpoint_source, clock_source)
-      | operators::map_tuple(InputCombiner{});
+      | operators::map(InputCombiner{});
 
     // Initial state
     StateType initial_state{

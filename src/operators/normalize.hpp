@@ -6,7 +6,7 @@
 #include <types/Range.hpp>
 #include <types/au_all_units_noio.hpp>
 #include <operators/combine.hpp>
-#include <operators/map_tuple.hpp>
+#include <operators/map.hpp>
 
 namespace rheo::operators {
 
@@ -59,7 +59,7 @@ namespace rheo::operators {
     };
 
     return combine(std::move(source), std::move(from_source), std::move(to_source))
-      | map_tuple(Combiner{});
+      | map(Combiner{});
   }
 
   namespace detail {

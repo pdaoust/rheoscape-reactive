@@ -25,7 +25,7 @@ namespace rheo::operators {
 
           RHEO_CALLABLE void operator()(T&& value) const {
             if (running) {
-              if (!condition(value)) {
+              if (!invoke_maybe_apply(condition, value)) {
                 running = false;
                 push(Endable<T>());
               } else {
@@ -62,7 +62,7 @@ namespace rheo::operators {
       FilterFnDecayed condition;
 
       RHEO_CALLABLE bool operator()(T value) const {
-        return !condition(value);
+        return !invoke_maybe_apply(condition, value);
       }
     };
 

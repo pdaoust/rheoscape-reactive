@@ -285,6 +285,14 @@ namespace rheo {
   template<typename T>
   inline constexpr bool is_chrono_time_point_v = is_chrono_time_point<T>::value;
 
+  // Type trait to detect std::tuple types.
+  template<typename T>
+  struct is_tuple : std::false_type {};
+  template<typename... Ts>
+  struct is_tuple<std::tuple<Ts...>> : std::true_type {};
+  template<typename T>
+  inline constexpr bool is_tuple_v = is_tuple<T>::value;
+
   // Can be used to represent the state of input switches that are pulled high or low,
   // or to represent commands to drive switch outputs.
   enum class SwitchState {
@@ -344,10 +352,88 @@ namespace rheo {
   template<typename V>
   using vector_value_t = typename vector_value_type<V>::type;
 
+  // ============================================================================
+  // Apply Result Type Trait
+  // ============================================================================
+  //
+  // Helper to get the result type of applying a callable to a tuple via std::apply.
+
+  template<typename F, typename Tuple>
+  struct apply_result;
+
+  template<typename F, typename... Args>
+  struct apply_result<F, std::tuple<Args...>> {
+    using type = std::invoke_result_t<F, Args...>;
+  };
+
+  template<typename F, typename Tuple>
+  using apply_result_t = typename apply_result<F, Tuple>::type;
+
+  // Prepend a type to a tuple's element list.
+  // Needed for scanner fallback where we prepend the accumulator type.
+  template<typename T, typename Tuple> struct tuple_prepend;
+  template<typename T, typename... Ts>
+  struct tuple_prepend<T, std::tuple<Ts...>> { using type = std::tuple<T, Ts...>; };
+  template<typename T, typename Tuple>
+  using tuple_prepend_t = typename tuple_prepend<T, Tuple>::type;
+
+  // Result type of calling a function with either a value directly
+  // or its unpacked tuple elements via std::apply.
+  // Direct invocation takes priority over unpacking.
+  // Uses lazy evaluation to avoid instantiating apply_result for non-tuple types.
+  template<typename F, typename TIn, typename = void>
+  struct invoke_maybe_apply_result {
+    using type = apply_result_t<std::decay_t<F>, std::decay_t<TIn>>;
+  };
+  template<typename F, typename TIn>
+  struct invoke_maybe_apply_result<F, TIn, std::enable_if_t<std::is_invocable_v<F, TIn>>> {
+    using type = std::invoke_result_t<F, TIn>;
+  };
+  template<typename F, typename TIn>
+  using invoke_maybe_apply_result_t = typename invoke_maybe_apply_result<F, TIn>::type;
+
+  // Same as invoke_maybe_apply_result_t but for scanner's (acc, value) pattern.
+  template<typename F, typename TAcc, typename TIn, typename = void>
+  struct invoke_scanner_maybe_apply_result {
+    using type = apply_result_t<std::decay_t<F>, tuple_prepend_t<TAcc, std::decay_t<TIn>>>;
+  };
+  template<typename F, typename TAcc, typename TIn>
+  struct invoke_scanner_maybe_apply_result<F, TAcc, TIn, std::enable_if_t<std::is_invocable_v<F, TAcc, TIn>>> {
+    using type = std::invoke_result_t<F, TAcc, TIn>;
+  };
+  template<typename F, typename TAcc, typename TIn>
+  using invoke_scanner_maybe_apply_result_t = typename invoke_scanner_maybe_apply_result<F, TAcc, TIn>::type;
+
+  // Dispatch function: tries direct call first, falls back to std::apply.
+  template<typename F, typename TIn>
+  decltype(auto) invoke_maybe_apply(F&& f, TIn&& value) {
+    if constexpr (std::is_invocable_v<F&&, TIn&&>) {
+      return std::invoke(std::forward<F>(f), std::forward<TIn>(value));
+    } else {
+      return std::apply(std::forward<F>(f), std::forward<TIn>(value));
+    }
+  }
+
+  // Dispatch function for scanner's (acc, value) pattern.
+  template<typename F, typename TAcc, typename TIn>
+  decltype(auto) invoke_scanner_maybe_apply(F&& f, TAcc&& acc, TIn&& value) {
+    if constexpr (std::is_invocable_v<F&&, TAcc&&, TIn&&>) {
+      return std::invoke(std::forward<F>(f), std::forward<TAcc>(acc), std::forward<TIn>(value));
+    } else {
+      return std::apply(
+        [&f, &acc](auto&&... args) -> decltype(auto) {
+          return std::invoke(std::forward<F>(f), std::forward<TAcc>(acc),
+                             std::forward<decltype(args)>(args)...);
+        },
+        std::forward<TIn>(value)
+      );
+    }
+  }
+
   // Extract the output element type from a flat-map function's return vector.
   // Given F(TIn) -> std::vector<TOut>, yields TOut.
   template<typename F, typename TIn>
-  using flat_map_value_t = vector_value_t<std::invoke_result_t<F, TIn>>;
+  using flat_map_value_t = vector_value_t<invoke_maybe_apply_result_t<F, TIn>>;
 
   namespace concepts {
 
@@ -362,22 +448,42 @@ namespace rheo {
     template<typename F, typename... Args>
     concept Callable = std::invocable<F, Args...>;
 
-    // Transformer: Single-input function that returns non-void
-    template<typename F, typename TIn>
-    concept Transformer = requires(F f, TIn in) {
-      { f(in) } -> std::convertible_to<std::invoke_result_t<F, TIn>>;
-      requires !std::is_void_v<std::invoke_result_t<F, TIn>>;
-    };
+    // TupleMapper: A callable that can be applied to a tuple's elements via std::apply.
+    // Ensures the mapper's arity matches the tuple size and returns non-void.
+    // Uses std::decay_t<F> to properly handle mutable lambdas (whose operator() is non-const).
+    template<typename F, typename TTuple>
+    concept TupleMapper = requires(std::decay_t<F>& f, TTuple t) {
+      { std::apply(f, t) };
+    } && !std::is_void_v<apply_result_t<std::decay_t<F>, TTuple>>;
 
-    // Visitor: Single-input function that returns void
+    // Transformer: Single-input function that returns non-void.
+    // Also matches multi-arg functions when TIn is a tuple
+    // (auto-unpacking via std::apply), but only if direct invocation doesn't work.
     template<typename F, typename TIn>
-    concept Visitor = requires(F f, TIn in) {
-      { f(in) } -> std::same_as<void>;
-    };
+    concept Transformer =
+      (std::invocable<F, TIn> && !std::is_void_v<std::invoke_result_t<F, TIn>>)
+      || (is_tuple_v<std::decay_t<TIn>> && !std::invocable<F, TIn>
+          && TupleMapper<F, std::decay_t<TIn>>);
 
-    // Predicate: Single-input function that returns bool (alias for clarity)
+    // Visitor: Single-input function that returns void.
+    // Also matches multi-arg void functions when TIn is a tuple (auto-unpacking).
+    template<typename F, typename TIn>
+    concept Visitor =
+      (std::invocable<F, TIn> && std::is_void_v<std::invoke_result_t<F, TIn>>)
+      || (is_tuple_v<std::decay_t<TIn>> && !std::invocable<F, TIn>
+          && requires(std::decay_t<F>& f, std::decay_t<TIn> t) {
+            { std::apply(f, t) } -> std::same_as<void>;
+          });
+
+    // Predicate: Single-input function that returns bool.
+    // Also matches multi-arg bool functions when T is a tuple (auto-unpacking).
     template<typename F, typename T>
-    concept Predicate = std::predicate<F, T>;
+    concept Predicate =
+      std::predicate<F, T>
+      || (is_tuple_v<std::decay_t<T>> && !std::invocable<F, T>
+          && requires(std::decay_t<F>& f, std::decay_t<T> t) {
+            { std::apply(f, t) } -> std::convertible_to<bool>;
+          });
 
     // Combiner2: Two-input transformer
     template<typename F, typename T1, typename T2>
@@ -393,24 +499,33 @@ namespace rheo {
       !std::is_void_v<std::invoke_result_t<F, TInputs...>> &&
       sizeof...(TInputs) >= 2;
 
-    // Scanner: Accumulator function that takes (accumulator, value) and returns new accumulator
+    // Scanner: Accumulator function that takes (accumulator, value)
+    // and returns new accumulator.
+    // Also matches multi-arg scanners when TIn is a tuple (auto-unpacking).
     template<typename F, typename TAcc, typename TIn>
     concept Scanner =
-      std::invocable<F, TAcc, TIn> &&
-      std::convertible_to<std::invoke_result_t<F, TAcc, TIn>, TAcc>;
+      (std::invocable<F, TAcc, TIn> &&
+       std::convertible_to<std::invoke_result_t<F, TAcc, TIn>, TAcc>)
+      || (is_tuple_v<std::decay_t<TIn>> && !std::invocable<F, TAcc, TIn>
+          && std::convertible_to<
+               invoke_scanner_maybe_apply_result_t<F, TAcc, TIn>, TAcc>);
 
     // FlatMapper: Function that takes TIn and returns std::vector<TOut> for some TOut.
     // Use flat_map_value_t<F, TIn> to extract TOut.
+    // Also matches multi-arg functions when TIn is a tuple (auto-unpacking).
     template<typename F, typename TIn>
     concept FlatMapper =
-      std::invocable<F, TIn> &&
-      is_vector_v<std::invoke_result_t<F, TIn>>;
+      (std::invocable<F, TIn> && is_vector_v<std::invoke_result_t<F, TIn>>)
+      || (is_tuple_v<std::decay_t<TIn>> && !std::invocable<F, TIn>
+          && is_vector_v<apply_result_t<std::decay_t<F>, std::decay_t<TIn>>>);
 
-    // FilterMapper: Function that returns std::optional<T> (for filter_map operations)
+    // FilterMapper: Function that returns std::optional<T> (for filter_map operations).
+    // Also matches multi-arg functions when TIn is a tuple (auto-unpacking).
     template<typename F, typename TIn>
     concept FilterMapper =
-      std::invocable<F, TIn> &&
-      is_optional_v<std::invoke_result_t<F, TIn>>;
+      (std::invocable<F, TIn> && is_optional_v<std::invoke_result_t<F, TIn>>)
+      || (is_tuple_v<std::decay_t<TIn>> && !std::invocable<F, TIn>
+          && is_optional_v<apply_result_t<std::decay_t<F>, std::decay_t<TIn>>>);
 
     // TimePointAndDurationCompatible: Checks that TTimePoint can be subtracted
     // to produce a result comparable with TDuration.
@@ -444,35 +559,6 @@ namespace rheo {
       return value.is_valid();
     }
   }
-
-  // ============================================================================
-  // Apply Result Type Trait
-  // ============================================================================
-  //
-  // Helper to get the result type of applying a callable to a tuple via std::apply.
-
-  template<typename F, typename Tuple>
-  struct apply_result;
-
-  template<typename F, typename... Args>
-  struct apply_result<F, std::tuple<Args...>> {
-    using type = std::invoke_result_t<F, Args...>;
-  };
-
-  template<typename F, typename Tuple>
-  using apply_result_t = typename apply_result<F, Tuple>::type;
-
-  namespace concepts {
-
-    // TupleMapper: A callable that can be applied to a tuple's elements via std::apply.
-    // Ensures the mapper's arity matches the tuple size and returns non-void.
-    // Uses std::decay_t<F> to properly handle mutable lambdas (whose operator() is non-const).
-    template<typename F, typename TTuple>
-    concept TupleMapper = requires(std::decay_t<F>& f, TTuple t) {
-      { std::apply(f, t) };
-    } && !std::is_void_v<apply_result_t<std::decay_t<F>, TTuple>>;
-
-  } // namespace concepts
 
   // ============================================================================
   // Inline Control Macro

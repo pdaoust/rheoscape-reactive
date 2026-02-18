@@ -18,13 +18,13 @@
 #include <operators/lift.hpp>
 #include <operators/log_errors.hpp>
 #include <operators/map.hpp>
-#include <operators/map_tuple.hpp>
 #include <operators/merge.hpp>
 #include <operators/normalize.hpp>
 #include <operators/pid.hpp>
 #include <operators/quadrature_encode.hpp>
 #include <operators/sample.hpp>
 #include <operators/scan.hpp>
+#include <operators/settle.hpp>
 #include <operators/share.hpp>
 #include <operators/split_and_combine.hpp>
 #include <operators/start_when.hpp>

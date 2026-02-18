@@ -10,7 +10,7 @@ namespace rheo::operators {
     template <typename SourceT, typename FilterMapFnT>
     struct FilterMapSourceBinder {
       using TIn = source_value_t<SourceT>;
-      using value_type = typename std::invoke_result_t<FilterMapFnT, TIn>::value_type;
+      using value_type = typename invoke_maybe_apply_result_t<FilterMapFnT, TIn>::value_type;
 
       SourceT source;
       FilterMapFnT filter_mapper;
@@ -24,7 +24,7 @@ namespace rheo::operators {
           PushFn push;
 
           RHEO_CALLABLE void operator()(TIn value) const {
-            std::optional<TOut> maybe_mapped = filter_mapper(value);
+            std::optional<TOut> maybe_mapped = invoke_maybe_apply(filter_mapper, std::move(value));
             if (maybe_mapped.has_value()) {
               push(maybe_mapped.value());
             }

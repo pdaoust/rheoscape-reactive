@@ -5,7 +5,7 @@
 #include <operators/map.hpp>
 #include <operators/share.hpp>
 #include <operators/combine.hpp>
-#include <operators/map_tuple.hpp>
+#include <operators/map.hpp>
 
 namespace rheo::operators {
 
@@ -20,7 +20,7 @@ namespace rheo::operators {
     CombineFn combiner
   ) {
     return combine(pipe1(map(source, mapper1)), pipe2(map(source, mapper2)))
-      | map_tuple(combiner);
+      | map(combiner);
   }
 
   namespace detail {

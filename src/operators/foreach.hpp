@@ -27,7 +27,7 @@ namespace rheo::operators {
           ExecFn exec;
 
           RHEO_CALLABLE void operator()(T value) const {
-            exec(value);
+            invoke_maybe_apply(exec, std::move(value));
           }
         };
 

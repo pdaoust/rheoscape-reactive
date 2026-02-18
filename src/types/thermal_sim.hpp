@@ -6,7 +6,7 @@
 #include <operators/scan.hpp>
 #include <operators/combine.hpp>
 #include <operators/map.hpp>
-#include <operators/map_tuple.hpp>
+#include <operators/map.hpp>
 
 namespace rheo {
 
@@ -162,7 +162,7 @@ namespace rheo {
 
     source_fn<InputType> combined_source =
       operators::combine(duty_source, clock_source, disturbance_source)
-      | operators::map_tuple(thermal_sim_combiner<TDuty, TTimePoint, TPower>{});
+      | operators::map(thermal_sim_combiner<TDuty, TTimePoint, TPower>{});
 
     StateType initial_state{
       initial_temperature,
@@ -195,7 +195,7 @@ namespace rheo {
 
     source_fn<InputType> combined_source =
       operators::combine(duty_source, clock_source)
-      | operators::map_tuple(thermal_sim_combiner_no_disturbance<TDuty, TTimePoint, TPower>{});
+      | operators::map(thermal_sim_combiner_no_disturbance<TDuty, TTimePoint, TPower>{});
 
     StateType initial_state{
       initial_temperature,

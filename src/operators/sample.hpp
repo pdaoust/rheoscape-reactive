@@ -10,7 +10,7 @@ namespace rheo::operators {
 
   // Sample the second stream every time the first stream receives a value.
   // Returns a tuple of (event_value, sampled_value).
-  // To transform the tuple, use: sample(...) | map_tuple(mapper)
+  // To transform the tuple, use: sample(...) | map(mapper)
   // This source ends if either stream ends.
 
   namespace detail {

@@ -1,8 +1,10 @@
 #include <unity.h>
 #include <functional>
 #include <operators/filter.hpp>
+#include <operators/combine.hpp>
 #include <operators/unwrap.hpp>
 #include <sources/sequence.hpp>
+#include <sources/constant.hpp>
 
 using namespace rheo;
 using namespace rheo::operators;
@@ -21,8 +23,26 @@ void test_filter_filters() {
   }
 }
 
+void test_filter_with_tuple_unpacking() {
+  source_fn<int> a = constant(3);
+  source_fn<int> b = constant(5);
+  auto combined = combine(a, b);
+
+  // Filter with unpacked tuple args: keep only where x < y.
+  auto filtered = filter(combined, [](int x, int y) { return x < y; });
+
+  bool pushed = false;
+  pull_fn pull = filtered([&pushed](std::tuple<int, int>) {
+    pushed = true;
+  });
+
+  pull();
+  TEST_ASSERT_TRUE_MESSAGE(pushed, "filter with tuple unpacking should pass (3, 5) since 3 < 5");
+}
+
 int main(int argc, char **argv) {
   UNITY_BEGIN();
   RUN_TEST(test_filter_filters);
+  RUN_TEST(test_filter_with_tuple_unpacking);
   UNITY_END();
 }

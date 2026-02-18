@@ -3,7 +3,7 @@
 #include <functional>
 #include <core_types.hpp>
 #include <operators/combine.hpp>
-#include <operators/map_tuple.hpp>
+#include <operators/map.hpp>
 #include <sinks/arduino/gfx/types.hpp>
 
 namespace rheo::sinks::arduino::gfx {
@@ -15,7 +15,7 @@ namespace rheo::sinks::arduino::gfx {
     source_fn<Coords> coords_source
   ) {
     return operators::combine(text_source, hints_source, coords_source)
-      | operators::map_tuple([](std::string text, TextHints hints, Coords coords) {
+      | operators::map([](std::string text, TextHints hints, Coords coords) {
           std::vector<GfxCommand<GFXcanvas1>> commands = {
             [text, hints, coords](GFXcanvas1& canvas) {
               canvas.setCursor(coords.x, coords.y);

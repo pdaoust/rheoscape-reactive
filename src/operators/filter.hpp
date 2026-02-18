@@ -22,7 +22,7 @@ namespace rheo::operators {
           PushFn push;
 
           RHEO_CALLABLE void operator()(T value) const {
-            if (filterer(value)) {
+            if (invoke_maybe_apply(filterer, value)) {
               push(value);
             }
           }

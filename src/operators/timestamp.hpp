@@ -4,7 +4,7 @@
 #include <core_types.hpp>
 #include <types/TaggedValue.hpp>
 #include <operators/combine.hpp>
-#include <operators/map_tuple.hpp>
+#include <operators/map.hpp>
 
 namespace rheo::operators {
 
@@ -21,7 +21,7 @@ namespace rheo::operators {
     };
 
     return combine(std::move(source), std::move(clock_source))
-      | map_tuple(Tagger{});
+      | map(Tagger{});
   }
 
   namespace detail {

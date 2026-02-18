@@ -30,7 +30,7 @@ namespace rheo::operators {
           RHEO_CALLABLE void operator()(T value) const {
             // Pass as const reference to prevent exec from consuming the value.
             // The value must remain intact for downstream.
-            exec(std::as_const(value));
+            invoke_maybe_apply(exec, std::as_const(value));
             push_downstream(std::move(value));
           }
         };

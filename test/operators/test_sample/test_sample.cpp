@@ -66,7 +66,7 @@ void test_sample_handles_reentrant_push_from_downstream() {
     emit_count++;
     last_value = sampled_value;
     // Simulate downstream pipeline that updates the State
-    // (like: map_tuple([](bool, int v) { return v + 1; }) | state.get_setter_sink_fn())
+    // (like: map([](bool, int v) { return v + 1; }) | state.get_setter_sink_fn())
     state.set(sampled_value + 1);
   });
 

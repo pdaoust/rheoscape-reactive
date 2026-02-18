@@ -10,7 +10,7 @@ namespace rheo::operators {
     template <typename SourceT, typename MapFnT>
     struct MapSourceBinder {
       using TIn = source_value_t<SourceT>;
-      using value_type = std::invoke_result_t<MapFnT, TIn>;
+      using value_type = invoke_maybe_apply_result_t<MapFnT, TIn>;
 
       SourceT source;
       MapFnT mapper;
@@ -23,7 +23,7 @@ namespace rheo::operators {
           MapFnT mapper;
 
           RHEO_CALLABLE void operator()(TIn value) const {
-            push(mapper(value));
+            push(invoke_maybe_apply(mapper, std::move(value)));
           }
         };
 

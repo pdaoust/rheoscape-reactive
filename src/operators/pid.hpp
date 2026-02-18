@@ -7,7 +7,7 @@
 #include <operators/scan.hpp>
 #include <operators/map.hpp>
 #include <operators/combine.hpp>
-#include <operators/map_tuple.hpp>
+#include <operators/map.hpp>
 
 namespace rheo::operators {
 
@@ -229,7 +229,7 @@ namespace rheo::operators {
 
     source_fn<DataType> combined_source =
       combine(process_variable_source, setpoint_source, clock_source, weights_source)
-      | map_tuple(DataCombiner{});
+      | map(DataCombiner{});
 
     return scan(
       combined_source,

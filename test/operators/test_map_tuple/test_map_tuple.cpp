@@ -1,6 +1,6 @@
 #include <unity.h>
 #include <core_types.hpp>
-#include <operators/map_tuple.hpp>
+#include <operators/map.hpp>
 #include <operators/combine.hpp>
 #include <sources/constant.hpp>
 
@@ -12,7 +12,7 @@ void test_map_tuple_transforms_tuple() {
   source_fn<int> a = constant(3);
   source_fn<int> b = constant(5);
   auto combined = combine(a, b);
-  auto mapped = map_tuple(combined, [](int x, int y) { return x + y; });
+  auto mapped = map(combined, [](int x, int y) { return x + y; });
 
   int pushed_value = 0;
   pull_fn pull = mapped([&pushed_value](int v) {
@@ -27,7 +27,7 @@ void test_map_tuple_pipe_factory() {
   source_fn<int> a = constant(3);
   source_fn<std::string> b = constant(std::string("hello"));
 
-  auto result = combine(a, b) | map_tuple([](int x, std::string s) {
+  auto result = combine(a, b) | map([](int x, std::string s) {
     return s + std::to_string(x);
   });
 
@@ -46,7 +46,7 @@ void test_map_tuple_with_stateful_mapper() {
   auto combined = combine(a, b);
 
   int call_count = 0;
-  auto mapped = map_tuple(combined, [&call_count](int x, int y) {
+  auto mapped = map(combined, [&call_count](int x, int y) {
     call_count++;
     return x * y + call_count;
   });
@@ -71,7 +71,7 @@ void test_map_tuple_with_three_elements() {
   source_fn<int> c = constant(3);
   auto combined = combine(a, b, c);
 
-  auto mapped = map_tuple(combined, [](int x, int y, int z) {
+  auto mapped = map(combined, [](int x, int y, int z) {
     return x + y + z;
   });
 
@@ -89,7 +89,7 @@ void test_map_tuple_returns_different_type() {
   source_fn<int> b = constant(0);
   auto combined = combine(a, b);
 
-  auto mapped = map_tuple(combined, [](int x, int y) {
+  auto mapped = map(combined, [](int x, int y) {
     return x > y;
   });
 
@@ -102,6 +102,26 @@ void test_map_tuple_returns_different_type() {
   TEST_ASSERT_TRUE_MESSAGE(pushed_value, "should return true for 42 > 0");
 }
 
+// Test that direct invocation takes priority over unpacking.
+// A function that takes std::tuple<int, int> directly should still work.
+void test_map_direct_tuple_takes_priority() {
+  source_fn<int> a = constant(3);
+  source_fn<int> b = constant(5);
+  auto combined = combine(a, b);
+
+  auto mapped = map(combined, [](std::tuple<int, int> t) {
+    return std::get<0>(t) * std::get<1>(t);
+  });
+
+  int pushed_value = 0;
+  pull_fn pull = mapped([&pushed_value](int v) {
+    pushed_value = v;
+  });
+
+  pull();
+  TEST_ASSERT_EQUAL_MESSAGE(15, pushed_value, "direct tuple invocation should take priority");
+}
+
 int main(int argc, char **argv) {
   UNITY_BEGIN();
   RUN_TEST(test_map_tuple_transforms_tuple);
@@ -109,5 +129,6 @@ int main(int argc, char **argv) {
   RUN_TEST(test_map_tuple_with_stateful_mapper);
   RUN_TEST(test_map_tuple_with_three_elements);
   RUN_TEST(test_map_tuple_returns_different_type);
+  RUN_TEST(test_map_direct_tuple_takes_priority);
   UNITY_END();
 }

@@ -23,7 +23,7 @@ namespace rheo::operators {
           mutable bool started = false;
 
           RHEO_CALLABLE void operator()(T value) const {
-            if (!started && condition(value)) {
+            if (!started && invoke_maybe_apply(condition, value)) {
               started = true;
             }
             if (started) {

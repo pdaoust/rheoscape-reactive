@@ -30,7 +30,7 @@ namespace rheo::operators {
   // For pull-based usage, pulling combine will pull the first source, which triggers
   // the cascade described above.
   //
-  // To transform the tuple into a different type, use: combine(...) | map_tuple(mapper)
+  // To transform the tuple into a different type, use: combine(...) | map(mapper)
   //
   // All of these sources end when any of their upstream sources ends.
   //
@@ -192,7 +192,7 @@ namespace rheo::operators {
   // Combine multiple sources into a tuple of their values.
   //
   // Usage: combine(source1, source2, source3)
-  // To transform the tuple, use: combine(...) | map_tuple(mapper)
+  // To transform the tuple, use: combine(...) | map(mapper)
   template <typename... SourceTs>
     requires (sizeof...(SourceTs) >= 2) && (concepts::Source<SourceTs> && ...)
   RHEO_CALLABLE auto combine(SourceTs... sources) {

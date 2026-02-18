@@ -25,7 +25,7 @@ namespace rheo::operators {
           mutable TAcc acc;
 
           RHEO_CALLABLE void operator()(TIn value) const {
-            acc = scanner(acc, value);
+            acc = invoke_scanner_maybe_apply(scanner, std::move(acc), std::move(value));
             push(acc);
           }
         };
@@ -54,7 +54,7 @@ namespace rheo::operators {
             if (!acc.has_value()) {
               acc.emplace(value);
             } else {
-              acc.emplace(scanner(acc.value(), value));
+              acc.emplace(invoke_scanner_maybe_apply(scanner, std::move(acc.value()), std::move(value)));
               push(acc.value());
             }
           }

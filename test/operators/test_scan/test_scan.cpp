@@ -1,8 +1,10 @@
 #include <unity.h>
 #include <functional>
 #include <operators/scan.hpp>
+#include <operators/combine.hpp>
 #include <operators/unwrap.hpp>
 #include <sources/sequence.hpp>
+#include <sources/constant.hpp>
 #include <sources/empty.hpp>
 
 using namespace rheo;
@@ -74,9 +76,33 @@ void test_scan_scans_without_initial() {
   TEST_ASSERT_EQUAL_MESSAGE(45, pushed_value, "should combine acc with tenth item");
 }
 
+void test_scan_with_tuple_unpacking() {
+  source_fn<int> a = constant(3);
+  source_fn<int> b = constant(5);
+  auto combined = combine(a, b);
+
+  // Scan with tuple unpacking: accumulate sum of (x + y) from each tuple.
+  auto scanned = scan(
+    combined,
+    0,
+    [](int acc, int x, int y) { return acc + x + y; }
+  );
+
+  int pushed_value = 0;
+  pull_fn pull = scanned([&pushed_value](int v) {
+    pushed_value = v;
+  });
+
+  pull();
+  TEST_ASSERT_EQUAL_MESSAGE(8, pushed_value, "first pull: 0 + 3 + 5 = 8");
+  pull();
+  TEST_ASSERT_EQUAL_MESSAGE(16, pushed_value, "second pull: 8 + 3 + 5 = 16");
+}
+
 int main(int argc, char **argv) {
   UNITY_BEGIN();
   RUN_TEST(test_scan_scans_with_initial);
   RUN_TEST(test_scan_scans_without_initial);
+  RUN_TEST(test_scan_with_tuple_unpacking);
   UNITY_END();
 }

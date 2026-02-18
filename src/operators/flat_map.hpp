@@ -24,7 +24,7 @@ namespace rheo::operators {
           PushFn push;
 
           RHEO_CALLABLE void operator()(TIn value) const {
-            std::vector<value_type> values = mapper(value);
+            auto values = invoke_maybe_apply(mapper, std::move(value));
             for (value_type& v : values) {
               push(v);
             }

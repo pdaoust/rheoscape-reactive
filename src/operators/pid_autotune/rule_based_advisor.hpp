@@ -6,7 +6,7 @@
 #include <operators/scan.hpp>
 #include <operators/combine.hpp>
 #include <operators/map.hpp>
-#include <operators/map_tuple.hpp>
+#include <operators/map.hpp>
 #include <operators/pid.hpp>
 #include <operators/pid_autotune/autotune_types.hpp>
 
@@ -297,7 +297,7 @@ namespace rheo::autotune {
     // Combine input sources
     source_fn<InputType> combined_source =
       operators::combine(pid_output_source, clock_source, target_fitness_source)
-      | operators::map_tuple(InputCombiner{});
+      | operators::map(InputCombiner{});
 
     // Initial state
     RuleBasedState<TP, TTimePoint, TFitness> initial_inner_state{
@@ -376,7 +376,7 @@ namespace rheo::autotune {
     // Combine input sources (with scalar target)
     source_fn<InputType> combined_source =
       operators::combine(pid_output_source, clock_source)
-      | operators::map_tuple(InputCombiner{config.target_fitness});
+      | operators::map(InputCombiner{config.target_fitness});
 
     // Initial state
     RuleBasedState<TP, TTimePoint, TFitness> initial_inner_state{
