@@ -2,7 +2,7 @@
   #include <types/arduino_millis_clock.hpp>
 #endif
 #include <types/au_all_units_noio.hpp>
-#include <types/EventSource.hpp>
+#include <types/Emitter.hpp>
 #include <types/mock_clock.hpp>
 #include <types/rep_clock.hpp>
 #include <types/Range.hpp>

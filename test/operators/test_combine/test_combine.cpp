@@ -4,7 +4,7 @@
 #include <sources/constant.hpp>
 #include <sources/sequence.hpp>
 #include <types/State.hpp>
-#include <types/EventSource.hpp>
+#include <types/Emitter.hpp>
 
 using namespace rheo;
 using namespace rheo::operators;
