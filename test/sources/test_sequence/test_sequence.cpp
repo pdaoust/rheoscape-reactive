@@ -1,8 +1,8 @@
 #include <unity.h>
 #include <sources/sequence.hpp>
 
-using namespace rheo;
-using namespace rheo::sources;
+using namespace rheoscape;
+using namespace rheoscape::sources;
 
 void test_sequence_yields_all_values_then_ends() {
   int pushed_value = 0;

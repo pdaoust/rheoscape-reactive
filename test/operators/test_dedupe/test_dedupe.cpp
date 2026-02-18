@@ -2,11 +2,11 @@
 #include <types/State.hpp>
 #include <operators/dedupe.hpp>
 
-using namespace rheo;
-using namespace rheo::operators;
+using namespace rheoscape;
+using namespace rheoscape::operators;
 
 void test_dedupe_dedupes() {
-  rheo::State<int> state;
+  rheoscape::State<int> state;
   auto deduped_state = dedupe(state.get_source_fn());
   int value = 0;
   int pushed_count = 0;

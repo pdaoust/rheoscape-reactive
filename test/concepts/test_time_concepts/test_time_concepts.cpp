@@ -1,10 +1,10 @@
 #include <unity.h>
 #include <chrono>
 #include <string>
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 
-using namespace rheo;
-using namespace rheo::concepts;
+using namespace rheoscape;
+using namespace rheoscape::concepts;
 
 // =============================================================================
 // Static assertions to verify TimePointAndDurationCompatible concept

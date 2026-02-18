@@ -1,8 +1,8 @@
 #pragma once
 
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 
-namespace rheo::sources {
+namespace rheoscape::sources {
 
   namespace detail {
 
@@ -11,7 +11,7 @@ namespace rheo::sources {
       T value;
       PushFn push;
 
-      RHEO_CALLABLE void operator()() const {
+      RHEOSCAPE_CALLABLE void operator()() const {
         push(value);
       }
     };
@@ -22,7 +22,7 @@ namespace rheo::sources {
       T value;
 
       template <typename PushFn>
-      RHEO_CALLABLE auto operator()(PushFn push) const {
+      RHEOSCAPE_CALLABLE auto operator()(PushFn push) const {
         return constant_pull_handler<T, PushFn>{value, std::move(push)};
       }
     };

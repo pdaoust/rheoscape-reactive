@@ -2,11 +2,11 @@
 
 #include <functional>
 #include <types/au_all_units_noio.hpp>
-#include <core_types.hpp>
-#include <util.hpp>
+#include <types/core_types.hpp>
+#include <util/misc.hpp>
 #include <operators/lift.hpp>
 
-namespace rheo::helpers {
+namespace rheoscape::helpers {
 
   using TempC = au::QuantityPoint<au::Celsius, float>;
   using DegC = au::Quantity<au::Celsius, float>;

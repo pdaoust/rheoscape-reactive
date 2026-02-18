@@ -1,10 +1,10 @@
 #pragma once
 
 #include <functional>
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 #include <operators/timestamp.hpp>
 
-namespace rheo::operators {
+namespace rheoscape::operators {
 
   // Only allow at most one value per interval,
   // dropping everything in between.
@@ -19,14 +19,14 @@ namespace rheo::operators {
       TInterval interval;
 
       template <typename PushFn>
-      RHEO_CALLABLE auto operator()(PushFn push) const {
+      RHEOSCAPE_CALLABLE auto operator()(PushFn push) const {
 
         struct PushHandler {
           TInterval interval;
           PushFn push;
           mutable std::optional<TTimePoint> interval_start;
 
-          RHEO_CALLABLE void operator()(TaggedValue<T, TTimePoint> value) const {
+          RHEOSCAPE_CALLABLE void operator()(TaggedValue<T, TTimePoint> value) const {
             if (interval_start.has_value() && value.tag - interval_start.value() > interval) {
               interval_start = std::nullopt;
             }
@@ -64,7 +64,7 @@ namespace rheo::operators {
 
       template <typename SourceT>
         requires concepts::Source<SourceT>
-      RHEO_CALLABLE auto operator()(SourceT source) const {
+      RHEOSCAPE_CALLABLE auto operator()(SourceT source) const {
         return throttle(std::move(source), ClockSourceT(clock_source), interval);
       }
     };

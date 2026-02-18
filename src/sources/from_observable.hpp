@@ -2,9 +2,9 @@
 
 #include <array>
 #include <functional>
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 
-namespace rheo::sources {
+namespace rheoscape::sources {
 
   namespace detail {
 
@@ -13,14 +13,14 @@ namespace rheo::sources {
     struct from_observable_push_adapter {
       PushFn push;
 
-      RHEO_CALLABLE void operator()(T value) const {
+      RHEOSCAPE_CALLABLE void operator()(T value) const {
         push(std::move(value));
       }
     };
 
     // Pull handler that does nothing - pulling from an observable is meaningless
     struct from_observable_empty_pull {
-      RHEO_CALLABLE void operator()() const {
+      RHEOSCAPE_CALLABLE void operator()() const {
         // It doesn't mean anything to pull from an observable.
       }
     };
@@ -31,7 +31,7 @@ namespace rheo::sources {
       SubscribeFn subscribe_fn;
 
       template <typename PushFn>
-      RHEO_CALLABLE auto operator()(PushFn push) const {
+      RHEOSCAPE_CALLABLE auto operator()(PushFn push) const {
         subscribe_fn(from_observable_push_adapter<T, PushFn>{std::move(push)});
         return from_observable_empty_pull{};
       }

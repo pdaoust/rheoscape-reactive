@@ -1,7 +1,7 @@
 #pragma once
 
 #include <memory>
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 #include <types/au_all_units_noio.hpp>
 #include <Arduino.h>
 #if defined(ARDUINO_ARCH_ESP32)
@@ -10,14 +10,14 @@
 #include <Servo.h>
 #endif
 
-namespace rheo::sinks::arduino {
+namespace rheoscape::sinks::arduino {
 
   namespace detail {
 
     struct servo_push_handler {
       std::shared_ptr<Servo> servo;
 
-      RHEO_CALLABLE void operator()(au::QuantityPoint<au::Degrees, uint8_t> value) const {
+      RHEOSCAPE_CALLABLE void operator()(au::QuantityPoint<au::Degrees, uint8_t> value) const {
         servo->write(static_cast<int>(value.in(au::Degrees{})));
       }
     };
@@ -27,7 +27,7 @@ namespace rheo::sinks::arduino {
 
       template <typename SourceFn>
         requires concepts::SourceOf<SourceFn, au::QuantityPoint<au::Degrees, uint8_t>>
-      RHEO_CALLABLE auto operator()(SourceFn source) const {
+      RHEOSCAPE_CALLABLE auto operator()(SourceFn source) const {
         auto servo = std::make_shared<Servo>();
         servo->attach(pin);
         return source(servo_push_handler{std::move(servo)});

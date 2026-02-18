@@ -4,10 +4,10 @@
 #include <functional>
 #include <iterator>
 #include <memory>
-#include <core_types.hpp>
-#include <Endable.hpp>
+#include <types/core_types.hpp>
+#include <types/Endable.hpp>
 
-namespace rheo::sources {
+namespace rheoscape::sources {
 
   template <typename TIter>
   struct from_iterator_state {
@@ -23,7 +23,7 @@ namespace rheo::sources {
       PushFn push;
       std::shared_ptr<from_iterator_state<TIter>> state;
 
-      RHEO_CALLABLE void operator()() const {
+      RHEOSCAPE_CALLABLE void operator()() const {
         using T = typename TIter::value_type;
         if (state->is_ended) {
           push(Endable<T>());
@@ -46,7 +46,7 @@ namespace rheo::sources {
       TIter i_end;
 
       template <typename PushFn>
-      RHEO_CALLABLE auto operator()(PushFn push) const {
+      RHEOSCAPE_CALLABLE auto operator()(PushFn push) const {
         auto state = std::make_shared<from_iterator_state<TIter>>(from_iterator_state<TIter>{i_begin, false});
         return from_iterator_pull_handler<TIter, PushFn>{i_end, std::move(push), state};
       }

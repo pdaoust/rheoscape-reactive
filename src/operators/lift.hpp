@@ -2,14 +2,14 @@
 
 #include <functional>
 #include <variant>
-#include <core_types.hpp>
-#include <Fallible.hpp>
+#include <types/core_types.hpp>
+#include <types/Fallible.hpp>
 #include <operators/filter.hpp>
 #include <operators/map.hpp>
 #include <types/TaggedValue.hpp>
 #include <types/Wrapper.hpp>
 
-namespace rheo::operators {
+namespace rheoscape::operators {
 
   // Lift a pipe function to a higher-ordered type;
   // e.g., a pipe_fn<TIn, TOut> to a pipe<std::optional<TIn>, std::optional<TOut>>.
@@ -68,7 +68,7 @@ namespace rheo::operators {
       LiftFn lift_fn;
       LowerFn lower_fn;
 
-      RHEO_CALLABLE source_fn<TLiftedOut> operator()(source_fn<TLiftedIn> outer_source_in) const {
+      RHEOSCAPE_CALLABLE source_fn<TLiftedOut> operator()(source_fn<TLiftedIn> outer_source_in) const {
 
         struct SourceBinder {
           pipe_fn<TOut, TIn> inner_pipe_fn;
@@ -76,7 +76,7 @@ namespace rheo::operators {
           LowerFn lower_fn;
           source_fn<TLiftedIn> outer_source_in;
 
-          RHEO_CALLABLE pull_fn operator()(push_fn<TLiftedOut> push_outer_out) const {
+          RHEOSCAPE_CALLABLE pull_fn operator()(push_fn<TLiftedOut> push_outer_out) const {
             auto last_lifted_in = make_wrapper_shared<TLiftedIn>();
 
             // Source binder for inner pipe input - wires outer source to inner pipe
@@ -86,7 +86,7 @@ namespace rheo::operators {
               source_fn<TLiftedIn> outer_source_in;
               std::shared_ptr<Wrapper<TLiftedIn>> last_lifted_in;
 
-              RHEO_CALLABLE pull_fn operator()(push_fn<TIn> push_inner_in) const {
+              RHEOSCAPE_CALLABLE pull_fn operator()(push_fn<TIn> push_inner_in) const {
 
                 // Push handler for outer source values - lowers and routes them
                 struct OuterPushHandler {
@@ -95,7 +95,7 @@ namespace rheo::operators {
                   std::shared_ptr<Wrapper<TLiftedIn>> last_lifted_in;
                   push_fn<TIn> push_inner_in;
 
-                  RHEO_CALLABLE void operator()(TLiftedIn outer_value_in) const {
+                  RHEOSCAPE_CALLABLE void operator()(TLiftedIn outer_value_in) const {
                     last_lifted_in->value = outer_value_in;
                     std::variant<TIn, TLiftedOut> maybe_lowered_value = lower_fn(outer_value_in);
                     if (maybe_lowered_value.index() == 0) {
@@ -123,7 +123,7 @@ namespace rheo::operators {
               push_fn<TLiftedOut> push_outer_out;
               std::shared_ptr<Wrapper<TLiftedIn>> last_lifted_in;
 
-              RHEO_CALLABLE void operator()(TOut inner_value_out) const {
+              RHEOSCAPE_CALLABLE void operator()(TOut inner_value_out) const {
                 push_outer_out(lift_fn(inner_value_out, last_lifted_in->value));
               }
             };

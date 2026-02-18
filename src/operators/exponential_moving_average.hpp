@@ -2,15 +2,15 @@
 
 #include <functional>
 #include <cmath>
-#include <core_types.hpp>
-#include <util.hpp>
+#include <types/core_types.hpp>
+#include <util/misc.hpp>
 #include <types/TaggedValue.hpp>
 #include <operators/combine.hpp>
 #include <operators/map.hpp>
 #include <operators/scan.hpp>
 #include <operators/timestamp.hpp>
 
-namespace rheo::operators {
+namespace rheoscape::operators {
 
   // Smooth an input reading over a moving average time interval,
   // using the exponential moving average or single-pole IIR method.
@@ -40,7 +40,7 @@ namespace rheo::operators {
     struct Scanner {
       TIntervalConverterDecayed interval_converter;
 
-      RHEO_CALLABLE std::optional<TaggedValue<TVal, TTimePoint>> operator()(
+      RHEOSCAPE_CALLABLE std::optional<TaggedValue<TVal, TTimePoint>> operator()(
         std::optional<TaggedValue<TVal, TTimePoint>> prev,
         TaggedValue<std::tuple<TVal, TInterval>, TTimePoint> next
       ) const {
@@ -72,7 +72,7 @@ namespace rheo::operators {
 
     // Named callable for extracting value from optional TaggedValue.
     struct ValueExtractor {
-      RHEO_CALLABLE TVal operator()(std::optional<TaggedValue<TVal, TTimePoint>> value) const {
+      RHEOSCAPE_CALLABLE TVal operator()(std::optional<TaggedValue<TVal, TTimePoint>> value) const {
         return value.value().value;
       }
     };
@@ -100,7 +100,7 @@ namespace rheo::operators {
     using TTimePoint = source_value_t<ClockSourceT>;
 
     struct IntervalConverter {
-      RHEO_CALLABLE TVal operator()(TTimePoint t) const {
+      RHEOSCAPE_CALLABLE TVal operator()(TTimePoint t) const {
         return static_cast<TVal>(t);
       }
     };
@@ -122,7 +122,7 @@ namespace rheo::operators {
 
       template <typename SourceT>
         requires concepts::Source<SourceT>
-      RHEO_CALLABLE auto operator()(SourceT source) const {
+      RHEOSCAPE_CALLABLE auto operator()(SourceT source) const {
         return exponential_moving_average(
           std::move(source),
           ClockSourceT(clock_source),
@@ -139,11 +139,11 @@ namespace rheo::operators {
 
       template <typename SourceT>
         requires concepts::Source<SourceT>
-      RHEO_CALLABLE auto operator()(SourceT source) const {
+      RHEOSCAPE_CALLABLE auto operator()(SourceT source) const {
         using TTimePoint = source_value_t<ClockSourceT>;
 
         struct IntervalConverter {
-          RHEO_CALLABLE TVal operator()(TTimePoint t) const {
+          RHEOSCAPE_CALLABLE TVal operator()(TTimePoint t) const {
             return static_cast<TVal>(t);
           }
         };

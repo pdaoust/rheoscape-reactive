@@ -1,10 +1,10 @@
 #pragma once
 
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 #include <Arduino.h>
 #include <EEPROM.h>
 
-namespace rheo::sinks::arduino {
+namespace rheoscape::sinks::arduino {
 
   // Write a typed value to the device's non-volatile storage,
   // using the device's platform EEPROM implementation.
@@ -21,7 +21,7 @@ namespace rheo::sinks::arduino {
     struct eeprom_push_handler {
       int address;
 
-      RHEO_CALLABLE void operator()(T value) const {
+      RHEOSCAPE_CALLABLE void operator()(T value) const {
         EEPROM.put(address, value);
       }
     };
@@ -32,7 +32,7 @@ namespace rheo::sinks::arduino {
 
       template <typename SourceFn>
         requires concepts::SourceOf<SourceFn, T>
-      RHEO_CALLABLE auto operator()(SourceFn source) const {
+      RHEOSCAPE_CALLABLE auto operator()(SourceFn source) const {
         return source(eeprom_push_handler<T>{address});
       }
     };

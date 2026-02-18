@@ -1,6 +1,6 @@
 #pragma once
 
-namespace rheo {
+namespace rheoscape {
 
   template <typename T>
   struct Range {

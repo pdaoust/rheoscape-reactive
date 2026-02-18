@@ -1,22 +1,22 @@
 #pragma once
 
-#if defined(RHEO_USE_LVGL)
+#if defined(RHEOSCAPE_USE_LVGL)
 
 #include <functional>
 #include <memory>
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 #include <operators/foreach.hpp>
 #include <operators/combine.hpp>
 #include <lvgl.h>
 #include <ui/lvgl/types.hpp>
 
-namespace rheo::ui::lvgl {
+namespace rheoscape::ui::lvgl {
 
   // Push handler for applying styles to a widget
   struct widget_style_push_handler {
     lv_obj_t* widget;
 
-    RHEO_CALLABLE void operator()(std::vector<StyleAndSelector> styles) const {
+    RHEOSCAPE_CALLABLE void operator()(std::vector<StyleAndSelector> styles) const {
       for (const StyleAndSelector& style : styles) {
         lv_obj_add_style(widget, &style.style, style.selector);
       }
@@ -28,7 +28,7 @@ namespace rheo::ui::lvgl {
   struct widget_event_pull_handler {
     std::shared_ptr<push_fn<lv_event_code_t>> push_storage;
 
-    RHEO_CALLABLE void operator()() const {
+    RHEOSCAPE_CALLABLE void operator()() const {
       // No-op: events are pushed by LVGL, not pulled
     }
   };
@@ -36,7 +36,7 @@ namespace rheo::ui::lvgl {
   struct widget_event_source_binder {
     lv_obj_t* widget;
 
-    RHEO_CALLABLE pull_fn operator()(push_fn<lv_event_code_t> push) const {
+    RHEOSCAPE_CALLABLE pull_fn operator()(push_fn<lv_event_code_t> push) const {
       auto push_storage = std::make_shared<push_fn<lv_event_code_t>>(std::move(push));
       lv_obj_add_event_cb(
         widget,
@@ -59,8 +59,8 @@ namespace rheo::ui::lvgl {
     source_fn<std::vector<StyleAndSelector>> style_source
   ) {
     // FIXME: Is it more performant _and_ equivalent to just do them separately w/o combining?
-    pull_fn pull_data_and_style = rheo::operators::combine(data_source, style_source)
-      | rheo::operators::foreach([widget, apply_data_fn](std::tuple<TData, std::vector<StyleAndSelector>> value) {
+    pull_fn pull_data_and_style = rheoscape::operators::combine(data_source, style_source)
+      | rheoscape::operators::foreach([widget, apply_data_fn](std::tuple<TData, std::vector<StyleAndSelector>> value) {
         apply_data_fn(std::get<0>(value), widget);
         for (const StyleAndSelector& style : std::get<1>(value)) {
           lv_obj_add_style(widget, &style.style, style.selector);

@@ -4,7 +4,7 @@
 #include <types/State.hpp>
 #include <sources/from_clock.hpp>
 
-using namespace rheo;
+using namespace rheoscape;
 using namespace operators;
 using namespace sources;
 

@@ -3,9 +3,9 @@
 #include <operators/unwrap.hpp>
 #include <sources/from_iterator.hpp>
 
-using namespace rheo;
-using namespace rheo::sources;
-using namespace rheo::operators;
+using namespace rheoscape;
+using namespace rheoscape::sources;
+using namespace rheoscape::operators;
 
 void test_concat_concats() {
   std::vector<int> first { 1, 2, 3 };

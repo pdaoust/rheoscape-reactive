@@ -1,13 +1,13 @@
 #include <unity.h>
 #include <iostream>
-#include <logging.hpp>
+#include <util/logging.hpp>
 #include <operators/log_errors.hpp>
 #include <types/State.hpp>
-#include <Fallible.hpp>
+#include <types/Fallible.hpp>
 #include <fmt/format.h>
 
-using namespace rheo;
-using namespace rheo::operators;
+using namespace rheoscape;
+using namespace rheoscape::operators;
 
 void test_log_errors_logs_errors() {
   std::cout << "Starting\n";

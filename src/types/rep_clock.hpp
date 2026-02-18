@@ -3,7 +3,7 @@
 #include <chrono>
 #include <ratio>
 
-namespace rheo {
+namespace rheoscape {
 
   // A clock type parameterized by representation type, period, and steadiness.
   // This clock has no actual time source (now() is not implemented),

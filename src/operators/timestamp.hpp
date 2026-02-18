@@ -1,12 +1,12 @@
 #pragma once
 
 #include <functional>
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 #include <types/TaggedValue.hpp>
 #include <operators/combine.hpp>
 #include <operators/map.hpp>
 
-namespace rheo::operators {
+namespace rheoscape::operators {
 
   template <typename SourceT, typename ClockSourceT>
     requires concepts::Source<SourceT> && concepts::Source<ClockSourceT>
@@ -15,7 +15,7 @@ namespace rheo::operators {
     using TTimePoint = source_value_t<ClockSourceT>;
 
     struct Tagger {
-      RHEO_CALLABLE TaggedValue<T, TTimePoint> operator()(T value, TTimePoint timestamp) const {
+      RHEOSCAPE_CALLABLE TaggedValue<T, TTimePoint> operator()(T value, TTimePoint timestamp) const {
         return TaggedValue<T, TTimePoint>{ value, timestamp };
       }
     };
@@ -31,7 +31,7 @@ namespace rheo::operators {
 
       template <typename SourceT>
         requires concepts::Source<SourceT>
-      RHEO_CALLABLE auto operator()(SourceT source) const {
+      RHEOSCAPE_CALLABLE auto operator()(SourceT source) const {
         return timestamp(std::move(source), ClockSourceT(clock_source));
       }
     };

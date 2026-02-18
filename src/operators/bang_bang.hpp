@@ -1,12 +1,12 @@
 #pragma once
 
 #include <functional>
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 #include <types/Range.hpp>
 #include <operators/combine.hpp>
 #include <operators/scan.hpp>
 
-namespace rheo::operators {
+namespace rheoscape::operators {
 
   enum ProcessCommand {
     // Below target; push the process up.
@@ -32,7 +32,7 @@ namespace rheo::operators {
     using T = source_value_t<PVSourceT>;
 
     struct Scanner {
-      RHEO_CALLABLE ProcessCommand operator()(ProcessCommand acc, std::tuple<T, Range<T>> value) const {
+      RHEOSCAPE_CALLABLE ProcessCommand operator()(ProcessCommand acc, std::tuple<T, Range<T>> value) const {
         if (std::get<0>(value) < std::get<1>(value).min) {
           return ProcessCommand::up;
         } else if (std::get<0>(value) > std::get<1>(value).max) {
@@ -57,7 +57,7 @@ namespace rheo::operators {
 
       template <typename PVSourceT>
         requires concepts::Source<PVSourceT>
-      RHEO_CALLABLE auto operator()(PVSourceT process_variable_source) const {
+      RHEOSCAPE_CALLABLE auto operator()(PVSourceT process_variable_source) const {
         return bang_bang(std::move(process_variable_source), BoundsSourceT(bounds_source));
       }
     };
@@ -77,7 +77,7 @@ namespace rheo::operators {
     struct Mapper {
       ProcessCommand on_drives_process;
 
-      RHEO_CALLABLE SwitchState operator()(ProcessCommand direction) const {
+      RHEOSCAPE_CALLABLE SwitchState operator()(ProcessCommand direction) const {
         return direction == on_drives_process ? SwitchState::on : SwitchState::off;
       }
     };
@@ -93,7 +93,7 @@ namespace rheo::operators {
     struct Mapper {
       ProcessCommand open_drives_process;
 
-      RHEO_CALLABLE GateCommand operator()(ProcessCommand direction) const {
+      RHEOSCAPE_CALLABLE GateCommand operator()(ProcessCommand direction) const {
         return direction == open_drives_process ? GateCommand::open : GateCommand::close;
       }
     };

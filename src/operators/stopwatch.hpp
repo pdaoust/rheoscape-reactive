@@ -1,12 +1,12 @@
 #pragma once
 
 #include <functional>
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 #include <types/TaggedValue.hpp>
 #include <operators/combine.hpp>
 #include <operators/map.hpp>
 
-namespace rheo::operators {
+namespace rheoscape::operators {
 
   // Like `timestamp`, but resets the clock every time `lap_condition` is met.
   // It will glom contiguous values where `lap_condition` is met,
@@ -30,7 +30,7 @@ namespace rheo::operators {
       mutable std::optional<TTimePoint> lap_start;
       mutable bool last_value_matched = false;
 
-      RHEO_CALLABLE TaggedValue<T, TDuration> operator()(T value, TTimePoint ts) const {
+      RHEOSCAPE_CALLABLE TaggedValue<T, TDuration> operator()(T value, TTimePoint ts) const {
         bool this_value_matches = lap_condition(value);
         if (!lap_start.has_value() || (!last_value_matched && this_value_matches)) {
           // We've either just started the stream
@@ -56,7 +56,7 @@ namespace rheo::operators {
       template <typename SourceT>
         requires concepts::Source<SourceT> &&
                  concepts::Predicate<FilterFn, source_value_t<SourceT>>
-      RHEO_CALLABLE auto operator()(SourceT source) const {
+      RHEOSCAPE_CALLABLE auto operator()(SourceT source) const {
         return stopwatch<TDuration>(std::move(source), ClockSourceT(clock_source), FilterFn(lap_condition));
       }
     };

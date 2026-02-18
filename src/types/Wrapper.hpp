@@ -2,7 +2,7 @@
 
 #include <memory>
 
-namespace rheo {
+namespace rheoscape {
 
   // The only purpose of this thing is to make it possible to change the value in a shared pointer.
   // FIXME: If I someday find out that you can do that without this, awesome.

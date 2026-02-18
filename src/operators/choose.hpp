@@ -3,9 +3,9 @@
 #include <functional>
 #include <map>
 #include <memory>
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 
-namespace rheo::operators {
+namespace rheoscape::operators {
 
   // Switch among a map of value sources with a switch source.
   // Everything is off until the switch source pushes the first value that matches a map key.
@@ -24,7 +24,7 @@ namespace rheo::operators {
       std::map<TKey, source_fn<TVal>> value_source_map;
       source_fn<TKey> switch_source;
 
-      RHEO_CALLABLE pull_fn operator()(push_fn<TVal> push) const {
+      RHEOSCAPE_CALLABLE pull_fn operator()(push_fn<TVal> push) const {
         auto switch_state = std::make_shared<std::optional<TKey>>();
         auto pull_value_fns = std::make_shared<std::map<TKey, pull_fn>>();
 
@@ -33,7 +33,7 @@ namespace rheo::operators {
           std::shared_ptr<std::optional<TKey>> switch_state;
           TKey key;
 
-          RHEO_CALLABLE void operator()(TVal value) const {
+          RHEOSCAPE_CALLABLE void operator()(TVal value) const {
             // You'd think this is unnecessary, because this source fn's pull fn
             // guards against the wrong source being pulled.
             // Ah, but what about sources that do their own pushing?
@@ -46,7 +46,7 @@ namespace rheo::operators {
         struct SwitchPushHandler {
           std::shared_ptr<std::optional<TKey>> switch_state;
 
-          RHEO_CALLABLE void operator()(TKey key) const {
+          RHEOSCAPE_CALLABLE void operator()(TKey key) const {
             switch_state->emplace(key);
           }
         };
@@ -56,7 +56,7 @@ namespace rheo::operators {
           std::shared_ptr<std::map<TKey, pull_fn>> pull_value_fns;
           pull_fn pull_switch_source;
 
-          RHEO_CALLABLE void operator()() const {
+          RHEOSCAPE_CALLABLE void operator()() const {
             // Pull this one first to give us a better chance of getting a desired switch state.
             pull_switch_source();
             // Only pull the value source that's switched on.
@@ -106,7 +106,7 @@ namespace rheo::operators {
       template <typename SwitchSourceT>
         requires concepts::Source<SwitchSourceT> &&
                  std::is_same_v<source_value_t<SwitchSourceT>, TKey>
-      RHEO_CALLABLE auto operator()(SwitchSourceT switch_source) const {
+      RHEOSCAPE_CALLABLE auto operator()(SwitchSourceT switch_source) const {
         return choose(std::map(value_source_map), std::move(switch_source));
       }
     };

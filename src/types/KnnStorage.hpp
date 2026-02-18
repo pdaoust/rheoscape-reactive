@@ -8,7 +8,7 @@
 #include <algorithm>
 #include <limits>
 
-namespace rheo {
+namespace rheoscape {
 
   // Distance function signature for IoC.
   // User provides this to compute distance between two keys.

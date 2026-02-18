@@ -1,8 +1,8 @@
 #pragma once
 #include <functional>
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 
-namespace rheo::operators {
+namespace rheoscape::operators {
 
   // Map a value into zero or more values, then output all those values into the transformed stream.
   // Note that pulling on this operator simply pulls upstream.
@@ -17,13 +17,13 @@ namespace rheo::operators {
       FlatMapFnT mapper;
 
       template <typename PushFn>
-      RHEO_CALLABLE auto operator()(PushFn push) const {
+      RHEOSCAPE_CALLABLE auto operator()(PushFn push) const {
 
         struct PushHandler {
           FlatMapFnT mapper;
           PushFn push;
 
-          RHEO_CALLABLE void operator()(TIn value) const {
+          RHEOSCAPE_CALLABLE void operator()(TIn value) const {
             auto values = invoke_maybe_apply(mapper, std::move(value));
             for (value_type& v : values) {
               push(v);
@@ -38,7 +38,7 @@ namespace rheo::operators {
 
   template <typename SourceT, typename FlatMapFn>
     requires concepts::Source<SourceT> && concepts::FlatMapper<FlatMapFn, source_value_t<SourceT>>
-  RHEO_CALLABLE auto flat_map(SourceT source, FlatMapFn&& mapper) {
+  RHEOSCAPE_CALLABLE auto flat_map(SourceT source, FlatMapFn&& mapper) {
     return detail::FlatMapSourceBinder<SourceT, std::decay_t<FlatMapFn>>{
       std::move(source),
       std::forward<FlatMapFn>(mapper)
@@ -52,7 +52,7 @@ namespace rheo::operators {
 
       template <typename SourceT>
         requires concepts::Source<SourceT> && concepts::FlatMapper<FlatMapFnT, source_value_t<SourceT>>
-      RHEO_CALLABLE auto operator()(SourceT source) const {
+      RHEOSCAPE_CALLABLE auto operator()(SourceT source) const {
         return flat_map(std::move(source), FlatMapFnT(mapper));
       }
     };

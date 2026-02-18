@@ -1,12 +1,12 @@
 #pragma once
 
-#if defined(RHEO_USE_LVGL)
+#if defined(RHEOSCAPE_USE_LVGL)
 
 #include <functional>
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 #include <lvgl.h>
 
-namespace rheo::ui::lvgl {
+namespace rheoscape::ui::lvgl {
 
   using WidgetPullAndEventSource = std::tuple<pull_fn, source_fn<lv_event_code_t>>;
 

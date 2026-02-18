@@ -1,10 +1,10 @@
 #pragma once
 #include <functional>
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 #include <sources/constant.hpp>
 #include <fmt/format.h>
 
-namespace rheo::operators {
+namespace rheoscape::operators {
 
   namespace detail {
     template <typename SourceT, typename MapFnT>
@@ -16,13 +16,13 @@ namespace rheo::operators {
       MapFnT mapper;
 
       template <typename PushFn>
-      RHEO_CALLABLE auto operator()(PushFn push) const {
+      RHEOSCAPE_CALLABLE auto operator()(PushFn push) const {
 
         struct PushHandler {
           PushFn push;
           MapFnT mapper;
 
-          RHEO_CALLABLE void operator()(TIn value) const {
+          RHEOSCAPE_CALLABLE void operator()(TIn value) const {
             push(invoke_maybe_apply(mapper, std::move(value)));
           }
         };
@@ -34,7 +34,7 @@ namespace rheo::operators {
 
   template <typename SourceT, typename MapFn>
     requires concepts::Source<SourceT> && concepts::Transformer<MapFn, source_value_t<SourceT>>
-  RHEO_CALLABLE auto map(SourceT source, MapFn&& mapper) {
+  RHEOSCAPE_CALLABLE auto map(SourceT source, MapFn&& mapper) {
     return detail::MapSourceBinder<SourceT, std::decay_t<MapFn>>{
       std::move(source),
       std::forward<MapFn>(mapper)
@@ -48,7 +48,7 @@ namespace rheo::operators {
 
       template <typename SourceT>
         requires concepts::Source<SourceT> && concepts::Transformer<MapFn, source_value_t<SourceT>>
-      RHEO_CALLABLE auto operator()(SourceT source) const {
+      RHEOSCAPE_CALLABLE auto operator()(SourceT source) const {
         return map(std::move(source), MapFn(mapper));
       }
     };

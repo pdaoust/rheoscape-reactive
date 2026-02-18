@@ -1,16 +1,16 @@
 #include <unity.h>
-#include <rheoscape_everything.hpp>
+#include <rheoscape.hpp>
 #include <fmt/format.h>
 #include <types/au_all_units_noio.hpp>
-using namespace rheo;
-using namespace rheo::operators;
-using namespace rheo::sources;
+using namespace rheoscape;
+using namespace rheoscape::operators;
+using namespace rheoscape::sources;
 
 void test_a_big_fat_pipe_actually_works() {
   //logging::register_subscriber([](uint8_t log_level, const char* topic, const char* message) {
   //  printf(fmt::format("[{}:{}] {}\n", LOG_LEVEL_LABEL(log_level), topic, message).c_str()); });
 
-  auto temp_and_hum_state = rheo::State<rheo::Fallible<std::tuple<float, float>, int>>();
+  auto temp_and_hum_state = rheoscape::State<rheoscape::Fallible<std::tuple<float, float>, int>>();
   auto temp_and_hum = temp_and_hum_state.get_source_fn();
   auto clock = from_clock<mock_clock_ulong_millis>();
   auto temp_and_hum_smooth = temp_and_hum
@@ -47,7 +47,7 @@ void test_a_big_fat_pipe_actually_works() {
   );
 
   for (int i = 0; i < 10; i++) {
-    temp_and_hum_state.set(rheo::Fallible<std::tuple<float, float>, int>(std::make_tuple((float)i, (float)i)));
+    temp_and_hum_state.set(rheoscape::Fallible<std::tuple<float, float>, int>(std::make_tuple((float)i, (float)i)));
     mock_clock_ulong_millis::tick();
     pull_temp_and_hum();
   }

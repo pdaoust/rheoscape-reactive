@@ -4,9 +4,9 @@
 #include <operators/unwrap.hpp>
 #include <sources/from_iterator.hpp>
 
-using namespace rheo;
-using namespace rheo::operators;
-using namespace rheo::sources;
+using namespace rheoscape;
+using namespace rheoscape::operators;
+using namespace rheoscape::sources;
 
 void test_start_when_starts_when() {
   std::vector<int> numbers { 0, 1, 2, 3, 4, 5, 6, 7, 6, 5, 4 };

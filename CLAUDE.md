@@ -47,8 +47,8 @@ Key concepts:
 * Each act of binding a push function to a source function generates a new independent stream; therefore a source function can be thought of as a stream factory. Two bindings to the same source function may incidentally receive the same values when their respective pull functions are called, but calling pull function #1 will not cause the source function to emit a value to push function #2.
 * One common idiom is a **source function factory**, a function that takes one or more source functions and other parameters and returns a new source function. Source functions usually show up as **operators**, which take a source and produce a source that yields a transformed stream (e.g., a `filter` operator takes a source function and a predicate callable, and returns a new source function whose stream only contains values that match the predicate).
 * Another common idiom is a **pipe function factory**, which is like a source function factory with partial application -- it usually corresponds to a source function factory but its 'main' upstream source function can't be passed as a parameter -- instead, all the other parameters are bound to a returned **pipe function** which accepts the main source function as its only argument. A pipe function is actually a lot like a source function factory except it has a consistent interface -- one source function in, one source function out. This lets you pipe a single source function with a lot of pipe function factories in a very ergonomic way, using an operator overload for the `|` operator.
-* If a source function wants to communicate that it may yield errors, it should use `rheo::Fallible` as the type for its stream rather than throwing exceptions.
-* If a source function wants to communicate that it will eventually run out of values, it may use `rheo::Endable` as the type for its stream.
+* If a source function wants to communicate that it may yield errors, it should use `rheoscape::Fallible` as the type for its stream rather than throwing exceptions.
+* If a source function wants to communicate that it will eventually run out of values, it may use `rheoscape::Endable` as the type for its stream.
 
 ### Target Audience
 
@@ -100,7 +100,7 @@ Sources emit streams of data through pipes that transform the data, then eventua
   - `src/sources`: sources for IoT and generic data stuff
   - `src/types`: useful helper types
   - `src/ui`: sinks for LVGL-driven displays
-  - `src/core_types.hpp`: the most important file, which defines Rheoscape's core types and idioms
+  - `src/types/core_types.hpp`: the most important file, which defines Rheoscape's core types and idioms
   - `src/**/everything.hpp`:
 - `test`: unit and integration tests
 - Naming conventions: snake_case for functions and primitive types, PascalCase for structs and classes. Private struct and class members start with an underscore.
@@ -129,7 +129,7 @@ Sources emit streams of data through pipes that transform the data, then eventua
 
 ### Anti-Patterns
 
-- Sources may throw exceptions, but it's preferred for them to emit a stream of `rheo::Fallible` values instead.
+- Sources may throw exceptions, but it's preferred for them to emit a stream of `rheoscape::Fallible` values instead.
 - Components should not assume concurrency.
 - Components should be as ignorant as possible about ownership semantics of inputs, outputs, and streamed values, deferring such decisions to their upstream sources and downstream sinks wherever possible.
 
@@ -216,7 +216,7 @@ TODO
 ## Resources
 
 ### Documentation
-- Documentation lives inline with each file. The main documentation is found in `src/core_types.hpp`.
+- Documentation lives inline with each file. The main documentation is found in `src/types/core_types.hpp`.
 
 ### Related Projects
 - Rheoscape draws heavy inspiration from [Callbag](https://github.com/callbag/callbag), but ditches the complex initial handshake and the error callbacks.

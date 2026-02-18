@@ -2,9 +2,9 @@
 
 #include <functional>
 #include <optional>
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 
-namespace rheo::operators {
+namespace rheoscape::operators {
 
   namespace detail {
     template <typename SourceT, typename FilterMapFnT>
@@ -16,14 +16,14 @@ namespace rheo::operators {
       FilterMapFnT filter_mapper;
 
       template <typename PushFn>
-      RHEO_CALLABLE auto operator()(PushFn push) const {
+      RHEOSCAPE_CALLABLE auto operator()(PushFn push) const {
         using TOut = value_type;
 
         struct PushHandler {
           FilterMapFnT filter_mapper;
           PushFn push;
 
-          RHEO_CALLABLE void operator()(TIn value) const {
+          RHEOSCAPE_CALLABLE void operator()(TIn value) const {
             std::optional<TOut> maybe_mapped = invoke_maybe_apply(filter_mapper, std::move(value));
             if (maybe_mapped.has_value()) {
               push(maybe_mapped.value());
@@ -38,7 +38,7 @@ namespace rheo::operators {
 
   template <typename SourceT, typename FilterMapFn>
     requires concepts::Source<SourceT> && concepts::FilterMapper<FilterMapFn, source_value_t<SourceT>>
-  RHEO_CALLABLE auto filter_map(SourceT source, FilterMapFn&& filter_mapper) {
+  RHEOSCAPE_CALLABLE auto filter_map(SourceT source, FilterMapFn&& filter_mapper) {
     return detail::FilterMapSourceBinder<SourceT, std::decay_t<FilterMapFn>>{
       std::move(source),
       std::forward<FilterMapFn>(filter_mapper)
@@ -52,7 +52,7 @@ namespace rheo::operators {
 
       template <typename SourceT>
         requires concepts::Source<SourceT> && concepts::FilterMapper<FilterMapFn, source_value_t<SourceT>>
-      RHEO_CALLABLE auto operator()(SourceT source) const {
+      RHEOSCAPE_CALLABLE auto operator()(SourceT source) const {
         return filter_map(std::move(source), FilterMapFn(filter_mapper));
       }
     };

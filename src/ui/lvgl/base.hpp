@@ -1,14 +1,14 @@
 #pragma once
 
-#if defined(RHEO_USE_LVGL)
+#if defined(RHEOSCAPE_USE_LVGL)
 
 #include <functional>
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 #include <lvgl.h>
 #include <ui/lvgl/types.hpp>
 #include <ui/lvgl/widget.hpp>
 
-namespace rheo::ui::lvgl {
+namespace rheoscape::ui::lvgl {
 
   WidgetPullAndEventSource base(
     lv_obj_t* base,

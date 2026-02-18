@@ -2,7 +2,7 @@
 
 #include <string>
 
-namespace rheo::mqtt {
+namespace rheoscape::mqtt {
 
   enum QoS {
     AtMostOnce = 0,

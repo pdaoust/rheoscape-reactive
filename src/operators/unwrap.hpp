@@ -1,12 +1,12 @@
 #pragma once
 
 #include <functional>
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 #include <operators/filter_map.hpp>
-#include <Fallible.hpp>
-#include <Endable.hpp>
+#include <types/Fallible.hpp>
+#include <types/Endable.hpp>
 
-namespace rheo::operators {
+namespace rheoscape::operators {
 
   // Type traits for detecting wrapper types
   template <typename T> struct is_endable : std::false_type {};
@@ -38,13 +38,13 @@ namespace rheo::operators {
       SourceT source;
 
       template <typename PushFn>
-      RHEO_CALLABLE auto operator()(PushFn push) const {
+      RHEOSCAPE_CALLABLE auto operator()(PushFn push) const {
         using T = value_type;
 
         struct PushHandler {
           PushFn push;
 
-          RHEO_CALLABLE void operator()(OptT value) const {
+          RHEOSCAPE_CALLABLE void operator()(OptT value) const {
             if (value.has_value()) {
               push(value.value());
             }
@@ -58,7 +58,7 @@ namespace rheo::operators {
 
   template <typename SourceT>
     requires concepts::Source<SourceT> && is_optional_v<source_value_t<SourceT>>
-  RHEO_CALLABLE auto unwrap_optional(SourceT source) {
+  RHEOSCAPE_CALLABLE auto unwrap_optional(SourceT source) {
     return detail::UnwrapOptionalSourceBinder<SourceT>{std::move(source)};
   }
 
@@ -66,7 +66,7 @@ namespace rheo::operators {
     struct UnwrapOptionalPipeFactory {
       template <typename SourceT>
         requires concepts::Source<SourceT> && is_optional_v<source_value_t<SourceT>>
-      RHEO_CALLABLE auto operator()(SourceT source) const {
+      RHEOSCAPE_CALLABLE auto operator()(SourceT source) const {
         return unwrap_optional(std::move(source));
       }
     };
@@ -87,13 +87,13 @@ namespace rheo::operators {
       SourceT source;
 
       template <typename PushFn>
-      RHEO_CALLABLE auto operator()(PushFn push) const {
+      RHEOSCAPE_CALLABLE auto operator()(PushFn push) const {
         using T = value_type;
 
         struct PushHandler {
           PushFn push;
 
-          RHEO_CALLABLE void operator()(FallibleT value) const {
+          RHEOSCAPE_CALLABLE void operator()(FallibleT value) const {
             if (value.is_ok()) {
               push(value);
             }
@@ -107,7 +107,7 @@ namespace rheo::operators {
 
   template <typename SourceT>
     requires concepts::Source<SourceT> && is_fallible_v<source_value_t<SourceT>>
-  RHEO_CALLABLE auto unwrap_fallible(SourceT source) {
+  RHEOSCAPE_CALLABLE auto unwrap_fallible(SourceT source) {
     return detail::UnwrapFallibleSourceBinder<SourceT>{std::move(source)};
   }
 
@@ -115,7 +115,7 @@ namespace rheo::operators {
     struct UnwrapFalliblePipeFactory {
       template <typename SourceT>
         requires concepts::Source<SourceT> && is_fallible_v<source_value_t<SourceT>>
-      RHEO_CALLABLE auto operator()(SourceT source) const {
+      RHEOSCAPE_CALLABLE auto operator()(SourceT source) const {
         return unwrap_fallible(std::move(source));
       }
     };
@@ -136,13 +136,13 @@ namespace rheo::operators {
       SourceT source;
 
       template <typename PushFn>
-      RHEO_CALLABLE auto operator()(PushFn push) const {
+      RHEOSCAPE_CALLABLE auto operator()(PushFn push) const {
         using T = value_type;
 
         struct PushHandler {
           PushFn push;
 
-          RHEO_CALLABLE void operator()(EndableT value) const {
+          RHEOSCAPE_CALLABLE void operator()(EndableT value) const {
             if (value.has_value()) {
               push(value.value());
             }
@@ -156,7 +156,7 @@ namespace rheo::operators {
 
   template <typename SourceT>
     requires concepts::Source<SourceT> && is_endable_v<source_value_t<SourceT>>
-  RHEO_CALLABLE auto unwrap_endable(SourceT source) {
+  RHEOSCAPE_CALLABLE auto unwrap_endable(SourceT source) {
     return detail::UnwrapEndableSourceBinder<SourceT>{std::move(source)};
   }
 
@@ -164,7 +164,7 @@ namespace rheo::operators {
     struct UnwrapEndablePipeFactory {
       template <typename SourceT>
         requires concepts::Source<SourceT> && is_endable_v<source_value_t<SourceT>>
-      RHEO_CALLABLE auto operator()(SourceT source) const {
+      RHEOSCAPE_CALLABLE auto operator()(SourceT source) const {
         return unwrap_endable(std::move(source));
       }
     };

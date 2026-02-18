@@ -1,8 +1,8 @@
 #include <unity.h>
-#include <core_types.hpp>
-#include <Endable.hpp>
+#include <types/core_types.hpp>
+#include <types/Endable.hpp>
 
-using namespace rheo;
+using namespace rheoscape;
 
 void test__endable_has_value() {
   auto v = Endable(3);

@@ -3,13 +3,13 @@
 #include <array>
 #include <memory>
 #include <variant>
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 #include <types/au_all_units_noio.hpp>
 #include <Arduino.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
 
-namespace rheo::sources::arduino::ds18b20 {
+namespace rheoscape::sources::arduino::ds18b20 {
 
   enum Resolution {
     half_degree = 9,
@@ -53,7 +53,7 @@ namespace rheo::sources::arduino::ds18b20 {
       PushFn push;
       std::shared_ptr<ds18b20_state> state;
 
-      RHEO_CALLABLE void operator()() const {
+      RHEOSCAPE_CALLABLE void operator()() const {
         // Normally when I'm consuming the time in a source function,
         // I expect a time source.
         // But because I know I'm on the Arduino platform,
@@ -80,7 +80,7 @@ namespace rheo::sources::arduino::ds18b20 {
 
       template <typename PushFn>
         requires concepts::Visitor<PushFn, value_type>
-      RHEO_CALLABLE auto operator()(PushFn push) const {
+      RHEOSCAPE_CALLABLE auto operator()(PushFn push) const {
         auto state = std::make_shared<ds18b20_state>(ds18b20_state{millis()});
         return ds18b20_pull_handler<PushFn>{address, sensor, resolution, std::move(push), state};
       }

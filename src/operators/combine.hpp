@@ -5,13 +5,13 @@
 #include <utility>
 #include <tuple>
 #include <optional>
-#include <logging.hpp>
-#include <core_types.hpp>
+#include <util/logging.hpp>
+#include <types/core_types.hpp>
 #include <types/Wrapper.hpp>
 #include <operators/map.hpp>
-#include <util.hpp>
+#include <util/misc.hpp>
 
-namespace rheo::operators {
+namespace rheoscape::operators {
 
   // Combine multiple streams together into a single stream of tuples.
   //
@@ -40,7 +40,7 @@ namespace rheo::operators {
   namespace detail {
     // Helper to check if all optionals in a tuple have values
     template<typename... Ts>
-    RHEO_CALLABLE bool all_have_values(const std::tuple<std::optional<Ts>...>& values) {
+    RHEOSCAPE_CALLABLE bool all_have_values(const std::tuple<std::optional<Ts>...>& values) {
       return std::apply([](const auto&... opts) {
         return (opts.has_value() && ...);
       }, values);
@@ -48,7 +48,7 @@ namespace rheo::operators {
 
     // Helper to reset all optionals in a tuple
     template<typename... Ts>
-    RHEO_CALLABLE void reset_all(std::tuple<std::optional<Ts>...>& values) {
+    RHEOSCAPE_CALLABLE void reset_all(std::tuple<std::optional<Ts>...>& values) {
       std::apply([](auto&... opts) {
         (opts.reset(), ...);
       }, values);
@@ -61,13 +61,13 @@ namespace rheo::operators {
     }
 
     template<typename... Ts>
-    RHEO_CALLABLE auto extract_values(std::tuple<std::optional<Ts>...>& values) {
+    RHEOSCAPE_CALLABLE auto extract_values(std::tuple<std::optional<Ts>...>& values) {
       return extract_values_impl(values, std::index_sequence_for<Ts...>{});
     }
 
     // Cascade pull helper: pulls the next source that needs a value
     template<size_t I, size_t N, typename ValuesPtr, typename PullsPtr>
-    RHEO_CALLABLE void cascade_pull(const ValuesPtr& current_values, const PullsPtr& pull_functions) {
+    RHEOSCAPE_CALLABLE void cascade_pull(const ValuesPtr& current_values, const PullsPtr& pull_functions) {
       // Try sources after I first, then sources before I
       [&]<size_t... Js>(std::index_sequence<Js...>) {
         (
@@ -102,7 +102,7 @@ namespace rheo::operators {
       std::tuple<SourceTs...> sources;
 
       template <typename PushFn>
-      RHEO_CALLABLE auto operator()(PushFn push) const {
+      RHEOSCAPE_CALLABLE auto operator()(PushFn push) const {
         using TOut = value_type;
         using ValuesType = std::tuple<std::optional<source_value_t<SourceTs>>...>;
         using PullsType = std::tuple<
@@ -129,7 +129,7 @@ namespace rheo::operators {
                 std::shared_ptr<PullsType> pull_functions;
                 std::shared_ptr<bool> in_cascade;
 
-                RHEO_CALLABLE void operator()(TValue value) const {
+                RHEOSCAPE_CALLABLE void operator()(TValue value) const {
                   if (!*in_cascade) {
                     // This push is NOT from a pull cascade
                     // (e.g., spontaneous push from State.set()).
@@ -177,7 +177,7 @@ namespace rheo::operators {
         struct PullHandler {
           std::shared_ptr<PullsType> pull_functions;
 
-          RHEO_CALLABLE void operator()() const {
+          RHEOSCAPE_CALLABLE void operator()() const {
             if (std::get<0>(*pull_functions).has_value()) {
               std::get<0>(*pull_functions).value()();
             }
@@ -195,7 +195,7 @@ namespace rheo::operators {
   // To transform the tuple, use: combine(...) | map(mapper)
   template <typename... SourceTs>
     requires (sizeof...(SourceTs) >= 2) && (concepts::Source<SourceTs> && ...)
-  RHEO_CALLABLE auto combine(SourceTs... sources) {
+  RHEOSCAPE_CALLABLE auto combine(SourceTs... sources) {
     return detail::CombineSourceBinder<SourceTs...>{
       std::make_tuple(std::move(sources)...)
     };
@@ -209,7 +209,7 @@ namespace rheo::operators {
 
       template <typename Source1T>
         requires concepts::Source<Source1T>
-      RHEO_CALLABLE auto operator()(Source1T source1) const {
+      RHEOSCAPE_CALLABLE auto operator()(Source1T source1) const {
         return std::apply([&source1](auto... rest_sources) {
           return combine(std::move(source1), std::move(rest_sources)...);
         }, sources);
@@ -221,7 +221,7 @@ namespace rheo::operators {
   // Usage: source1 | combine_with(source2, source3)
   template <typename... SourceTs>
     requires (concepts::Source<SourceTs> && ...)
-  RHEO_CALLABLE auto combine_with(SourceTs... sources) {
+  RHEOSCAPE_CALLABLE auto combine_with(SourceTs... sources) {
     return detail::CombineWithPipeFactory<SourceTs...>{
       std::make_tuple(std::move(sources)...)
     };

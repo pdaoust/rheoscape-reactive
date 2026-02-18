@@ -6,9 +6,9 @@
 #include <sources/sequence.hpp>
 #include <sources/constant.hpp>
 
-using namespace rheo;
-using namespace rheo::operators;
-using namespace rheo::sources;
+using namespace rheoscape;
+using namespace rheoscape::operators;
+using namespace rheoscape::sources;
 
 void test_filter_filters() {
   auto some_numbers = unwrap_endable(sequence(-3, 3, 1));

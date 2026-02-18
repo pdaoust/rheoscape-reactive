@@ -1,8 +1,8 @@
 #pragma once
 
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 
-namespace rheo {
+namespace rheoscape {
 
   template <typename TVal, typename TTag>
   struct TaggedValue {

@@ -1,16 +1,16 @@
 #pragma once
 
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 #include <Arduino.h>
 
-namespace rheo::sinks::arduino {
+namespace rheoscape::sinks::arduino {
 
   namespace detail {
 
     struct digital_pin_push_handler {
       int pin;
 
-      RHEO_CALLABLE void operator()(bool value) const {
+      RHEOSCAPE_CALLABLE void operator()(bool value) const {
         digitalWrite(pin, value);
       }
     };
@@ -20,7 +20,7 @@ namespace rheo::sinks::arduino {
 
       template <typename SourceFn>
         requires concepts::SourceOf<SourceFn, bool>
-      RHEO_CALLABLE auto operator()(SourceFn source) const {
+      RHEOSCAPE_CALLABLE auto operator()(SourceFn source) const {
         return source(digital_pin_push_handler{pin});
       }
     };

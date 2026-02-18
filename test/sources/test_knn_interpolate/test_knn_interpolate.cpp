@@ -4,8 +4,8 @@
 #include <types/KnnStorage.hpp>
 #include <types/State.hpp>
 
-using namespace rheo;
-using namespace rheo::sources;
+using namespace rheoscape;
+using namespace rheoscape::sources;
 
 // Simple 2D key for testing
 struct Point2D {

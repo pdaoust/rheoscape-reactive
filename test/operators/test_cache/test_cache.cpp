@@ -1,10 +1,10 @@
 #include <memory>
 #include <unity.h>
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 #include <operators/cache.hpp>
 
-using namespace rheo;
-using namespace rheo::operators;
+using namespace rheoscape;
+using namespace rheoscape::operators;
 
 void test_cache_caches_after_pushed() {
   source_fn<int> pull_once_and_give_up = [](push_fn<int> push) {

@@ -1,12 +1,12 @@
 #include <unity.h>
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 #include <operators/map.hpp>
 #include <operators/combine.hpp>
 #include <sources/constant.hpp>
 
-using namespace rheo;
-using namespace rheo::operators;
-using namespace rheo::sources;
+using namespace rheoscape;
+using namespace rheoscape::operators;
+using namespace rheoscape::sources;
 
 void test_map_tuple_transforms_tuple() {
   source_fn<int> a = constant(3);

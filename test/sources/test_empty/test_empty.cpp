@@ -1,7 +1,7 @@
 #include <unity.h>
 #include <sources/empty.hpp>
 
-using namespace rheo::sources;
+using namespace rheoscape::sources;
 
 void test_empty_never_pushes() {
   int pushed_count = 0;

@@ -1,13 +1,13 @@
 #pragma once
 
 #include <functional>
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 #include <fmt/format.h>
-#include <Fallible.hpp>
-#include <logging.hpp>
+#include <types/Fallible.hpp>
+#include <util/logging.hpp>
 #include <operators/tee.hpp>
 
-namespace rheo::operators {
+namespace rheoscape::operators {
 
   template <typename SourceT, typename MapFn>
     requires concepts::Source<SourceT>
@@ -25,12 +25,12 @@ namespace rheo::operators {
       std::optional<std::string> topic;
       MapFnDecayed format_error;
 
-      RHEO_CALLABLE void operator()(source_fn<FallibleT> source) const {
+      RHEOSCAPE_CALLABLE void operator()(source_fn<FallibleT> source) const {
         struct PushHandler {
           std::optional<std::string> topic;
           MapFnDecayed format_error;
 
-          RHEO_CALLABLE void operator()(FallibleT value) const {
+          RHEOSCAPE_CALLABLE void operator()(FallibleT value) const {
             if (value.is_error()) {
               logging::error(topic, format_error(value.error()));
             }
@@ -55,7 +55,7 @@ namespace rheo::operators {
     using TErr = typename FallibleT::error_type;
 
     struct DefaultFormatter {
-      RHEO_CALLABLE std::string operator()(TErr value) const {
+      RHEOSCAPE_CALLABLE std::string operator()(TErr value) const {
         return fmt::format("{}", value);
       }
     };
@@ -71,7 +71,7 @@ namespace rheo::operators {
 
       template <typename SourceT>
         requires concepts::Source<SourceT>
-      RHEO_CALLABLE auto operator()(SourceT source) const {
+      RHEOSCAPE_CALLABLE auto operator()(SourceT source) const {
         return log_errors(std::move(source), MapFn(format_error), topic);
       }
     };

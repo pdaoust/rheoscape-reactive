@@ -6,9 +6,9 @@
 #include <sources/sequence.hpp>
 #include <types/mock_clock.hpp>
 
-using namespace rheo;
-using namespace rheo::operators;
-using namespace rheo::sources;
+using namespace rheoscape;
+using namespace rheoscape::operators;
+using namespace rheoscape::sources;
 
 void test_timestamp_timestamps() {
   auto numbers_source = unwrap_endable(sequence(0, 10, 1));

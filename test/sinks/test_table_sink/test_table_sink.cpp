@@ -5,8 +5,8 @@
 #include <sinks/table_sink.hpp>
 #include <types/State.hpp>
 
-using namespace rheo;
-using namespace rheo::sinks;
+using namespace rheoscape;
+using namespace rheoscape::sinks;
 
 void test_table_sink_calls_store_fn() {
   // Test that table_sink calls the injected store function.

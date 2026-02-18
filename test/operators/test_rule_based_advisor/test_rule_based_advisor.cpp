@@ -6,10 +6,10 @@
 #include <types/State.hpp>
 #include <sources/constant.hpp>
 
-using namespace rheo;
-using namespace rheo::autotune;
-using namespace rheo::operators;
-using namespace rheo::sources;
+using namespace rheoscape;
+using namespace rheoscape::autotune;
+using namespace rheoscape::operators;
+using namespace rheoscape::sources;
 
 using clock_type = mock_clock_ulong_millis;
 using time_point = clock_type::time_point;

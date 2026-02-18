@@ -1,13 +1,13 @@
 #pragma once
 
 #include <functional>
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 #include <operators/combine.hpp>
 #include <operators/map.hpp>
 #include <sinks/arduino/gfx/types.hpp>
 #include <sinks/arduino/gfx/gfx_sink.hpp>
 
-namespace rheo::sinks::arduino::gfx {
+namespace rheoscape::sinks::arduino::gfx {
 
   source_fn<std::vector<GfxCommand<GFXcanvas1>>> text_sink(
     source_fn<std::string> text_source,

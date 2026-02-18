@@ -5,9 +5,9 @@
 #include <sources/sequence.hpp>
 #include <types/State.hpp>
 
-using namespace rheo;
-using namespace rheo::sources;
-using namespace rheo::operators;
+using namespace rheoscape;
+using namespace rheoscape::sources;
+using namespace rheoscape::operators;
 
 void test_bang_bang_goes_up() {
   auto sph = constant(Range(18.0f, 22.0f));

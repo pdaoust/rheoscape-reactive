@@ -1,11 +1,11 @@
 #pragma once
 
 #include <functional>
-#include <core_types.hpp>
-#include <util.hpp>
+#include <types/core_types.hpp>
+#include <util/misc.hpp>
 #include <sources/constant.hpp>
 
-namespace rheo::operators {
+namespace rheoscape::operators {
 
   // Send a timestamp at the interval specified by the interval source.
   // The time source should supply its numbers regularly,
@@ -38,14 +38,14 @@ namespace rheo::operators {
       IntervalSourceT interval_source;
 
       template <typename PushFn>
-      RHEO_CALLABLE auto operator()(PushFn push) const {
+      RHEOSCAPE_CALLABLE auto operator()(PushFn push) const {
         auto last_interval = std::make_shared<std::optional<TInterval>>();
         auto last_interval_timestamp = std::make_shared<std::optional<TTimePoint>>();
 
         struct IntervalPushHandler {
           std::shared_ptr<std::optional<TInterval>> last_interval;
 
-          RHEO_CALLABLE void operator()(TInterval interval) const {
+          RHEOSCAPE_CALLABLE void operator()(TInterval interval) const {
             last_interval->emplace(interval);
           }
         };
@@ -56,7 +56,7 @@ namespace rheo::operators {
           pull_fn pull_next_interval;
           PushFn push;
 
-          RHEO_CALLABLE void operator()(TTimePoint timestamp) const {
+          RHEOSCAPE_CALLABLE void operator()(TTimePoint timestamp) const {
             if (!last_interval->has_value()) {
               pull_next_interval();
               if (!last_interval->has_value()) {
@@ -114,7 +114,7 @@ namespace rheo::operators {
       template <typename TimeSourceT>
         requires concepts::Source<TimeSourceT> &&
                  concepts::TimePointAndDurationCompatible<source_value_t<TimeSourceT>, source_value_t<IntervalSourceT>>
-      RHEO_CALLABLE auto operator()(TimeSourceT time_source) const {
+      RHEOSCAPE_CALLABLE auto operator()(TimeSourceT time_source) const {
         return interval(std::move(time_source), IntervalSourceT(interval_source));
       }
     };
@@ -142,14 +142,14 @@ namespace rheo::operators {
       TInterval start_interval;
       float factor;
 
-      RHEO_CALLABLE pull_fn operator()(push_fn<TInterval> push) const {
+      RHEOSCAPE_CALLABLE pull_fn operator()(push_fn<TInterval> push) const {
 
         struct PullHandler {
           mutable TInterval acc;
           float factor;
           push_fn<TInterval> push;
 
-          RHEO_CALLABLE void operator()() const {
+          RHEOSCAPE_CALLABLE void operator()() const {
             push(acc);
             acc *= factor;
           }

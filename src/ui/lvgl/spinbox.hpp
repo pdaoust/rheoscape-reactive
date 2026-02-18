@@ -1,16 +1,16 @@
 #pragma once
 
-#if defined(RHEO_USE_LVGL)
+#if defined(RHEOSCAPE_USE_LVGL)
 
 #include <functional>
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 #include <types/Range.hpp>
 #include <lvgl.h>
 #include <ui/lvgl/types.hpp>
 #include <ui/lvgl/widget.hpp>
 #include <Arduino.h>
 
-namespace rheo::ui::lvgl {
+namespace rheoscape::ui::lvgl {
 
   template <typename T>
   WidgetPullAndEventSource spinbox(

@@ -2,7 +2,7 @@
 
 #include <functional>
 #include <fmt/format.h>
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 #include <Arduino.h>
 #ifndef PLATFORMIO
   #include <ArduinoJson.h>
@@ -13,7 +13,7 @@
 #include <MQTTRemote.h>
 #include <home_assistant/types.hpp>
 
-namespace rheo::home_assistant {
+namespace rheoscape::home_assistant {
 
   template <typename T>
   pullable_sink_fn<T> home_assistant_entity(

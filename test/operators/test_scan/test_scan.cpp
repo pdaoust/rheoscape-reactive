@@ -7,7 +7,7 @@
 #include <sources/constant.hpp>
 #include <sources/empty.hpp>
 
-using namespace rheo;
+using namespace rheoscape;
 using namespace operators;
 using namespace sources;
 

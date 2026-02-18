@@ -1,12 +1,12 @@
 #pragma once
 
 #include <functional>
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 #include <operators/combine.hpp>
 #include <operators/map.hpp>
 #include <sinks/arduino/gfx/types.hpp>
 
-namespace rheo::sinks::arduino::gfx {
+namespace rheoscape::sinks::arduino::gfx {
 
   template <typename TCanvas, typename THints>
   source_fn<std::vector<GfxCommand<TCanvas>>> _widget_pipe(

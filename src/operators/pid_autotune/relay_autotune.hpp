@@ -2,14 +2,14 @@
 
 #include <cmath>
 #include <optional>
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 #include <operators/scan.hpp>
 #include <operators/combine.hpp>
 #include <operators/map.hpp>
 #include <operators/map.hpp>
 #include <operators/pid_autotune/autotune_types.hpp>
 
-namespace rheo::autotune {
+namespace rheoscape::autotune {
 
   // Internal state for relay autotune scanner.
   // Tracks oscillation measurements and calculates ultimate gain/period.
@@ -44,7 +44,7 @@ namespace rheo::autotune {
   struct relay_autotune_scanner {
     RelayAutotuneConfig<TCtl, TP, TTimePoint> config;
 
-    RHEO_CALLABLE RelayAutotuneState<TCtl, TP, TTimePoint> operator()(
+    RHEOSCAPE_CALLABLE RelayAutotuneState<TCtl, TP, TTimePoint> operator()(
       RelayAutotuneState<TCtl, TP, TTimePoint> state,
       RelayAutotuneInput<TP, TTimePoint> input
     ) const {
@@ -251,7 +251,7 @@ namespace rheo::autotune {
 
     // Named callable for combining relay autotune inputs.
     struct InputCombiner {
-      RHEO_CALLABLE InputType operator()(
+      RHEOSCAPE_CALLABLE InputType operator()(
         TP process_variable,
         TP setpoint,
         TTimePoint timestamp
@@ -264,7 +264,7 @@ namespace rheo::autotune {
     struct OutputMapper {
       RelayAutotuneConfig<TCtl, TP, TTimePoint> config;
 
-      RHEO_CALLABLE OutputType operator()(StateType state) const {
+      RHEOSCAPE_CALLABLE OutputType operator()(StateType state) const {
         std::optional<RelayAutotuneResult<TKp, TKi, TKd, TTimePoint>> result = std::nullopt;
 
         if (state.status == AutotuneStatus::converged) {
@@ -317,7 +317,7 @@ namespace rheo::autotune {
       source_fn<TTimePoint> clock_source;
       RelayAutotuneConfig<TCtl, TP, TTimePoint> config;
 
-      RHEO_CALLABLE auto operator()(source_fn<TP> process_variable_source) const {
+      RHEOSCAPE_CALLABLE auto operator()(source_fn<TP> process_variable_source) const {
         return relay_autotune<TP, TCtl, TTimePoint, TKp, TKi, TKd>(
           process_variable_source,
           setpoint_source,

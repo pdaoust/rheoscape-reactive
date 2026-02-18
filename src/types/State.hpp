@@ -1,9 +1,9 @@
 #pragma once
 
 #include <functional>
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 
-namespace rheo {
+namespace rheoscape {
 
   // Forward declaration
   template <typename T>
@@ -15,7 +15,7 @@ namespace rheo {
     State<T>* state;
     PushFn push;
 
-    RHEO_CALLABLE void operator()() const {
+    RHEOSCAPE_CALLABLE void operator()() const {
       auto value = state->try_get();
       if (value.has_value()) {
         push(value.value());
@@ -33,7 +33,7 @@ namespace rheo {
 
     template <typename PushFn>
       requires concepts::Visitor<PushFn, T>
-    RHEO_CALLABLE auto operator()(PushFn push) const {
+    RHEOSCAPE_CALLABLE auto operator()(PushFn push) const {
       return state->add_sink(std::move(push), initial_push);
     }
   };
@@ -43,7 +43,7 @@ namespace rheo {
     State<T>* state;
     bool push_on_set;
 
-    RHEO_CALLABLE void operator()(T value) const {
+    RHEOSCAPE_CALLABLE void operator()(T value) const {
       state->set(value, push_on_set);
     }
   };
@@ -55,7 +55,7 @@ namespace rheo {
 
     template <typename SourceFn>
       requires concepts::SourceOf<SourceFn, T>
-    RHEO_CALLABLE auto operator()(SourceFn source) const {
+    RHEOSCAPE_CALLABLE auto operator()(SourceFn source) const {
       return source(state->get_setter_push_fn(push_on_set));
     }
   };

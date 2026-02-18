@@ -7,9 +7,9 @@
 #include <sources/from_clock.hpp>
 #include <sources/constant.hpp>
 
-using namespace rheo;
-using namespace rheo::operators;
-using namespace rheo::sources;
+using namespace rheoscape;
+using namespace rheoscape::operators;
+using namespace rheoscape::sources;
 
 // Use time_point type for proper chrono integration
 using clock_type = mock_clock_ulong_millis;

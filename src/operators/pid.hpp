@@ -2,14 +2,14 @@
 
 #include <functional>
 #include <chrono>
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 #include <types/Range.hpp>
 #include <operators/scan.hpp>
 #include <operators/map.hpp>
 #include <operators/combine.hpp>
 #include <operators/map.hpp>
 
-namespace rheo::operators {
+namespace rheoscape::operators {
 
   // ==========================================================================
   // Type helpers
@@ -123,7 +123,7 @@ namespace rheo::operators {
     std::optional<Range<TCtrl>> clamp_range;
     TIntervalConverter interval_converter;
 
-    RHEO_CALLABLE StateType operator()(
+    RHEOSCAPE_CALLABLE StateType operator()(
       StateType prev_state,
       DataType values
     ) const {
@@ -212,7 +212,7 @@ namespace rheo::operators {
 
     // Named callable for combining PID input sources into PidData.
     struct DataCombiner {
-      RHEO_CALLABLE DataType operator()(
+      RHEOSCAPE_CALLABLE DataType operator()(
         TProc process_variable,
         TProc setpoint,
         TTimePoint timestamp,
@@ -265,7 +265,7 @@ namespace rheo::operators {
     using TIntegral = typename Calculator::TIntegral;
 
     struct ControlExtractor {
-      RHEO_CALLABLE TCtrl operator()(PidState<TCtrl, TProcDelta, TIntegral, TTimePoint> state) const {
+      RHEOSCAPE_CALLABLE TCtrl operator()(PidState<TCtrl, TProcDelta, TIntegral, TTimePoint> state) const {
         return state.control;
       }
     };
@@ -307,7 +307,7 @@ namespace rheo::operators {
     using OutputType = PidOutput<TCtrl, TProcDelta, TIntegral>;
 
     struct OutputExtractor {
-      RHEO_CALLABLE OutputType operator()(PidState<TCtrl, TProcDelta, TIntegral, TTimePoint> state) const {
+      RHEOSCAPE_CALLABLE OutputType operator()(PidState<TCtrl, TProcDelta, TIntegral, TTimePoint> state) const {
         return OutputType {
           state.control,
           state.p_term,
@@ -370,7 +370,7 @@ namespace rheo::operators {
     using TInterval = interval_type_t<TTimePoint>;
 
     struct IntervalConverter {
-      RHEO_CALLABLE TCalc operator()(TInterval t) const {
+      RHEOSCAPE_CALLABLE TCalc operator()(TInterval t) const {
         return static_cast<TCalc>(t);
       }
     };
@@ -417,7 +417,7 @@ namespace rheo::operators {
     using TInterval = interval_type_t<TTimePoint>;
 
     struct IntervalConverter {
-      RHEO_CALLABLE TCalc operator()(TInterval t) const {
+      RHEOSCAPE_CALLABLE TCalc operator()(TInterval t) const {
         return static_cast<TCalc>(t);
       }
     };
@@ -445,7 +445,7 @@ namespace rheo::operators {
       std::optional<Range<TCalc>> clamp_range;
       TIntervalConverter interval_converter;
 
-      RHEO_CALLABLE auto operator()(source_fn<TCalc> process_variable_source) const {
+      RHEOSCAPE_CALLABLE auto operator()(source_fn<TCalc> process_variable_source) const {
         return pid<TCalc, TTimePoint>(
           process_variable_source, setpoint_source, clock_source,
           weights_source, clamp_range, interval_converter
@@ -460,7 +460,7 @@ namespace rheo::operators {
       source_fn<PidWeights<TCalc, TCalc, TCalc>> weights_source;
       std::optional<Range<TCalc>> clamp_range;
 
-      RHEO_CALLABLE auto operator()(source_fn<TCalc> process_variable_source) const {
+      RHEOSCAPE_CALLABLE auto operator()(source_fn<TCalc> process_variable_source) const {
         return pid<TCalc, TTimePoint>(
           process_variable_source, setpoint_source, clock_source,
           weights_source, clamp_range
@@ -476,7 +476,7 @@ namespace rheo::operators {
       std::optional<Range<TCalc>> clamp_range;
       TIntervalConverter interval_converter;
 
-      RHEO_CALLABLE auto operator()(source_fn<TCalc> process_variable_source) const {
+      RHEOSCAPE_CALLABLE auto operator()(source_fn<TCalc> process_variable_source) const {
         return pid_detailed<TCalc, TTimePoint>(
           process_variable_source, setpoint_source, clock_source,
           weights_source, clamp_range, interval_converter
@@ -491,7 +491,7 @@ namespace rheo::operators {
       source_fn<PidWeights<TCalc, TCalc, TCalc>> weights_source;
       std::optional<Range<TCalc>> clamp_range;
 
-      RHEO_CALLABLE auto operator()(source_fn<TCalc> process_variable_source) const {
+      RHEOSCAPE_CALLABLE auto operator()(source_fn<TCalc> process_variable_source) const {
         return pid_detailed<TCalc, TTimePoint>(
           process_variable_source, setpoint_source, clock_source,
           weights_source, clamp_range

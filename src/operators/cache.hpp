@@ -3,9 +3,9 @@
 #include <functional>
 #include <memory>
 #include <optional>
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 
-namespace rheo::operators {
+namespace rheoscape::operators {
 
   // Remember the last upstream value,
   // so it can be pulled any time you like.
@@ -24,7 +24,7 @@ namespace rheo::operators {
 
       source_fn<T> source;
 
-      RHEO_CALLABLE pull_fn operator()(push_fn<T> push) const {
+      RHEOSCAPE_CALLABLE pull_fn operator()(push_fn<T> push) const {
         auto shared_push = std::make_shared<push_fn<T>>(push);
         auto last_seen_value = std::make_shared<std::optional<T>>(std::nullopt);
         auto is_within_pull = std::make_shared<bool>(false);
@@ -36,7 +36,7 @@ namespace rheo::operators {
           std::shared_ptr<bool> is_within_pull;
           std::shared_ptr<bool> did_push_within_pull;
 
-          RHEO_CALLABLE void operator()(T value) const {
+          RHEOSCAPE_CALLABLE void operator()(T value) const {
             last_seen_value->emplace(value);
             (*shared_push)(value);
 
@@ -56,7 +56,7 @@ namespace rheo::operators {
           std::shared_ptr<bool> is_within_pull;
           std::shared_ptr<bool> did_push_within_pull;
 
-          RHEO_CALLABLE void operator()() const {
+          RHEOSCAPE_CALLABLE void operator()() const {
             // Set the flag that tells the upstream push callback
             // that it is being pushed because of a pull.
             *is_within_pull = true;
@@ -89,7 +89,7 @@ namespace rheo::operators {
 
   template <typename SourceT>
     requires concepts::Source<SourceT>
-  RHEO_CALLABLE auto cache(SourceT source) {
+  RHEOSCAPE_CALLABLE auto cache(SourceT source) {
     using T = source_value_t<SourceT>;
     return detail::CacheSourceBinder<T>{source_fn<T>(std::move(source))};
   }
@@ -98,7 +98,7 @@ namespace rheo::operators {
     struct CachePipeFactory {
       template <typename SourceT>
         requires concepts::Source<SourceT>
-      RHEO_CALLABLE auto operator()(SourceT source) const {
+      RHEOSCAPE_CALLABLE auto operator()(SourceT source) const {
         return cache(std::move(source));
       }
     };

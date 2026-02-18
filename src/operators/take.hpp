@@ -1,10 +1,10 @@
 #pragma once
 
 #include <functional>
-#include <core_types.hpp>
-#include <Endable.hpp>
+#include <types/core_types.hpp>
+#include <types/Endable.hpp>
 
-namespace rheo::operators {
+namespace rheoscape::operators {
 
   namespace detail {
     template <typename SourceT>
@@ -16,14 +16,14 @@ namespace rheo::operators {
       size_t count;
 
       template <typename PushFn>
-      RHEO_CALLABLE auto operator()(PushFn push) const {
+      RHEOSCAPE_CALLABLE auto operator()(PushFn push) const {
 
         struct PushHandler {
           size_t count;
           PushFn push;
           mutable size_t i = 0;
 
-          RHEO_CALLABLE void operator()(T value) const {
+          RHEOSCAPE_CALLABLE void operator()(T value) const {
             if (i < count) {
               push(Endable<T>(std::move(value), i == count - 1));
               i++;
@@ -42,7 +42,7 @@ namespace rheo::operators {
   // then end the source.
   template <typename SourceT>
     requires concepts::Source<SourceT>
-  RHEO_CALLABLE auto take(SourceT source, size_t count) {
+  RHEOSCAPE_CALLABLE auto take(SourceT source, size_t count) {
     return detail::TakeSourceBinder<SourceT>{std::move(source), count};
   }
 
@@ -52,7 +52,7 @@ namespace rheo::operators {
 
       template <typename SourceT>
         requires concepts::Source<SourceT>
-      RHEO_CALLABLE auto operator()(SourceT source) const {
+      RHEOSCAPE_CALLABLE auto operator()(SourceT source) const {
         return take(std::move(source), count);
       }
     };

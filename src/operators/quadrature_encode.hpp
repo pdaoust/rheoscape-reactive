@@ -1,12 +1,12 @@
 #pragma once
 
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 #include <operators/cache.hpp>
 #include <operators/combine.hpp>
 #include <operators/flat_map.hpp>
 #include <operators/scan.hpp>
 
-namespace rheo::operators {
+namespace rheoscape::operators {
 
   namespace detail {
     static const int8_t encoder_states_lookup[] = { 0, -1, 1, 0, 1, 0, 0, -1, -1, 0, 0, 1, 0, 1, -1, 0 };
@@ -20,7 +20,7 @@ namespace rheo::operators {
   template <typename SourceT>
     requires concepts::Source<SourceT>
       && std::is_same_v<std::tuple<bool, bool>, typename SourceT::value_type>
-  RHEO_CALLABLE auto quadrature_encode(SourceT source) {
+  RHEOSCAPE_CALLABLE auto quadrature_encode(SourceT source) {
     using acc_type = std::tuple<int8_t, int8_t, uint8_t>;
 
     return scan(

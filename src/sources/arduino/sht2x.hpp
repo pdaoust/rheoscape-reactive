@@ -2,18 +2,16 @@
 
 #include <fmt/format.h>
 #include <memory>
-#include <core_types.hpp>
-#include <Fallible.hpp>
-#include <Endable.hpp>
-#include <logging.hpp>
+#include <types/core_types.hpp>
+#include <types/Fallible.hpp>
+#include <types/Endable.hpp>
+#include <util/logging.hpp>
 #include <types/au_all_units_noio.hpp>
-#if defined(ARDUINO_ARCH_ESP32)
 #include <Arduino.h>
 #include <Wire.h>
 #include <SHT2x.h>
-#endif
 
-namespace rheo::sources::arduino::sht2x {
+namespace rheoscape::sources::arduino::sht2x {
 
   using Temperature = au::QuantityPoint<au::Celsius, float>;
   using Humidity = au::Quantity<au::Percent, float>;
@@ -24,8 +22,6 @@ namespace rheo::sources::arduino::sht2x {
   // (a) otherwise it'd have to be two unwraps
   // (b) if it ends, it's because of an error.
   using ReadingFallible = Fallible<Reading, Error>;
-
-#if defined(ARDUINO_ARCH_ESP32)
 
   // Mutable state shared between source binder and pull handler
   struct sht2x_state {
@@ -46,7 +42,7 @@ namespace rheo::sources::arduino::sht2x {
       PushFn push;
       std::shared_ptr<sht2x_state> state;
 
-      RHEO_CALLABLE void operator()() const {
+      RHEOSCAPE_CALLABLE void operator()() const {
         if (state->pushed_sensor_start_error) {
           logging::trace("sht2x", "Already pushed sensor start error; not pushing again.");
           return;
@@ -157,7 +153,7 @@ namespace rheo::sources::arduino::sht2x {
 
       template <typename PushFn>
         requires concepts::Visitor<PushFn, value_type>
-      RHEO_CALLABLE auto operator()(PushFn push) const {
+      RHEOSCAPE_CALLABLE auto operator()(PushFn push) const {
         return sht2x_pull_handler<PushFn>{resolution, sensor, sensor_start_error, std::move(push), state};
       }
     };
@@ -201,6 +197,5 @@ namespace rheo::sources::arduino::sht2x {
       return "SHT2x: Stream has ended";
     }
   }
-#endif
 
 }

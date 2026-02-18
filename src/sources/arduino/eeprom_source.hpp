@@ -1,12 +1,12 @@
 #pragma once
 
-#include <core_types.hpp>
-#include <Fallible.hpp>
+#include <types/core_types.hpp>
+#include <types/Fallible.hpp>
 #include <types/deserialization_error.hpp>
 #include <Arduino.h>
 #include <EEPROM.h>
 
-namespace rheo::sources::arduino {
+namespace rheoscape::sources::arduino {
 
   // Read a typed value from the device's non-volatile storage,
   // using the device's platform EEPROM implementation.
@@ -20,7 +20,7 @@ namespace rheo::sources::arduino {
       int address;
       PushFn push;
 
-      RHEO_CALLABLE void operator()() const {
+      RHEOSCAPE_CALLABLE void operator()() const {
         using FallibleT = Fallible<T, deserialization_error>;
         T value;
         EEPROM.get(address, value);
@@ -39,7 +39,7 @@ namespace rheo::sources::arduino {
 
       template <typename PushFn>
         requires concepts::Visitor<PushFn, value_type>
-      RHEO_CALLABLE auto operator()(PushFn push) const {
+      RHEOSCAPE_CALLABLE auto operator()(PushFn push) const {
         return eeprom_source_pull_handler<T, PushFn>{address, std::move(push)};
       }
     };

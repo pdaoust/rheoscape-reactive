@@ -2,9 +2,9 @@
 
 #include <functional>
 #include <optional>
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 
-namespace rheo::operators {
+namespace rheoscape::operators {
 
   // Push the last non-empty value when pulled, even if the input source is empty.
   // Only starts pushing values once the first non-empty value has been received.
@@ -27,14 +27,14 @@ namespace rheo::operators {
       SourceT source;
 
       template <typename PushFn>
-      RHEO_CALLABLE auto operator()(PushFn push) const {
+      RHEOSCAPE_CALLABLE auto operator()(PushFn push) const {
         using T = value_type;
 
         struct PushHandler {
           PushFn push;
           mutable std::optional<T> last_seen_value = std::nullopt;
 
-          RHEO_CALLABLE void operator()(OptT value) const {
+          RHEOSCAPE_CALLABLE void operator()(OptT value) const {
             if (value.has_value()) {
               last_seen_value = value;
             }
@@ -51,7 +51,7 @@ namespace rheo::operators {
 
   template <typename SourceT>
     requires concepts::Source<SourceT> && is_optional_v<source_value_t<SourceT>>
-  RHEO_CALLABLE auto latch(SourceT source) {
+  RHEOSCAPE_CALLABLE auto latch(SourceT source) {
     return detail::LatchSourceBinder<SourceT>{std::move(source)};
   }
 
@@ -59,7 +59,7 @@ namespace rheo::operators {
     struct LatchPipeFactory {
       template <typename SourceT>
         requires concepts::Source<SourceT> && is_optional_v<source_value_t<SourceT>>
-      RHEO_CALLABLE auto operator()(SourceT source) const {
+      RHEOSCAPE_CALLABLE auto operator()(SourceT source) const {
         return latch(std::move(source));
       }
     };

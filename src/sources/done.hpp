@@ -1,9 +1,9 @@
 #pragma once
 
-#include <core_types.hpp>
-#include <Endable.hpp>
+#include <types/core_types.hpp>
+#include <types/Endable.hpp>
 
-namespace rheo::sources {
+namespace rheoscape::sources {
 
   // A source function that ends immediately.
 
@@ -14,7 +14,7 @@ namespace rheo::sources {
       PushFn push;
       mutable bool is_done = false;
 
-      RHEO_CALLABLE void operator()() const {
+      RHEOSCAPE_CALLABLE void operator()() const {
         if (!is_done) {
           push(Endable<T>());
           is_done = true;
@@ -27,7 +27,7 @@ namespace rheo::sources {
       using value_type = Endable<T>;
 
       template <typename PushFn>
-      RHEO_CALLABLE auto operator()(PushFn push) const {
+      RHEOSCAPE_CALLABLE auto operator()(PushFn push) const {
         return done_pull_handler<T, PushFn>{std::move(push)};
       }
     };

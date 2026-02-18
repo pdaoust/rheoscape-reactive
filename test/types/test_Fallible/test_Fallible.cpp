@@ -1,10 +1,10 @@
 #include <string>
 #include <unity.h>
-#include <core_types.hpp>
-#include <Fallible.hpp>
+#include <types/core_types.hpp>
+#include <types/Fallible.hpp>
 
 using namespace std::string_literals;
-using namespace rheo;
+using namespace rheoscape;
 
 void test__fallible_has_value() {
   auto v = Fallible<int, std::string>(3);

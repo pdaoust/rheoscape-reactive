@@ -1,10 +1,10 @@
 #pragma once
 
 #include <functional>
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 #include <types/TaggedValue.hpp>
 
-namespace rheo::operators {
+namespace rheoscape::operators {
 
   namespace detail {
     template <typename SourceT>
@@ -15,13 +15,13 @@ namespace rheo::operators {
       SourceT source;
 
       template <typename PushFn>
-      RHEO_CALLABLE auto operator()(PushFn push) const {
+      RHEOSCAPE_CALLABLE auto operator()(PushFn push) const {
 
         struct PushHandler {
           PushFn push;
           mutable size_t counter = 0;
 
-          RHEO_CALLABLE void operator()(T) const {
+          RHEOSCAPE_CALLABLE void operator()(T) const {
             counter++;
             push(counter);
           }
@@ -39,13 +39,13 @@ namespace rheo::operators {
       SourceT source;
 
       template <typename PushFn>
-      RHEO_CALLABLE auto operator()(PushFn push) const {
+      RHEOSCAPE_CALLABLE auto operator()(PushFn push) const {
 
         struct PushHandler {
           PushFn push;
           mutable size_t counter = 0;
 
-          RHEO_CALLABLE void operator()(T value) const {
+          RHEOSCAPE_CALLABLE void operator()(T value) const {
             counter++;
             push(TaggedValue<T, size_t>{value, counter});
           }
@@ -58,13 +58,13 @@ namespace rheo::operators {
 
   template <typename SourceT>
     requires concepts::Source<SourceT>
-  RHEO_CALLABLE auto count(SourceT source) {
+  RHEOSCAPE_CALLABLE auto count(SourceT source) {
     return detail::CountSourceBinder<SourceT>{std::move(source)};
   }
 
   template <typename SourceT>
     requires concepts::Source<SourceT>
-  RHEO_CALLABLE auto tag_count(SourceT source) {
+  RHEOSCAPE_CALLABLE auto tag_count(SourceT source) {
     return detail::TagCountSourceBinder<SourceT>{std::move(source)};
   }
 
@@ -72,7 +72,7 @@ namespace rheo::operators {
     struct CountPipeFactory {
       template <typename SourceT>
         requires concepts::Source<SourceT>
-      RHEO_CALLABLE auto operator()(SourceT source) const {
+      RHEOSCAPE_CALLABLE auto operator()(SourceT source) const {
         return count(std::move(source));
       }
     };
@@ -80,7 +80,7 @@ namespace rheo::operators {
     struct TagCountPipeFactory {
       template <typename SourceT>
         requires concepts::Source<SourceT>
-      RHEO_CALLABLE auto operator()(SourceT source) const {
+      RHEOSCAPE_CALLABLE auto operator()(SourceT source) const {
         return tag_count(std::move(source));
       }
     };

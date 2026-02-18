@@ -2,9 +2,9 @@
 #include <functional>
 #include <memory>
 #include <optional>
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 
-namespace rheo::operators {
+namespace rheoscape::operators {
 
   namespace detail {
     template <typename SourceT, typename TAcc, typename ScanFnT>
@@ -16,7 +16,7 @@ namespace rheo::operators {
       TAcc initial;
 
       template <typename PushFn>
-      RHEO_CALLABLE auto operator()(PushFn push) const {
+      RHEOSCAPE_CALLABLE auto operator()(PushFn push) const {
         using TIn = source_value_t<SourceT>;
 
         struct PushHandler {
@@ -24,7 +24,7 @@ namespace rheo::operators {
           PushFn push;
           mutable TAcc acc;
 
-          RHEO_CALLABLE void operator()(TIn value) const {
+          RHEOSCAPE_CALLABLE void operator()(TIn value) const {
             acc = invoke_scanner_maybe_apply(scanner, std::move(acc), std::move(value));
             push(acc);
           }
@@ -43,14 +43,14 @@ namespace rheo::operators {
       ScanFnT scanner;
 
       template <typename PushFn>
-      RHEO_CALLABLE auto operator()(PushFn push) const {
+      RHEOSCAPE_CALLABLE auto operator()(PushFn push) const {
 
         struct PushHandler {
           ScanFnT scanner;
           PushFn push;
           mutable std::optional<T> acc = std::nullopt;
 
-          RHEO_CALLABLE void operator()(T value) const {
+          RHEOSCAPE_CALLABLE void operator()(T value) const {
             if (!acc.has_value()) {
               acc.emplace(value);
             } else {
@@ -67,7 +67,7 @@ namespace rheo::operators {
 
   template <typename SourceT, typename TAcc, typename ScanFn>
     requires concepts::Source<SourceT> && concepts::Scanner<ScanFn, TAcc, source_value_t<SourceT>>
-  RHEO_CALLABLE auto scan(SourceT source, TAcc initial, ScanFn&& scanner) {
+  RHEOSCAPE_CALLABLE auto scan(SourceT source, TAcc initial, ScanFn&& scanner) {
     return detail::ScanWithInitialSourceBinder<SourceT, TAcc, std::decay_t<ScanFn>>{
       std::move(source),
       std::forward<ScanFn>(scanner),
@@ -77,7 +77,7 @@ namespace rheo::operators {
 
   template <typename SourceT, typename ScanFn>
     requires concepts::Source<SourceT> && concepts::Scanner<ScanFn, source_value_t<SourceT>, source_value_t<SourceT>>
-  RHEO_CALLABLE auto scan(SourceT source, ScanFn&& scanner) {
+  RHEOSCAPE_CALLABLE auto scan(SourceT source, ScanFn&& scanner) {
     return detail::ScanSourceBinder<SourceT, std::decay_t<ScanFn>>{
       std::move(source),
       std::forward<ScanFn>(scanner)
@@ -92,7 +92,7 @@ namespace rheo::operators {
 
       template <typename SourceT>
         requires concepts::Source<SourceT> && concepts::Scanner<ScanFn, TAcc, source_value_t<SourceT>>
-      RHEO_CALLABLE auto operator()(SourceT source) const {
+      RHEOSCAPE_CALLABLE auto operator()(SourceT source) const {
         return scan(std::move(source), initial, ScanFn(scanner));
       }
     };
@@ -103,7 +103,7 @@ namespace rheo::operators {
 
       template <typename SourceT>
         requires concepts::Source<SourceT> && concepts::Scanner<ScanFn, source_value_t<SourceT>, source_value_t<SourceT>>
-      RHEO_CALLABLE auto operator()(SourceT source) const {
+      RHEOSCAPE_CALLABLE auto operator()(SourceT source) const {
         return scan(std::move(source), ScanFn(scanner));
       }
     };

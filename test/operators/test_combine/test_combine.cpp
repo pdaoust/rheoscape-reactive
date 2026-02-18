@@ -1,14 +1,14 @@
 #include <unity.h>
-#include <util.hpp>
+#include <util/misc.hpp>
 #include <operators/combine.hpp>
 #include <sources/constant.hpp>
 #include <sources/sequence.hpp>
 #include <types/State.hpp>
-#include <types/Emitter.hpp>
+#include <sources/Emitter.hpp>
 
-using namespace rheo;
-using namespace rheo::operators;
-using namespace rheo::sources;
+using namespace rheoscape;
+using namespace rheoscape::operators;
+using namespace rheoscape::sources;
 
 void test_combine_combines_to_tuple() {
   source_fn<int> a = constant(3);

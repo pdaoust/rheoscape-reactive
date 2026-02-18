@@ -1,9 +1,9 @@
 #pragma once
 
 #include <functional>
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 
-namespace rheo::operators {
+namespace rheoscape::operators {
 
   // Sink factory - creates a pullable sink that executes exec on each value.
   // Usage: source | foreach(my_exec)
@@ -20,13 +20,13 @@ namespace rheo::operators {
 
       template <typename SourceT>
         requires concepts::Source<SourceT> && concepts::Visitor<ExecFn, source_value_t<SourceT>>
-      RHEO_CALLABLE pull_fn operator()(SourceT source) const {
+      RHEOSCAPE_CALLABLE pull_fn operator()(SourceT source) const {
         using T = source_value_t<SourceT>;
 
         struct PushHandler {
           ExecFn exec;
 
-          RHEO_CALLABLE void operator()(T value) const {
+          RHEOSCAPE_CALLABLE void operator()(T value) const {
             invoke_maybe_apply(exec, std::move(value));
           }
         };

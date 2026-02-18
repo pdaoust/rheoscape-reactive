@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <operators/pid.hpp>
 
-namespace rheo::autotune {
+namespace rheoscape::autotune {
 
   // Status of autotuning process
   enum class AutotuneStatus {

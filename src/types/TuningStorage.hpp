@@ -6,7 +6,7 @@
 #include <limits>
 #include <operators/pid_autotune/autotune_types.hpp>
 
-namespace rheo {
+namespace rheoscape {
 
   // Fixed-size storage buffer for tuning records
   // Designed to be platform-agnostic - caller allocates storage

@@ -1,9 +1,9 @@
 #pragma once
 
 #include <functional>
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 
-namespace rheo::sinks {
+namespace rheoscape::sinks {
 
   // Input type for table_sink.
   // Combines a key and value for storage.
@@ -25,7 +25,7 @@ namespace rheo::sinks {
   struct table_sink_push_handler {
     store_fn<TKey, TValue> store;
 
-    RHEO_CALLABLE void operator()(TableSinkInput<TKey, TValue> input) const {
+    RHEOSCAPE_CALLABLE void operator()(TableSinkInput<TKey, TValue> input) const {
       store(input.key, input.value);
     }
   };
@@ -68,7 +68,7 @@ namespace rheo::sinks {
 
       template <typename SourceFn>
         requires concepts::SourceOf<SourceFn, TableSinkInput<TKey, TValue>>
-      RHEO_CALLABLE void operator()(SourceFn source) const {
+      RHEOSCAPE_CALLABLE void operator()(SourceFn source) const {
         table_sink_push_handler<TKey, TValue> handler{store};
         auto pull = source(handler);
         // Pull once to trigger initial storage if source has data.
@@ -84,7 +84,7 @@ namespace rheo::sinks {
 
       template <typename SourceFn>
         requires concepts::SourceOf<SourceFn, TableSinkInput<TKey, TValue>>
-      RHEO_CALLABLE auto operator()(SourceFn source) const {
+      RHEOSCAPE_CALLABLE auto operator()(SourceFn source) const {
         table_sink_push_handler<TKey, TValue> handler{store};
         return source(handler);
       }

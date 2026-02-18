@@ -1,10 +1,10 @@
 #pragma once
 
 #include <functional>
-#include <core_types.hpp>
-#include <Endable.hpp>
+#include <types/core_types.hpp>
+#include <types/Endable.hpp>
 
-namespace rheo::operators {
+namespace rheoscape::operators {
 
   namespace detail {
     template <typename SourceT, typename FilterFnT>
@@ -16,14 +16,14 @@ namespace rheo::operators {
       FilterFnT condition;
 
       template <typename PushFn>
-      RHEO_CALLABLE auto operator()(PushFn push) const {
+      RHEOSCAPE_CALLABLE auto operator()(PushFn push) const {
 
         struct PushHandler {
           FilterFnT condition;
           PushFn push;
           mutable bool running = true;
 
-          RHEO_CALLABLE void operator()(T&& value) const {
+          RHEOSCAPE_CALLABLE void operator()(T&& value) const {
             if (running) {
               if (!invoke_maybe_apply(condition, value)) {
                 running = false;
@@ -45,7 +45,7 @@ namespace rheo::operators {
 
   template <typename SourceT, typename FilterFn>
     requires concepts::Source<SourceT> && concepts::Predicate<FilterFn, source_value_t<SourceT>>
-  RHEO_CALLABLE auto take_while(SourceT source, FilterFn&& condition) {
+  RHEOSCAPE_CALLABLE auto take_while(SourceT source, FilterFn&& condition) {
     return detail::TakeWhileSourceBinder<SourceT, std::decay_t<FilterFn>>{
       std::move(source),
       std::forward<FilterFn>(condition)
@@ -54,14 +54,14 @@ namespace rheo::operators {
 
   template <typename SourceT, typename FilterFn>
     requires concepts::Source<SourceT> && concepts::Predicate<FilterFn, source_value_t<SourceT>>
-  RHEO_CALLABLE auto take_until(SourceT source, FilterFn&& condition) {
+  RHEOSCAPE_CALLABLE auto take_until(SourceT source, FilterFn&& condition) {
     using FilterFnDecayed = std::decay_t<FilterFn>;
     using T = source_value_t<SourceT>;
 
     struct NegatingPredicate {
       FilterFnDecayed condition;
 
-      RHEO_CALLABLE bool operator()(T value) const {
+      RHEOSCAPE_CALLABLE bool operator()(T value) const {
         return !invoke_maybe_apply(condition, value);
       }
     };
@@ -76,7 +76,7 @@ namespace rheo::operators {
 
       template <typename SourceT>
         requires concepts::Source<SourceT> && concepts::Predicate<FilterFn, source_value_t<SourceT>>
-      RHEO_CALLABLE auto operator()(SourceT source) const {
+      RHEOSCAPE_CALLABLE auto operator()(SourceT source) const {
         return take_while(std::move(source), FilterFn(condition));
       }
     };
@@ -87,7 +87,7 @@ namespace rheo::operators {
 
       template <typename SourceT>
         requires concepts::Source<SourceT> && concepts::Predicate<FilterFn, source_value_t<SourceT>>
-      RHEO_CALLABLE auto operator()(SourceT source) const {
+      RHEOSCAPE_CALLABLE auto operator()(SourceT source) const {
         return take_until(std::move(source), FilterFn(condition));
       }
     };

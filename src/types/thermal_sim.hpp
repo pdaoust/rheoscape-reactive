@@ -2,13 +2,13 @@
 
 #include <cmath>
 #include <optional>
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 #include <operators/scan.hpp>
 #include <operators/combine.hpp>
 #include <operators/map.hpp>
 #include <operators/map.hpp>
 
-namespace rheo {
+namespace rheoscape {
 
   // Physical constants
   constexpr float WATER_SPECIFIC_HEAT_J_PER_KG_K = 4186.0f;
@@ -59,7 +59,7 @@ namespace rheo {
   // Named callable for combining thermal sim inputs
   template <typename TDuty, typename TTimePoint, typename TPower>
   struct thermal_sim_combiner {
-    RHEO_CALLABLE ThermalSimInput<TDuty, TTimePoint, TPower> operator()(
+    RHEOSCAPE_CALLABLE ThermalSimInput<TDuty, TTimePoint, TPower> operator()(
       TDuty duty,
       TTimePoint timestamp,
       TPower disturbance
@@ -71,7 +71,7 @@ namespace rheo {
   // Named callable for combining thermal sim inputs (no disturbance)
   template <typename TDuty, typename TTimePoint, typename TPower>
   struct thermal_sim_combiner_no_disturbance {
-    RHEO_CALLABLE ThermalSimInput<TDuty, TTimePoint, TPower> operator()(
+    RHEOSCAPE_CALLABLE ThermalSimInput<TDuty, TTimePoint, TPower> operator()(
       TDuty duty,
       TTimePoint timestamp
     ) const {
@@ -84,7 +84,7 @@ namespace rheo {
   struct thermal_sim_scanner {
     ThermalSimConfig<TTemp, TPower, TTimePoint> config;
 
-    RHEO_CALLABLE ThermalSimState<TTemp, TTimePoint, TDuty> operator()(
+    RHEOSCAPE_CALLABLE ThermalSimState<TTemp, TTimePoint, TDuty> operator()(
       ThermalSimState<TTemp, TTimePoint, TDuty> state,
       ThermalSimInput<TDuty, TTimePoint, TPower> input
     ) const {
@@ -135,7 +135,7 @@ namespace rheo {
   // Named callable for extracting temperature from state
   template <typename TTemp, typename TTimePoint, typename TDuty>
   struct thermal_sim_temp_extractor {
-    RHEO_CALLABLE TTemp operator()(ThermalSimState<TTemp, TTimePoint, TDuty> state) const {
+    RHEOSCAPE_CALLABLE TTemp operator()(ThermalSimState<TTemp, TTimePoint, TDuty> state) const {
       return state.temperature;
     }
   };

@@ -3,9 +3,9 @@
 #include <functional>
 #include <memory>
 #include <vector>
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 
-namespace rheo::operators {
+namespace rheoscape::operators {
 
   // Sharing a stream is like tapping it,
   // except that when any sink pulls, the value gets pushed to all sinks.
@@ -20,7 +20,7 @@ namespace rheo::operators {
       std::shared_ptr<std::vector<push_fn<T>>> sinks;
       pull_fn pull;
 
-      RHEO_CALLABLE pull_fn operator()(push_fn<T> push) const {
+      RHEOSCAPE_CALLABLE pull_fn operator()(push_fn<T> push) const {
         sinks->push_back(push);
         return pull;
       }
@@ -29,14 +29,14 @@ namespace rheo::operators {
 
   template <typename SourceT>
     requires concepts::Source<SourceT>
-  RHEO_CALLABLE auto share(SourceT source) {
+  RHEOSCAPE_CALLABLE auto share(SourceT source) {
     using T = source_value_t<SourceT>;
     auto sinks = std::make_shared<std::vector<push_fn<T>>>();
 
     struct PushHandler {
       std::shared_ptr<std::vector<push_fn<T>>> sinks;
 
-      RHEO_CALLABLE void operator()(T value) const {
+      RHEOSCAPE_CALLABLE void operator()(T value) const {
         for (push_fn<T> sink : *sinks) {
           sink(value);
         }
@@ -52,7 +52,7 @@ namespace rheo::operators {
     struct SharePipeFactory {
       template <typename SourceT>
         requires concepts::Source<SourceT>
-      RHEO_CALLABLE auto operator()(SourceT source) const {
+      RHEOSCAPE_CALLABLE auto operator()(SourceT source) const {
         return share(std::move(source));
       }
     };

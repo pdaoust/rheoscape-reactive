@@ -2,13 +2,13 @@
 
 #include <functional>
 #include <chrono>
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 #include <types/Range.hpp>
 #include <types/au_all_units_noio.hpp>
 #include <operators/combine.hpp>
 #include <operators/map.hpp>
 
-namespace rheo::operators {
+namespace rheoscape::operators {
 
   namespace detail {
     // Helper to convert a value to TOut, using appropriate conversion for:
@@ -36,7 +36,7 @@ namespace rheo::operators {
 
   template <typename SourceT, typename FromSourceT, typename ToSourceT>
     requires concepts::Source<SourceT> && concepts::Source<FromSourceT> && concepts::Source<ToSourceT>
-  RHEO_CALLABLE auto normalize(SourceT source, FromSourceT from_source, ToSourceT to_source) {
+  RHEOSCAPE_CALLABLE auto normalize(SourceT source, FromSourceT from_source, ToSourceT to_source) {
     using TIn = source_value_t<SourceT>;
     using TOut = typename source_value_t<ToSourceT>::value_type;
 
@@ -44,7 +44,7 @@ namespace rheo::operators {
     // Note: The input type (TIn) is used in division during interpolation, so ensure TIn has
     // sufficient precision for your needs (e.g., use float rather than int to avoid truncation).
     struct Combiner {
-      RHEO_CALLABLE TOut operator()(TIn value, Range<TIn> from, Range<TOut> to) const {
+      RHEOSCAPE_CALLABLE TOut operator()(TIn value, Range<TIn> from, Range<TOut> to) const {
         if (value <= from.min) {
           return to.min;
         } else if (value >= from.max) {
@@ -71,7 +71,7 @@ namespace rheo::operators {
 
       template <typename SourceT>
         requires concepts::Source<SourceT>
-      RHEO_CALLABLE auto operator()(SourceT source) const {
+      RHEOSCAPE_CALLABLE auto operator()(SourceT source) const {
         return normalize(std::move(source), FromSourceT(from_source), ToSourceT(to_source));
       }
     };

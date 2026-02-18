@@ -3,9 +3,9 @@
 #include <sources/constant.hpp>
 #include <types/State.hpp>
 
-using namespace rheo;
-using namespace rheo::sources;
-using namespace rheo::operators;
+using namespace rheoscape;
+using namespace rheoscape::sources;
+using namespace rheoscape::operators;
 
 void test_choose_chooses_right_stream() {
   std::map<int, source_fn<int>> streams {

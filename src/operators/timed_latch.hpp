@@ -2,9 +2,9 @@
 
 #include <functional>
 #include <memory>
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 
-namespace rheo::operators {
+namespace rheoscape::operators {
 
   // When the passed source changes,
   // hold a value for a while before reverting to a default value.
@@ -33,13 +33,13 @@ namespace rheo::operators {
       T default_value;
 
       template <typename PushFn>
-      RHEO_CALLABLE auto operator()(PushFn push) const {
+      RHEOSCAPE_CALLABLE auto operator()(PushFn push) const {
         auto last_timestamp = std::make_shared<std::optional<TTimePoint>>();
 
         struct ClockPushHandler {
           std::shared_ptr<std::optional<TTimePoint>> last_timestamp;
 
-          RHEO_CALLABLE void operator()(TTimePoint ts) const {
+          RHEOSCAPE_CALLABLE void operator()(TTimePoint ts) const {
             last_timestamp->emplace(ts);
           }
         };
@@ -64,7 +64,7 @@ namespace rheo::operators {
           std::shared_ptr<std::optional<TTimePoint>> latch_start_timestamp;
           std::shared_ptr<std::optional<T>> last_value;
 
-          RHEO_CALLABLE void operator()(T value) const {
+          RHEOSCAPE_CALLABLE void operator()(T value) const {
             pull_clock();
 
             if (latch_start_timestamp->has_value()) {
@@ -123,7 +123,7 @@ namespace rheo::operators {
 
       template <typename SourceT>
         requires concepts::Source<SourceT>
-      RHEO_CALLABLE auto operator()(SourceT source) const {
+      RHEOSCAPE_CALLABLE auto operator()(SourceT source) const {
         return timed_latch(std::move(source), ClockSourceT(clock_source), duration, T(default_value));
       }
     };

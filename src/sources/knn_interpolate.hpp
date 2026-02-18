@@ -4,11 +4,11 @@
 #include <vector>
 #include <functional>
 #include <limits>
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 #include <operators/map.hpp>
 #include <types/KnnStorage.hpp>
 
-namespace rheo::sources {
+namespace rheoscape::sources {
 
   // Weight function signature for IoC.
   // User provides this to compute interpolation weight from distance.
@@ -75,7 +75,7 @@ namespace rheo::sources {
     WeightFn weight_fn;
     CombineFn combine_fn;
 
-    RHEO_CALLABLE std::optional<TValue> operator()(TKey key) const {
+    RHEOSCAPE_CALLABLE std::optional<TValue> operator()(TKey key) const {
       auto neighbors = storage->find_k_nearest(key, k);
 
       if (neighbors.empty()) {

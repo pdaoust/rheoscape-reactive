@@ -1,14 +1,14 @@
 #pragma once
 
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 #include <types/State.hpp>
 #include <operators/map.hpp>
 #include <operators/sample.hpp>
 
-using namespace rheo;
-using namespace rheo::operators;
+using namespace rheoscape;
+using namespace rheoscape::operators;
 
-namespace rheo::helpers {
+namespace rheoscape::helpers {
 
   // Construct a pipeline that binds a State<T> to a stream consisting of input events
   // (for instance, button presses and rotary encoder clicks).

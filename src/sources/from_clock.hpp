@@ -1,9 +1,9 @@
 #pragma once
 
 #include <functional>
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 
-namespace rheo::sources {
+namespace rheoscape::sources {
 
   namespace detail {
 
@@ -11,7 +11,7 @@ namespace rheo::sources {
     struct from_clock_pull_handler {
       PushFn push;
 
-      RHEO_CALLABLE void operator()() const {
+      RHEOSCAPE_CALLABLE void operator()() const {
         push(TClock::now());
       }
     };
@@ -21,7 +21,7 @@ namespace rheo::sources {
       using value_type = typename TClock::time_point;
 
       template <typename PushFn>
-      RHEO_CALLABLE auto operator()(PushFn push) const {
+      RHEOSCAPE_CALLABLE auto operator()(PushFn push) const {
         return from_clock_pull_handler<TClock, PushFn>{std::move(push)};
       }
     };

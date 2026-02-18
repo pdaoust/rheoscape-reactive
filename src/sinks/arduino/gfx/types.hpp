@@ -3,7 +3,7 @@
 #include <functional>
 #include <Adafruit_GFX.h>
 
-namespace rheo::sinks::arduino::gfx {
+namespace rheoscape::sinks::arduino::gfx {
 
   struct Coords {
     int16_t x;

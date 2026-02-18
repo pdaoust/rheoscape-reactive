@@ -1,7 +1,7 @@
 #include <unity.h>
 #include <sources/constant.hpp>
 
-using namespace rheo::sources;
+using namespace rheoscape::sources;
 
 void test_constant_produces_constant_value() {
   auto eleven = constant(11);

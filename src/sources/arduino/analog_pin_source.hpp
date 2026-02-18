@@ -1,9 +1,9 @@
 #pragma once
 
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 #include <Arduino.h>
 
-namespace rheo::sources::arduino {
+namespace rheoscape::sources::arduino {
 
   namespace detail {
 
@@ -12,7 +12,7 @@ namespace rheo::sources::arduino {
       int pin;
       PushFn push;
 
-      RHEO_CALLABLE void operator()() const {
+      RHEOSCAPE_CALLABLE void operator()() const {
         push(analogRead(pin));
       }
     };
@@ -23,7 +23,7 @@ namespace rheo::sources::arduino {
 
       template <typename PushFn>
         requires concepts::Visitor<PushFn, int>
-      RHEO_CALLABLE auto operator()(PushFn push) const {
+      RHEOSCAPE_CALLABLE auto operator()(PushFn push) const {
         return analog_pin_pull_handler<PushFn>{pin, std::move(push)};
       }
     };

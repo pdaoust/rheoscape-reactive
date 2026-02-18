@@ -1,10 +1,10 @@
 #pragma once
 
 #include <unordered_map>
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 #include <Arduino.h>
 
-namespace rheo::sources::arduino {
+namespace rheoscape::sources::arduino {
 
   namespace detail {
 
@@ -13,7 +13,7 @@ namespace rheo::sources::arduino {
       int pin;
       PushFn push;
 
-      RHEO_CALLABLE void operator()() const {
+      RHEOSCAPE_CALLABLE void operator()() const {
         push(static_cast<bool>(digitalRead(pin)));
       }
     };
@@ -24,7 +24,7 @@ namespace rheo::sources::arduino {
 
       template <typename PushFn>
         requires concepts::Visitor<PushFn, bool>
-      RHEO_CALLABLE auto operator()(PushFn push) const {
+      RHEOSCAPE_CALLABLE auto operator()(PushFn push) const {
         return digital_pin_pull_handler<PushFn>{pin, std::move(push)};
       }
     };
@@ -73,7 +73,7 @@ namespace rheo::sources::arduino {
       public:
         PushFn push;
 
-        RHEO_CALLABLE void operator()() const {
+        RHEOSCAPE_CALLABLE void operator()() const {
           // Atomic snapshot
           noInterrupts();
           uint32_t pin_changes[] = {_pin_changes[Pins]...};
@@ -106,7 +106,7 @@ namespace rheo::sources::arduino {
 
       template <typename PushFn>
       // TODO: can I add a concept constraint here or is SFINAE good enough?
-      RHEO_CALLABLE auto operator()(PushFn push) const {
+      RHEOSCAPE_CALLABLE auto operator()(PushFn push) const {
         return digital_pin_interrupt_push_handler<PushFn, Pins...>{std::move(push)};
       }
     };

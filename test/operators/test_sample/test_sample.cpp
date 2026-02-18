@@ -6,9 +6,9 @@
 #include <types/State.hpp>
 #include <sources/from_clock.hpp>
 
-using namespace rheo;
-using namespace rheo::operators;
-using namespace rheo::sources;
+using namespace rheoscape;
+using namespace rheoscape::operators;
+using namespace rheoscape::sources;
 
 void test_sample_samples_on_events() {
   auto clock = from_clock<mock_clock_ulong_millis>();

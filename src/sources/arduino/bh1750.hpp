@@ -1,13 +1,13 @@
 #pragma once
 
 #include <memory>
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 #include <types/au_all_units_noio.hpp>
 #include <Arduino.h>
 #include <Wire.h>
 #include <BH1750.h>
 
-namespace rheo::sources::arduino {
+namespace rheoscape::sources::arduino {
 
   namespace detail {
 
@@ -16,7 +16,7 @@ namespace rheo::sources::arduino {
       std::shared_ptr<BH1750> sensor;
       PushFn push;
 
-      RHEO_CALLABLE void operator()() const {
+      RHEOSCAPE_CALLABLE void operator()() const {
         if (sensor->measurementReady()) {
           push(au::lux(sensor->readLightLevel()));
         }
@@ -29,7 +29,7 @@ namespace rheo::sources::arduino {
 
       template <typename PushFn>
         requires concepts::Visitor<PushFn, value_type>
-      RHEO_CALLABLE auto operator()(PushFn push) const {
+      RHEOSCAPE_CALLABLE auto operator()(PushFn push) const {
         return bh1750_pull_handler<PushFn>{sensor, std::move(push)};
       }
     };

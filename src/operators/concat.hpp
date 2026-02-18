@@ -1,12 +1,12 @@
 #pragma once
 
 #include <functional>
-#include <core_types.hpp>
-#include <Endable.hpp>
+#include <types/core_types.hpp>
+#include <types/Endable.hpp>
 #include <types/Wrapper.hpp>
 #include <operators/unwrap.hpp>
 
-namespace rheo::operators {
+namespace rheoscape::operators {
 
   // Concatenate two sources into one,
   // starting the second one after the first one has ended.
@@ -22,14 +22,14 @@ namespace rheo::operators {
       Source2T source2;
 
       template <typename PushFn>
-      RHEO_CALLABLE auto operator()(PushFn push) const {
+      RHEOSCAPE_CALLABLE auto operator()(PushFn push) const {
         auto source1HasEnded = make_wrapper_shared<bool>(false);
 
         struct Source1PushHandler {
           PushFn push;
           std::shared_ptr<Wrapper<bool>> source1HasEnded;
 
-          RHEO_CALLABLE void operator()(Endable<T> value) const {
+          RHEOSCAPE_CALLABLE void operator()(Endable<T> value) const {
             if (value.has_value()) {
               push(value.value);
             } else {
@@ -42,7 +42,7 @@ namespace rheo::operators {
           PushFn push;
           std::shared_ptr<Wrapper<bool>> source1HasEnded;
 
-          RHEO_CALLABLE void operator()(T value) const {
+          RHEOSCAPE_CALLABLE void operator()(T value) const {
             if (source1HasEnded->value) {
               push(value);
             }
@@ -54,7 +54,7 @@ namespace rheo::operators {
           pull_fn pull_source1;
           pull_fn pull_source2;
 
-          RHEO_CALLABLE void operator()() const {
+          RHEOSCAPE_CALLABLE void operator()() const {
             if (!source1HasEnded->value) {
               pull_source1();
             } else {
@@ -98,14 +98,14 @@ namespace rheo::operators {
       Source2T source2;
 
       template <typename PushFn>
-      RHEO_CALLABLE auto operator()(PushFn push) const {
+      RHEOSCAPE_CALLABLE auto operator()(PushFn push) const {
         auto source1HasEnded = make_wrapper_shared<bool>(false);
 
         struct Source1PushHandler {
           PushFn push;
           std::shared_ptr<Wrapper<bool>> source1HasEnded;
 
-          RHEO_CALLABLE void operator()(Endable<T> value) const {
+          RHEOSCAPE_CALLABLE void operator()(Endable<T> value) const {
             if (value.has_value()) {
               push(value);
             } else {
@@ -118,7 +118,7 @@ namespace rheo::operators {
           PushFn push;
           std::shared_ptr<Wrapper<bool>> source1HasEnded;
 
-          RHEO_CALLABLE void operator()(Endable<T> value) const {
+          RHEOSCAPE_CALLABLE void operator()(Endable<T> value) const {
             if (source1HasEnded->value) {
               push(value);
             }
@@ -130,7 +130,7 @@ namespace rheo::operators {
           pull_fn pull_source1;
           pull_fn pull_source2;
 
-          RHEO_CALLABLE void operator()() const {
+          RHEOSCAPE_CALLABLE void operator()() const {
             if (!source1HasEnded->value) {
               pull_source1();
             }
@@ -172,7 +172,7 @@ namespace rheo::operators {
 
       template <typename Source1T>
         requires concepts::Source<Source1T>
-      RHEO_CALLABLE auto operator()(Source1T source1) const {
+      RHEOSCAPE_CALLABLE auto operator()(Source1T source1) const {
         return concat(std::move(source1), Source2T(source2));
       }
     };

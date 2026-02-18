@@ -4,9 +4,9 @@
 #include <operators/unwrap.hpp>
 #include <sources/sequence.hpp>
 
-using namespace rheo;
-using namespace rheo::operators;
-using namespace rheo::sources;
+using namespace rheoscape;
+using namespace rheoscape::operators;
+using namespace rheoscape::sources;
 
 void test_take_while_takes() {
   auto source = unwrap_endable(sequence(0, 20, 1));

@@ -3,10 +3,10 @@
 #include <functional>
 #include <memory>
 #include <tuple>
-#include <core_types.hpp>
-#include <util.hpp>
+#include <types/core_types.hpp>
+#include <util/misc.hpp>
 
-namespace rheo::operators {
+namespace rheoscape::operators {
 
   // Sample the second stream every time the first stream receives a value.
   // Returns a tuple of (event_value, sampled_value).
@@ -24,14 +24,14 @@ namespace rheo::operators {
       SampleSourceT sample_source;
 
       template <typename PushFn>
-      RHEO_CALLABLE auto operator()(PushFn push) const {
+      RHEOSCAPE_CALLABLE auto operator()(PushFn push) const {
         auto last_event_value = std::make_shared<std::optional<TEvent>>(std::nullopt);
 
         struct SamplePushHandler {
           PushFn push;
           std::shared_ptr<std::optional<TEvent>> last_event_value;
 
-          RHEO_CALLABLE void operator()(TSample sample_value) const {
+          RHEOSCAPE_CALLABLE void operator()(TSample sample_value) const {
             if (last_event_value->has_value()) {
               // Extract the event value and clear BEFORE pushing.
               // This prevents re-entrant pushes (e.g., from State.set() in downstream)
@@ -47,7 +47,7 @@ namespace rheo::operators {
           std::shared_ptr<std::optional<TEvent>> last_event_value;
           pull_fn pull_sample;
 
-          RHEO_CALLABLE void operator()(TEvent event_value) const {
+          RHEOSCAPE_CALLABLE void operator()(TEvent event_value) const {
             last_event_value->emplace(event_value);
             pull_sample();
           }
@@ -90,7 +90,7 @@ namespace rheo::operators {
 
       template <typename EventSourceT>
         requires concepts::Source<EventSourceT>
-      RHEO_CALLABLE auto operator()(EventSourceT event_source) const {
+      RHEOSCAPE_CALLABLE auto operator()(EventSourceT event_source) const {
         return sample(std::move(event_source), SampleSourceT(sample_source));
       }
     };
@@ -105,7 +105,7 @@ namespace rheo::operators {
 
       template <typename SampleSourceT>
         requires concepts::Source<SampleSourceT>
-      RHEO_CALLABLE auto operator()(SampleSourceT sample_source) const {
+      RHEOSCAPE_CALLABLE auto operator()(SampleSourceT sample_source) const {
         return sample(EventSourceT(event_source), std::move(sample_source));
       }
     };

@@ -1,13 +1,13 @@
 #pragma once
 
 #include <functional>
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 #include <operators/combine.hpp>
 #include <sinks/arduino/gfx/types.hpp>
 #include <Arduino.h>
 #include <Adafruit_GFX.h>
 
-namespace rheo::sinks::arduino::gfx {
+namespace rheoscape::sinks::arduino::gfx {
 
   // template <typename TCanvas, typename TMask, typename THints>
   // source_fn<GfxCommand<TCanvas>> canvas_sink(

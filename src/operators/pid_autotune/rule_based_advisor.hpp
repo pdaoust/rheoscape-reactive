@@ -2,7 +2,7 @@
 
 #include <cmath>
 #include <optional>
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 #include <operators/scan.hpp>
 #include <operators/combine.hpp>
 #include <operators/map.hpp>
@@ -10,7 +10,7 @@
 #include <operators/pid.hpp>
 #include <operators/pid_autotune/autotune_types.hpp>
 
-namespace rheo::autotune {
+namespace rheoscape::autotune {
 
   // Extended configuration for rule-based advisor with cooldown support.
   template <typename TP, typename TTimePoint, typename TFitness = float>
@@ -89,7 +89,7 @@ namespace rheo::autotune {
     using StateType = RuleBasedState<TP, TTimePoint, TFitness>;
     using InputType = RuleBasedInput<TCtrl, TP, TI, TD, TTimePoint, TFitness>;
 
-    RHEO_CALLABLE StateType operator()(StateType state, InputType input) const {
+    RHEOSCAPE_CALLABLE StateType operator()(StateType state, InputType input) const {
       // Handle first sample
       if (state.first_sample) {
         TP error = input.pid_output.error;
@@ -232,7 +232,7 @@ namespace rheo::autotune {
     rule_based_scanner_with_time(RuleBasedAdvisorConfig<TP, TTimePoint, TFitness> cfg)
       : config(cfg), inner_scanner{cfg} {}
 
-    RHEO_CALLABLE StateType operator()(StateType state, InputType input) const {
+    RHEOSCAPE_CALLABLE StateType operator()(StateType state, InputType input) const {
       return StateType{
         inner_scanner(state.state, input),
         input.timestamp
@@ -272,7 +272,7 @@ namespace rheo::autotune {
 
     // Named callable for combining advisor inputs.
     struct InputCombiner {
-      RHEO_CALLABLE InputType operator()(
+      RHEOSCAPE_CALLABLE InputType operator()(
         operators::PidOutput<TCtrl, TP, TI> pid_output,
         TTimePoint timestamp,
         TFitness target_fitness
@@ -289,7 +289,7 @@ namespace rheo::autotune {
     struct OutputMapper {
       RuleBasedAdvisorConfig<TP, TTimePoint, TFitness> config;
 
-      RHEO_CALLABLE TuningAdjustment operator()(StateType state_with_time) const {
+      RHEOSCAPE_CALLABLE TuningAdjustment operator()(StateType state_with_time) const {
         return determine_adjustment(state_with_time.state, config, state_with_time.timestamp);
       }
     };
@@ -352,7 +352,7 @@ namespace rheo::autotune {
     struct InputCombiner {
       TFitness target_fitness;
 
-      RHEO_CALLABLE InputType operator()(
+      RHEOSCAPE_CALLABLE InputType operator()(
         operators::PidOutput<TCtrl, TP, TI> pid_output,
         TTimePoint timestamp
       ) const {
@@ -368,7 +368,7 @@ namespace rheo::autotune {
     struct OutputMapper {
       RuleBasedAdvisorConfig<TP, TTimePoint, TFitness> config;
 
-      RHEO_CALLABLE TuningAdjustment operator()(StateType state_with_time) const {
+      RHEOSCAPE_CALLABLE TuningAdjustment operator()(StateType state_with_time) const {
         return determine_adjustment(state_with_time.state, config, state_with_time.timestamp);
       }
     };

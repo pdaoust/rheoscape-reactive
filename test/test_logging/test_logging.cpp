@@ -1,7 +1,7 @@
 #include <unity.h>
-#include <logging.hpp>
+#include <util/logging.hpp>
 
-using namespace rheo::logging;
+using namespace rheoscape::logging;
 
 void test_logging_logs_each_level_correctly() {
   uint8_t last_log_level;

@@ -2,7 +2,7 @@
 
 #include <chrono>
 
-namespace rheo {
+namespace rheoscape {
 
   template <typename Rep, typename Period>
   class mock_clock {

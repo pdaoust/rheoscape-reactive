@@ -1,5 +1,5 @@
 #include <unity.h>
-#include <util.hpp>
+#include <util/misc.hpp>
 #include <operators/merge.hpp>
 #include <operators/unwrap.hpp>
 #include <sources/constant.hpp>
@@ -7,9 +7,9 @@
 #include <sources/sequence.hpp>
 #include <types/State.hpp>
 
-using namespace rheo;
-using namespace rheo::operators;
-using namespace rheo::sources;
+using namespace rheoscape;
+using namespace rheoscape::operators;
+using namespace rheoscape::sources;
 
 void test_merge_merges_disparate_pull_streams() {
   auto letters_source = unwrap_endable(sequence<char>('a', 'c', 1));

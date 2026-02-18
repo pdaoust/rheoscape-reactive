@@ -1,6 +1,6 @@
 #pragma once
 
-namespace rheo {
+namespace rheoscape {
 
   // Tag type for the error side of Fallible
   // when raw deserialization (e.g., EEPROM memcpy) produces an invalid value.

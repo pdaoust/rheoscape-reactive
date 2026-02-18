@@ -6,9 +6,9 @@
 #include <types/State.hpp>
 #include <sources/from_iterator.hpp>
 
-using namespace rheo;
-using namespace rheo::operators;
-using namespace rheo::sources;
+using namespace rheoscape;
+using namespace rheoscape::operators;
+using namespace rheoscape::sources;
 
 void test_lift_to_optional_can_push() {
   pipe_fn<int, int> doubling_pipe = map([](int v) { return v * 2; });

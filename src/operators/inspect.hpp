@@ -2,9 +2,9 @@
 
 #include <functional>
 #include <utility>
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 
-namespace rheo::operators {
+namespace rheoscape::operators {
 
   // inspect executes a callback function on each value,
   // then passes the value downstream unchanged.
@@ -20,14 +20,14 @@ namespace rheo::operators {
       ExecFnT exec;
 
       template <typename PushFn>
-      RHEO_CALLABLE auto operator()(PushFn push_downstream) const {
+      RHEOSCAPE_CALLABLE auto operator()(PushFn push_downstream) const {
         using T = value_type;
 
         struct PushHandler {
           PushFn push_downstream;
           ExecFnT exec;
 
-          RHEO_CALLABLE void operator()(T value) const {
+          RHEOSCAPE_CALLABLE void operator()(T value) const {
             // Pass as const reference to prevent exec from consuming the value.
             // The value must remain intact for downstream.
             invoke_maybe_apply(exec, std::as_const(value));
@@ -45,7 +45,7 @@ namespace rheo::operators {
   // Usage: inspect(source, my_callback)
   template <typename SourceT, typename ExecFn>
     requires concepts::Source<SourceT> && concepts::Visitor<ExecFn, source_value_t<SourceT>>
-  RHEO_CALLABLE auto inspect(SourceT source, ExecFn&& exec) {
+  RHEOSCAPE_CALLABLE auto inspect(SourceT source, ExecFn&& exec) {
     return detail::InspectSourceBinder<SourceT, std::decay_t<ExecFn>>{
       std::move(source),
       std::forward<ExecFn>(exec)
@@ -59,7 +59,7 @@ namespace rheo::operators {
 
       template <typename SourceT>
         requires concepts::Source<SourceT> && concepts::Visitor<ExecFn, source_value_t<SourceT>>
-      RHEO_CALLABLE auto operator()(SourceT source) const {
+      RHEOSCAPE_CALLABLE auto operator()(SourceT source) const {
         return inspect(std::move(source), ExecFn(exec));
       }
     };

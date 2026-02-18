@@ -4,10 +4,10 @@
 #include <map>
 #include <vector>
 #include <fmt/format.h>
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 #include <ArduinoJson.h>
 
-namespace rheo::home_assistant {
+namespace rheoscape::home_assistant {
 
   class value_bad_get_type_access : std::exception {
     public:

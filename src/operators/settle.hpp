@@ -1,11 +1,11 @@
 #pragma once
 
 #include <functional>
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 #include <operators/timestamp.hpp>
 #include <types/Wrapper.hpp>
 
-namespace rheo::operators {
+namespace rheoscape::operators {
 
   // Don't emit a value until it's settled down.
   // This differs from debounce, in that debounce waits for an upstream change,
@@ -23,7 +23,7 @@ namespace rheo::operators {
       TInterval interval;
 
       template <typename PushFn>
-      RHEO_CALLABLE auto operator()(PushFn push) const {
+      RHEOSCAPE_CALLABLE auto operator()(PushFn push) const {
         // We only want to push a value that's the same as the previously pushed value
         // if the push happens as a consequence of a pull.
         // It doesn't make sense for a push stream to force a settled value to get emitted
@@ -38,7 +38,7 @@ namespace rheo::operators {
           mutable std::optional<T> current_state;
           mutable bool current_state_has_been_pushed;
 
-          RHEO_CALLABLE void operator()(TaggedValue<T, TTimePoint> value) const {
+          RHEOSCAPE_CALLABLE void operator()(TaggedValue<T, TTimePoint> value) const {
             if (
               !testing_new_state.has_value()
               || value.value != testing_new_state.value().value) {
@@ -66,7 +66,7 @@ namespace rheo::operators {
           std::shared_ptr<Wrapper<bool>> did_pull;
           pull_fn inner_pull;
 
-          RHEO_CALLABLE void operator()() const {
+          RHEOSCAPE_CALLABLE void operator()() const {
             did_pull->value = true;
             inner_pull();
             did_pull->value = false;
@@ -108,7 +108,7 @@ namespace rheo::operators {
 
       template <typename SourceT>
         requires concepts::Source<SourceT>
-      RHEO_CALLABLE auto operator()(SourceT source) const {
+      RHEOSCAPE_CALLABLE auto operator()(SourceT source) const {
         return settle(std::move(source), ClockSourceT(clock_source), interval);
       }
     };

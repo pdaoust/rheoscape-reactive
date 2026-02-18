@@ -4,9 +4,9 @@
 #include <operators/unwrap.hpp>
 #include <sources/sequence.hpp>
 
-using namespace rheo;
-using namespace rheo::sources;
-using namespace rheo::operators;
+using namespace rheoscape;
+using namespace rheoscape::sources;
+using namespace rheoscape::operators;
 
 // There used to be an operator called `share`,
 // which shared one source among many sinks.

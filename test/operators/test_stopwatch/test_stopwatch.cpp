@@ -8,9 +8,9 @@
 #include <sources/from_clock.hpp>
 #include <types/mock_clock.hpp>
 
-using namespace rheo;
-using namespace rheo::operators;
-using namespace rheo::sources;
+using namespace rheoscape;
+using namespace rheoscape::operators;
+using namespace rheoscape::sources;
 
 void test_stopwatch_is_contiguous_before_first_lap() {
   auto clock_source = from_clock<mock_clock_ulong_millis>();

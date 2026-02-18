@@ -1,12 +1,12 @@
 #pragma once
 
 #include <functional>
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 #include <operators/filter.hpp>
 #include <operators/map.hpp>
 #include <operators/combine.hpp>
 
-namespace rheo::operators {
+namespace rheoscape::operators {
 
   // Toggle a value source on and off with a boolean toggle source.
   // It's off until the toggle source pushes the first true value.
@@ -18,13 +18,13 @@ namespace rheo::operators {
     using T = source_value_t<ValueSourceT>;
 
     struct TogglePredicate {
-      RHEO_CALLABLE bool operator()(std::tuple<T, bool> value) const {
+      RHEOSCAPE_CALLABLE bool operator()(std::tuple<T, bool> value) const {
         return std::get<1>(value);
       }
     };
 
     struct ValueExtractor {
-      RHEO_CALLABLE T operator()(std::tuple<T, bool> value) const {
+      RHEOSCAPE_CALLABLE T operator()(std::tuple<T, bool> value) const {
         return std::get<0>(value);
       }
     };
@@ -41,7 +41,7 @@ namespace rheo::operators {
 
       template <typename ValueSourceT>
         requires concepts::Source<ValueSourceT>
-      RHEO_CALLABLE auto operator()(ValueSourceT value_source) const {
+      RHEOSCAPE_CALLABLE auto operator()(ValueSourceT value_source) const {
         return toggle(std::move(value_source), ToggleSourceT(toggle_source));
       }
     };
@@ -53,7 +53,7 @@ namespace rheo::operators {
       template <typename ToggleSourceT>
         requires concepts::Source<ToggleSourceT> &&
                  std::is_same_v<source_value_t<ToggleSourceT>, bool>
-      RHEO_CALLABLE auto operator()(ToggleSourceT toggle_source) const {
+      RHEOSCAPE_CALLABLE auto operator()(ToggleSourceT toggle_source) const {
         return toggle(ValueSourceT(value_source), std::move(toggle_source));
       }
     };

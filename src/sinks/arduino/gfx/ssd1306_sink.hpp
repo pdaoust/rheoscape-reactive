@@ -1,16 +1,16 @@
 #pragma once
 
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 #include <Adafruit_SSD1306.h>
 
-namespace rheo::sinks::arduino::gfx {
+namespace rheoscape::sinks::arduino::gfx {
 
   namespace detail {
 
     struct ssd1306_push_handler {
       Adafruit_SSD1306& display;
 
-      RHEO_CALLABLE void operator()(std::vector<GfxCommand<Adafruit_GFX>> commands) const {
+      RHEOSCAPE_CALLABLE void operator()(std::vector<GfxCommand<Adafruit_GFX>> commands) const {
         GFXcanvas1 canvas(display.width(), display.height(), false);
         display.clearDisplay();
         for (auto& command : commands) {
@@ -26,7 +26,7 @@ namespace rheo::sinks::arduino::gfx {
 
       template <typename SourceFn>
         requires concepts::SourceOf<SourceFn, std::vector<GfxCommand<Adafruit_GFX>>>
-      RHEO_CALLABLE auto operator()(SourceFn source) const {
+      RHEOSCAPE_CALLABLE auto operator()(SourceFn source) const {
         return source(ssd1306_push_handler{display});
       }
     };

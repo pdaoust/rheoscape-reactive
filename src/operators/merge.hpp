@@ -2,7 +2,7 @@
 
 #include <functional>
 #include <variant>
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 
 // Merge streams together.
 // If you pull a merged stream, all the upstream sources get pulled in sequence.
@@ -10,7 +10,7 @@
 // Chain multiple merge operations to merge more than two streams:
 //   source1 | merge(source2) | merge(source3)
 
-namespace rheo::operators {
+namespace rheoscape::operators {
 
   // Binary merge: combines two same-type sources into one stream
 
@@ -24,13 +24,13 @@ namespace rheo::operators {
       Source2T source2;
 
       template <typename PushFn>
-      RHEO_CALLABLE auto operator()(PushFn push) const {
+      RHEOSCAPE_CALLABLE auto operator()(PushFn push) const {
 
         struct PullHandler {
           pull_fn pull1;
           pull_fn pull2;
 
-          RHEO_CALLABLE void operator()() const {
+          RHEOSCAPE_CALLABLE void operator()() const {
             pull1();
             pull2();
           }
@@ -61,7 +61,7 @@ namespace rheo::operators {
       template <typename Source1T>
         requires concepts::Source<Source1T> &&
                  std::is_same_v<source_value_t<Source1T>, source_value_t<Source2T>>
-      RHEO_CALLABLE auto operator()(Source1T source1) const {
+      RHEOSCAPE_CALLABLE auto operator()(Source1T source1) const {
         return merge(std::move(source1), Source2T(source2));
       }
     };
@@ -87,12 +87,12 @@ namespace rheo::operators {
       Source2T source2;
 
       template <typename PushFn>
-      RHEO_CALLABLE auto operator()(PushFn push) const {
+      RHEOSCAPE_CALLABLE auto operator()(PushFn push) const {
 
         struct PushHandler1 {
           PushFn push;
 
-          RHEO_CALLABLE void operator()(T1 value) const {
+          RHEOSCAPE_CALLABLE void operator()(T1 value) const {
             push(std::variant<T1, T2>(std::move(value)));
           }
         };
@@ -100,7 +100,7 @@ namespace rheo::operators {
         struct PushHandler2 {
           PushFn push;
 
-          RHEO_CALLABLE void operator()(T2 value) const {
+          RHEOSCAPE_CALLABLE void operator()(T2 value) const {
             push(std::variant<T1, T2>(std::move(value)));
           }
         };
@@ -109,7 +109,7 @@ namespace rheo::operators {
           pull_fn pull1;
           pull_fn pull2;
 
-          RHEO_CALLABLE void operator()() const {
+          RHEOSCAPE_CALLABLE void operator()() const {
             pull1();
             pull2();
           }
@@ -138,7 +138,7 @@ namespace rheo::operators {
 
       template <typename Source1T>
         requires concepts::Source<Source1T>
-      RHEO_CALLABLE auto operator()(Source1T source1) const {
+      RHEOSCAPE_CALLABLE auto operator()(Source1T source1) const {
         return merge_mixed(std::move(source1), Source2T(source2));
       }
     };

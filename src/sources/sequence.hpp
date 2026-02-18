@@ -4,11 +4,11 @@
 #include <functional>
 #include <iterator>
 #include <memory>
-#include <core_types.hpp>
-#include <Endable.hpp>
+#include <types/core_types.hpp>
+#include <types/Endable.hpp>
 #include <operators/unwrap.hpp>
 
-namespace rheo::sources {
+namespace rheoscape::sources {
 
   template <typename T>
   struct sequence_state {
@@ -26,7 +26,7 @@ namespace rheo::sources {
       PushFn push;
       std::shared_ptr<sequence_state<T>> state;
 
-      RHEO_CALLABLE void operator()() const {
+      RHEOSCAPE_CALLABLE void operator()() const {
         if (state->is_ended) {
           push(Endable<T>());
           return;
@@ -55,7 +55,7 @@ namespace rheo::sources {
       T step;
 
       template <typename PushFn>
-      RHEO_CALLABLE auto operator()(PushFn push) const {
+      RHEOSCAPE_CALLABLE auto operator()(PushFn push) const {
         auto state = std::make_shared<sequence_state<T>>(sequence_state<T>{i_begin, step, false});
         return sequence_pull_handler<T, PushFn>{i_begin, i_end, std::move(push), state};
       }

@@ -2,9 +2,9 @@
 #include <operators/tee.hpp>
 #include <sources/constant.hpp>
 
-using namespace rheo;
-using namespace rheo::operators;
-using namespace rheo::sources;
+using namespace rheoscape;
+using namespace rheoscape::operators;
+using namespace rheoscape::sources;
 
 
 void test_tee_calls_tee_function() {

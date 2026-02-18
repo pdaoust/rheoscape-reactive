@@ -3,9 +3,9 @@
 #include <functional>
 #include <optional>
 #include <memory>
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 
-namespace rheo::operators {
+namespace rheoscape::operators {
 
   // Only push the first received instance of a value.
   // This essentially turns a continuous value stream into a stream of change events.
@@ -20,7 +20,7 @@ namespace rheo::operators {
       SourceT source;
 
       template <typename PushFn>
-      RHEO_CALLABLE auto operator()(PushFn push) const {
+      RHEOSCAPE_CALLABLE auto operator()(PushFn push) const {
         using T = value_type;
 
         struct PushHandler {
@@ -31,7 +31,7 @@ namespace rheo::operators {
             : push(std::move(push)),
               last_seen_value(std::make_shared<std::optional<T>>(std::nullopt)) {}
 
-          RHEO_CALLABLE void operator()(T value) const {
+          RHEOSCAPE_CALLABLE void operator()(T value) const {
             if (!last_seen_value->has_value() || last_seen_value->value() != value) {
               last_seen_value->emplace(value);
               push(value);
@@ -46,7 +46,7 @@ namespace rheo::operators {
 
   template <typename SourceT>
     requires concepts::Source<SourceT>
-  RHEO_CALLABLE auto dedupe(SourceT source) {
+  RHEOSCAPE_CALLABLE auto dedupe(SourceT source) {
     return detail::DedupeSourceBinder<SourceT>{std::move(source)};
   }
 
@@ -54,7 +54,7 @@ namespace rheo::operators {
     struct DedupePipeFactory {
       template <typename SourceT>
         requires concepts::Source<SourceT>
-      RHEO_CALLABLE auto operator()(SourceT source) const {
+      RHEOSCAPE_CALLABLE auto operator()(SourceT source) const {
         return dedupe(std::move(source));
       }
     };

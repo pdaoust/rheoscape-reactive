@@ -1,9 +1,9 @@
 #pragma once
 
 #include <functional>
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 
-namespace rheo::operators {
+namespace rheoscape::operators {
 
   namespace detail {
     template <typename SourceT, typename FilterFnT>
@@ -14,14 +14,14 @@ namespace rheo::operators {
       FilterFnT filterer;
 
       template <typename PushFn>
-      RHEO_CALLABLE auto operator()(PushFn push) const {
+      RHEOSCAPE_CALLABLE auto operator()(PushFn push) const {
         using T = value_type;
 
         struct PushHandler {
           FilterFnT filterer;
           PushFn push;
 
-          RHEO_CALLABLE void operator()(T value) const {
+          RHEOSCAPE_CALLABLE void operator()(T value) const {
             if (invoke_maybe_apply(filterer, value)) {
               push(value);
             }
@@ -35,7 +35,7 @@ namespace rheo::operators {
 
   template <typename SourceT, typename FilterFn>
     requires concepts::Source<SourceT> && concepts::Predicate<FilterFn, source_value_t<SourceT>>
-  RHEO_CALLABLE auto filter(SourceT source, FilterFn&& filterer) {
+  RHEOSCAPE_CALLABLE auto filter(SourceT source, FilterFn&& filterer) {
     return detail::FilterSourceBinder<SourceT, std::decay_t<FilterFn>>{
       std::move(source),
       std::forward<FilterFn>(filterer)
@@ -49,7 +49,7 @@ namespace rheo::operators {
 
       template <typename SourceT>
         requires concepts::Source<SourceT> && concepts::Predicate<FilterFn, source_value_t<SourceT>>
-      RHEO_CALLABLE auto operator()(SourceT source) const {
+      RHEOSCAPE_CALLABLE auto operator()(SourceT source) const {
         return filter(std::move(source), FilterFn(filterer));
       }
     };

@@ -6,7 +6,7 @@
 #include <operators/combine.hpp>
 #include <sources/constant.hpp>
 
-namespace rheo::operators {
+namespace rheoscape::operators {
 
   // Calculate the ouptut of a wave function
   // given a source for the t axis (such as time)
@@ -26,7 +26,7 @@ namespace rheo::operators {
     struct WaveMapper {
       MapFnDecayed wave_function;
 
-      RHEO_CALLABLE TFloat operator()(std::tuple<TInput, TInput, TInput> value) const {
+      RHEOSCAPE_CALLABLE TFloat operator()(std::tuple<TInput, TInput, TInput> value) const {
         TInput input = std::get<0>(value);
         TInput period = std::get<1>(value);
         TInput phase_shift = std::get<2>(value);
@@ -57,7 +57,7 @@ namespace rheo::operators {
     requires concepts::Source<InputSourceT> && concepts::Source<PeriodSourceT> && concepts::Source<PhaseSourceT>
   auto sine_wave(InputSourceT input_source, PeriodSourceT period_source, PhaseSourceT phase_shift_source) {
     struct SineFunction {
-      RHEO_CALLABLE TFloat operator()(TFloat input) const {
+      RHEOSCAPE_CALLABLE TFloat operator()(TFloat input) const {
         return sin((TFloat)input * M_PI * 2);
       }
     };
@@ -69,7 +69,7 @@ namespace rheo::operators {
     requires concepts::Source<InputSourceT> && concepts::Source<PeriodSourceT> && concepts::Source<PhaseSourceT>
   auto sawtooth_wave(InputSourceT input_source, PeriodSourceT period_source, PhaseSourceT phase_shift_source) {
     struct SawtoothFunction {
-      RHEO_CALLABLE TFloat operator()(TFloat input) const {
+      RHEOSCAPE_CALLABLE TFloat operator()(TFloat input) const {
         return input * 2 - 1;
       }
     };
@@ -81,7 +81,7 @@ namespace rheo::operators {
     requires concepts::Source<InputSourceT> && concepts::Source<PeriodSourceT> && concepts::Source<PhaseSourceT>
   auto triangle_wave(InputSourceT input_source, PeriodSourceT period_source, PhaseSourceT phase_shift_source) {
     struct TriangleFunction {
-      RHEO_CALLABLE TFloat operator()(TFloat input) const {
+      RHEOSCAPE_CALLABLE TFloat operator()(TFloat input) const {
         input = input * 4;
         if (input < 1) {
           return input;
@@ -101,13 +101,13 @@ namespace rheo::operators {
              concepts::Source<PhaseSourceT> && concepts::Source<DutySourceT>
   auto pwm_wave(InputSourceT input_source, PeriodSourceT period_source, PhaseSourceT phase_shift_source, DutySourceT duty_source) {
     struct IdentityFunction {
-      RHEO_CALLABLE TFloat operator()(TFloat v) const {
+      RHEOSCAPE_CALLABLE TFloat operator()(TFloat v) const {
         return v;
       }
     };
 
     struct DutyComparator {
-      RHEO_CALLABLE TFloat operator()(std::tuple<TFloat, TFloat> value) const {
+      RHEOSCAPE_CALLABLE TFloat operator()(std::tuple<TFloat, TFloat> value) const {
         return std::get<0>(value) < std::get<1>(value)
             ? (TFloat)1
             : (TFloat)-1;
@@ -126,7 +126,7 @@ namespace rheo::operators {
   template <typename TFloat = float, typename InputSourceT, typename PeriodSourceT, typename PhaseSourceT>
     requires concepts::Source<InputSourceT> && concepts::Source<PeriodSourceT> && concepts::Source<PhaseSourceT>
   auto square_wave(InputSourceT input_source, PeriodSourceT period_source, PhaseSourceT phase_shift_source) {
-    return pwm_wave(std::move(input_source), std::move(period_source), std::move(phase_shift_source), rheo::sources::constant((TFloat)0.5));
+    return pwm_wave(std::move(input_source), std::move(period_source), std::move(phase_shift_source), rheoscape::sources::constant((TFloat)0.5));
   }
 
 }

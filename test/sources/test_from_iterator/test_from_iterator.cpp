@@ -1,9 +1,9 @@
 #include <unity.h>
 #include <sources/from_iterator.hpp>
-#include <Endable.hpp>
+#include <types/Endable.hpp>
 
-using namespace rheo;
-using namespace rheo::sources;
+using namespace rheoscape;
+using namespace rheoscape::sources;
 
 void test_from_iterator_yields_all_values_then_ends() {
   int pushed_value = 0;

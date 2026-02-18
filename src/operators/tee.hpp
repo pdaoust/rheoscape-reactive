@@ -1,10 +1,10 @@
 #pragma once
 
 #include <functional>
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 #include <types/Wrapper.hpp>
 
-namespace rheo::operators {
+namespace rheoscape::operators {
 
   // Tee-ing a stream is like sharing it,
   // except that there's a 'primary' stream and a 'side' stream,
@@ -24,7 +24,7 @@ namespace rheo::operators {
       SinkFnT sink;
 
       template <typename PushFn>
-      RHEO_CALLABLE auto operator()(PushFn push_primary) const {
+      RHEOSCAPE_CALLABLE auto operator()(PushFn push_primary) const {
         using T = value_type;
         auto push_secondary = make_wrapper_shared<push_fn<T>>();
 
@@ -35,7 +35,7 @@ namespace rheo::operators {
           using value_type = T;
           std::shared_ptr<Wrapper<push_fn<T>>> push_secondary;
 
-          RHEO_CALLABLE pull_fn operator()(push_fn<T> push) const {
+          RHEOSCAPE_CALLABLE pull_fn operator()(push_fn<T> push) const {
             (*push_secondary).value = std::move(push);
             // The tee isn't allowed to pull
             return [](){};
@@ -46,7 +46,7 @@ namespace rheo::operators {
           PushFn push_primary;
           std::shared_ptr<Wrapper<push_fn<T>>> push_secondary;
 
-          RHEO_CALLABLE void operator()(T value) const {
+          RHEOSCAPE_CALLABLE void operator()(T value) const {
             push_primary(value);
             (*push_secondary).value(value);
           }
@@ -61,7 +61,7 @@ namespace rheo::operators {
 
   template <typename SourceT, typename SinkFn>
     requires concepts::Source<SourceT>
-  RHEO_CALLABLE auto tee(SourceT source, SinkFn&& sink) {
+  RHEOSCAPE_CALLABLE auto tee(SourceT source, SinkFn&& sink) {
     return detail::TeeSourceBinder<SourceT, std::decay_t<SinkFn>>{
       std::move(source),
       std::forward<SinkFn>(sink)
@@ -75,7 +75,7 @@ namespace rheo::operators {
 
       template <typename SourceT>
         requires concepts::Source<SourceT>
-      RHEO_CALLABLE auto operator()(SourceT source) const {
+      RHEOSCAPE_CALLABLE auto operator()(SourceT source) const {
         return tee(std::move(source), SinkFn(sink));
       }
     };

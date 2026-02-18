@@ -4,9 +4,9 @@
 #include <sources/from_clock.hpp>
 #include <types/mock_clock.hpp>
 
-using namespace rheo;
-using namespace rheo::sources;
-using namespace rheo::operators;
+using namespace rheoscape;
+using namespace rheoscape::sources;
+using namespace rheoscape::operators;
 
 void test_interval_counts_correct_intervals() {
   mock_clock_ulong_millis::set_time(0);

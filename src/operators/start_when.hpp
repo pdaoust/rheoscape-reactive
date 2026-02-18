@@ -1,9 +1,9 @@
 #pragma once
 
 #include <functional>
-#include <core_types.hpp>
+#include <types/core_types.hpp>
 
-namespace rheo::operators {
+namespace rheoscape::operators {
 
   namespace detail {
     template <typename SourceT, typename FilterFnT>
@@ -14,7 +14,7 @@ namespace rheo::operators {
       FilterFnT condition;
 
       template <typename PushFn>
-      RHEO_CALLABLE auto operator()(PushFn push) const {
+      RHEOSCAPE_CALLABLE auto operator()(PushFn push) const {
         using T = value_type;
 
         struct PushHandler {
@@ -22,7 +22,7 @@ namespace rheo::operators {
           PushFn push;
           mutable bool started = false;
 
-          RHEO_CALLABLE void operator()(T value) const {
+          RHEOSCAPE_CALLABLE void operator()(T value) const {
             if (!started && invoke_maybe_apply(condition, value)) {
               started = true;
             }
@@ -39,7 +39,7 @@ namespace rheo::operators {
 
   template <typename SourceT, typename FilterFn>
     requires concepts::Source<SourceT> && concepts::Predicate<FilterFn, source_value_t<SourceT>>
-  RHEO_CALLABLE auto start_when(SourceT source, FilterFn&& condition) {
+  RHEOSCAPE_CALLABLE auto start_when(SourceT source, FilterFn&& condition) {
     return detail::StartWhenSourceBinder<SourceT, std::decay_t<FilterFn>>{
       std::move(source),
       std::forward<FilterFn>(condition)
@@ -53,7 +53,7 @@ namespace rheo::operators {
 
       template <typename SourceT>
         requires concepts::Source<SourceT> && concepts::Predicate<FilterFn, source_value_t<SourceT>>
-      RHEO_CALLABLE auto operator()(SourceT source) const {
+      RHEOSCAPE_CALLABLE auto operator()(SourceT source) const {
         return start_when(std::move(source), FilterFn(condition));
       }
     };

@@ -1,8 +1,8 @@
 #include <unity.h>
 #include <sources/done.hpp>
 
-using namespace rheo;
-using namespace rheo::sources;
+using namespace rheoscape;
+using namespace rheoscape::sources;
 
 void test_done_is_still_done_on_every_pull() {
   int pushed_count = 0;
