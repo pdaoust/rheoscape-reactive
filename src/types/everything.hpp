@@ -1,4 +1,4 @@
-#ifdef FRAMEWORK_ARDUINO
+#if defined(ARDUINO)
   #include <types/arduino_millis_clock.hpp>
 #endif
 #include <types/au_all_units_noio.hpp>

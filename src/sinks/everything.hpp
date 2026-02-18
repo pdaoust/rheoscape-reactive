@@ -1,3 +1,3 @@
-#ifdef FRAMEWORK_ARDUINO
+#if defined(ARDUINO)
 #include <sinks/arduino/everything.hpp>
 #endif

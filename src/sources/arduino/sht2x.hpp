@@ -7,7 +7,7 @@
 #include <Endable.hpp>
 #include <logging.hpp>
 #include <types/au_all_units_noio.hpp>
-#ifdef PLATFORM_ESP32
+#if defined(ARDUINO_ESP32)
 #include <Arduino.h>
 #include <Wire.h>
 #include <SHT2x.h>
@@ -25,7 +25,7 @@ namespace rheo::sources::arduino::sht2x {
   // (b) if it ends, it's because of an error.
   using ReadingFallible = Fallible<Reading, Error>;
 
-#ifdef PLATFORM_ESP32
+#if defined(ARDUINO_ESP32)
 
   // Mutable state shared between source binder and pull handler
   struct sht2x_state {

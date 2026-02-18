@@ -1,4 +1,4 @@
-#ifdef FRAMEWORK_ARDUINO
+#if defined(ARDUINO)
 #include <sinks/arduino/gfx/everything.hpp>
 #include <sinks/arduino/analog_pin_sink.hpp>
 #include <sinks/arduino/digital_pin_sink.hpp>

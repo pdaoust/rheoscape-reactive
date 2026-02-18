@@ -1,4 +1,4 @@
-#ifdef FRAMEWORK_ARDUINO
+#if defined(ARDUINO)
 #include <sources/arduino/analog_pin_source.hpp>
 #include <sources/arduino/bh1750.hpp>
 #include <sources/arduino/digital_pin_source.hpp>

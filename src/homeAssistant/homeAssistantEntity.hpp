@@ -7,7 +7,7 @@
 #ifndef PLATFORMIO
   #include <ArduinoJson.h>
 #endif
-#ifdef IS_CI
+#if defined(IS_CI)
   #include <IJson.h>
 #endif
 #include <MQTTRemote.h>
