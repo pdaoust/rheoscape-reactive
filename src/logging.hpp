@@ -2,7 +2,7 @@
 
 #include <functional>
 #include <util.hpp>
-#if defined(ARDUINO_ESP32)
+#if defined(ARDUINO_ARCH_ESP32)
 #include <Arduino.h>
 #endif
 
