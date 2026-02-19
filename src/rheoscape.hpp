@@ -52,6 +52,7 @@
   #include <sinks/arduino/serial_sinks.hpp>
   #include <sinks/arduino/servo_sink.hpp>
 #endif
+#include <sinks/dummy_sink.hpp>
 #include <sinks/table_sink.hpp>
 
 // ======== OPERATORS

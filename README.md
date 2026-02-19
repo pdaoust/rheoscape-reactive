@@ -62,6 +62,60 @@ void loop() {
 }
 ```
 
+## Get started
+
+Rheoscape is, unashamedly, a C++20 project. It uses a lot of C++20's features to make for a graceful developer experience.
+
+### Prerequisites
+
+* GCC version 10 (you might be able to use Clang too, but I don't have any experience with it).
+
+### Installing
+
+If you're using **PlatformIO**:
+
+1. Open up your project's `platformio.ini` file.
+2. Make sure `build_unflags` contains `-std=gnu++11 -std=gnu++14 -std=gnu++17` and `build_flags` contains `-std=gnu++20`.
+3. Add `pdaoust/rheoscape-reactive` to the list of `lib_deps` for any environment you want to use Rheoscape in.
+
+If you're using **Arduino IDE**:
+
+1. Open up your project in the IDE.
+2. Go to **Sketch** > **Include Library** > **Manage Libraries**.
+3. Search for `rheoscape-reactive` and install it into your project.
+
+### Using
+
+Rheoscape is a header-only library, so it gets built right into your binary. Add this to the top of your files:
+
+```c++
+#include <rheoscape.hpp>
+```
+
+That's it! Happy streaming.
+
+## Dependencies
+
+If dependencies don't get installed automatically, you'll need to at least install `fmtlib/fmt`. Many sources and sinks also require `Arduino.h` and will be disabled if it can't be found. These sources and sinks might also require the following libraries:
+
+* `claws/BH1750@^1.3.0`
+* `adafruit/Adafruit GFX Library@^1.12.1`
+* `adafruit/Adafruit SSD1306@^2.5.14`
+* `lvgl/lvgl@^9.3.0`
+* `milesburton/DallasTemperature@^4.0.4`
+* `bodmer/TFT_eSPI@^2.5.43` (ESP32 only)
+* `robtillaart/SHT2x@^0.5.2`
+* `bblanchon/ArduinoJson@^7.4.2`
+* `madhephaestus/ESP32Servo@^3.0.9` (ESP32 only)
+
+## Supported platforms
+
+Rheoscape works with any C++ project, but the Arduino sources and sinks only work on embedded devices in programs based on the Arduino framework. Currently the ESP32 and RP2040 Arduino cores are supported across all sources and sinks.
+
+## License
+
+Rheoscape is licensed under the [GPL v3](https://www.gnu.org/licenses/gpl-3.0.en.html).
+
 ## Important terms
 
 Rheoscape is based on the idea of **streams** between [**sources**](#source) and [**sinks**](#sink). Almost everything in Rheoscape is just a callable. That's the entire core of Rheoscape -- a spec for agreeing on how a source and a sink should interact to create a stream. (But Rheoscape does come with a decent-sized standard library.)
@@ -76,7 +130,7 @@ Here's a type alias for source, pull, and push functions:
 using pull_fn = std::function<void()>;
 
 template <typename T>
-using push_n = std::function<void(T)>;
+using push_fn = std::function<void(T)>;
 
 template <typename T>
 using source_fn = std::function<pull_fn(push_fn<T>)>;
@@ -93,11 +147,11 @@ You can think of a source function as a stream factory -- you can bind a sink to
 Here's a simple source, just a lambda that returns the number 3 whenever it's pulled:
 
 ```c++
-pull_fn threes_source = [](push_fn<int> push) {
+source_fn<int> threes_source = [](push_fn<int> push) {
     return [push]() {
         push(3);
-    }
-}
+    };
+};
 ```
 
 The returned lambda is the pull function that pushes the number 3 to any push function that is passed to it. You can see that a new pull lambda gets created every time the source is called with a new push function.
@@ -110,7 +164,7 @@ A push function is a simple observer function. It takes one argument, typed to t
 
 As mentioned, a source returns a pull function when it's called. This is a handle that lets the sink request a new value, which will be delivered to the sink's push function.
 
-Not all sources support pulling. Some of them are push-only, in which case its pull function does nothing.
+Not all sources support pulling. Some of them are push-only, and their pull functions do nothing.
 
 ### Sink
 
@@ -136,11 +190,14 @@ Something can be both a source and a sink at the same time -- we call these **op
 ```c++
 template <typename TOut, typename TIn>
 source_fn<TOut> map(source_fn<TIn> source, std::function<TOut(TIn)> mapper) {
-    // Bind to the upstream source.
-    // The upstream source's pull function is passed downstream.
-    return source([mapper](TIn value) {
-        return mapper(value);
-    });
+    // Return a new source function that pushes a transformed value for every upstream value.
+    return [source, mapper](push_fn<TOut> push) {
+        // Bind to the upstream source.
+        // The upstream source's pull function is passed downstream.
+        return source([mapper, push](TIn value) {
+            push(mapper(value));
+        });
+    };
 }
 ```
 
@@ -194,7 +251,7 @@ We've mentioned how Rheoscape is just a pattern for sources and sinks (and, by e
 A source factory constructs a source function. A common one is `digital_pin_source`, which takes the GPIO pin you want to listen to and returns a source function that streams the high/low state of that pin. Here's a basic implementation of `digital_pin_source` (there's a more complete implementation in the standard library):
 
 ```c++
-source_fn<bool> digital_pin_source = [](int pin, int mode) {
+source_fn<bool> digital_pin_source(int pin, int mode) {
     pinMode(pin, INPUT | mode);
     // This is the source function:
     return [pin](push_fn<bool> push) {
@@ -203,9 +260,9 @@ source_fn<bool> digital_pin_source = [](int pin, int mode) {
             // Every time downstream requests the pin's state,
             // read it and push the value downstream.
             push(digitalRead(pin));
-        }
-    }
-}
+        };
+    };
+};
 
 source_fn<bool> gpio_3_source = digital_pin_source(3, INPUT_PULLUP);
 pull_fn pull_gpio_3 = gpio_3_source([](bool v) {
@@ -226,10 +283,10 @@ using sink_fn = std::function<TReturn(source_fn<T>)>;
 Here's a sink function that sets the value of GPIO 6:
 
 ```c++
-sink_fn<bool> gpio_6_sink = [](source_fn<bool> source) {
+sink_fn<pull_fn, bool> gpio_6_sink = [](source_fn<bool> source) {
     pinMode(6, OUTPUT);
     return source([](bool v) { digitalWrite(6, v); });
-}
+};
 ```
 
 That's not very reusable though, so we usually use...
@@ -239,7 +296,7 @@ That's not very reusable though, so we usually use...
 A sink factory constructs a sink that you can bind to a source.
 
 ```c++
-sink_fn<bool> digital_pin_sink = [](int pin) {
+sink_fn<pull_fn, bool> digital_pin_sink(int pin) {
     pinMode(pin, OUTPUT);
     // This is the sink function, mostly unchanged from the `gpio_6_sink` example above.
     return [pin](source_fn<bool> source) {
@@ -247,13 +304,12 @@ sink_fn<bool> digital_pin_sink = [](int pin) {
     };
 }
 
-sink_fn<bool> gpio_6_sink = digital_pin_sink(6);
+sink_fn<pull_fn, bool> gpio_6_sink = digital_pin_sink(6);
 ```
 
 Here's something exciting: Rheoscape has a `|` operator overload so you can pipe a source to a sink. So using the sources and sinks we defined above, we can write:
 
 ```c++
-pull_fn
 pull_fn set_gpio_6_to_gpio_3 = gpio_3_source | gpio_6_sink;
 ```
 
@@ -266,7 +322,7 @@ pull_fn set_gpio_6_to_gpio_3 = digital_pin_source(3)
 
 ### Pipe function
 
-A pipe function receives a single source function, transforms it, and returns a new source function. You can think of it as a sink that produces a source. You can build your own pipes by chaining pipe functions together with the `|` operators.
+A pipe function receives a single source function, transforms it, and returns a new source function. You can think of it as a sink that produces a source. You can build your own pipes by chaining pipe functions together with the `|` operator.
 
 ```c++
 template <typename TOut, typename TIn>
@@ -275,7 +331,7 @@ using pipe_fn = sink_fn<source_fn<TOut>, TIn>;
 
 #### Pipe function factory
 
-A pipe function factory creates a pipe function. Almost all operators in the standard library have a pipe function factory equivalent.Here's an example for `map`:
+A pipe function factory creates a pipe function. Almost all operators in the standard library have a pipe function factory equivalent. Here's an example for `map`:
 
 ```c++
 template <typename TOut, typename TIn>
@@ -296,26 +352,26 @@ pull_fn set_gpio_6_to_opposite_of_gpio_3 = gpio_3_source
 The Rheoscape standard library comes with a lot of good structs, classes, sources, sinks, and operators. Here are a few:
 
 * **Types**
-    * `au_all_units_noio.hpp` and `au_noio.hpp`: a third-party library [au from Aurora Opensource](https://aurora-opensource.github.io/au/main/) that provides type-safe measurement unit math. Many Arduino sources and sinks work with streams of au values.
+    * `au_all_units_noio.hpp` and `au_noio.hpp`: A third-party library [au from Aurora Opensource](https://aurora-opensource.github.io/au/main/) that provides type-safe measurement unit math. Many Arduino sources and sinks work with streams of au values.
     * `Endable`: A struct that's used in streams that can end (e.g., sequences and iterables).
     * `Fallible`: A struct that's used in streams that can intermittently fail (e.g., sensors that can get unplugged, JSON that can't be
     deserialised). This should always be used instead of throwing exceptions in a source function.
-    * `mock_clock`: a `std::chrono` clock that lets you set the exact time. Used in tests.
-    * `Range`: a struct that lets you specify an inclusive range between any two values of a comparable type.
-    * `rep_clock`: a `std::chrono` clock that doesn't provide a `now()` method; it just lets you define time points and durations with the magnitude and representation types you need.
-    * `State`: a struct that lets you store and mutate state. (In some libraries this is called a 'reactive value'.) It provides a source function and a sink function, and you can choose whether it pushes values immediately or only on pull.
+    * `mock_clock`: A `std::chrono` clock that lets you set the exact time. Used in tests.
+    * `Range`: A struct that lets you specify an inclusive range between any two values of a comparable type.
+    * `rep_clock`: A `std::chrono` clock that doesn't provide a `now()` method; it just lets you define time points and durations with the magnitude and representation types you need.
+    * `State`: A struct that lets you store and mutate state. (In some libraries this is called a 'reactive value'.) It provides a source function and a sink function, and you can choose whether it pushes values immediately or only on pull.
 * **Sources**
-    * `arduino`: digital and analogue GPIOs, popular sensors, EEPROM
-    * `constant`: keep on emitting the same value whenever it's pulled
-    * `done`: a source that immediately emits an ended `Endable` and shuts up.
-    * `Emitter`: a struct that provides a source function. You can push values to it, and it'll proactively push it out to all subscribed sinks. It's like `State` but doesn't hold any state.
-    * `empty`: a source function that doesn't ever produce any values, no matter how many times you pull on it.
-    * `from_clock`: a source function that takes a `std::chrono` clock and samples it whenever pulled.
-    * `from_iterator`: A source function that iterates over an interator, producing `Endable<T>` values until it's been fully iterated.
+    * `arduino`: Digital and analogue GPIOs, popular sensors, EEPROM
+    * `constant`: Keep on emitting the same value whenever it's pulled
+    * `done`: A source that immediately emits an ended `Endable` and shuts up.
+    * `Emitter`: A struct that provides a source function. You can push values to it, and it'll proactively push it out to all subscribed sinks. It's like `State` but doesn't hold any state.
+    * `empty`: A source function that doesn't ever produce any values, no matter how many times you pull on it.
+    * `from_clock`: A source function that takes a `std::chrono` clock and samples it whenever pulled.
+    * `from_iterator`: A source function that iterates over an iterator, producing `Endable<T>` values until it's been fully iterated.
     * `from_observable`: A source function that receives a subscriber function, passes its own observer function to it, and pushes observed values.
     * `sequence`: A source function that counts from a start value to an end value, with optional step increments (default 1).
 * **Sinks**
-    * `arduino`: digital and analogue GPIOs, serial console, controls, EEPROM, and Adafruit GFX-based displays.
+    * `arduino`: Digital and analogue GPIOs, serial console, controls, EEPROM, and Adafruit GFX-based displays.
     * `dummy_sink`: A sink that does nothing. Its sole purpose is to pull from sources that can push to multiple sinks at once, but don't do any pushing until at least one sink pulls on it. (Right now, this means the `share` operator, which takes any stream and broadcasts to all downstream subscribers.)
 * **Operators**
     * `bang_bang`: A simple thermostat with a configurable dead zone.
@@ -329,25 +385,25 @@ The Rheoscape standard library comes with a lot of good structs, classes, source
     * `exponential_moving_average`: A single-pole infinite-impulse-response filter. In simpler terms, it's a rolling average that smooths out high-frequency variations.
     * `filter_map`: Filter and map a stream's values at one time.
     * `filter`: Remove values from a stream that don't match the given predicate.
-    * `flat_map`: Turn one value into zero or more values.
-    * `inspect`: Execute a function for every value.
+    * `flat_map`: Turn one value into zero or more values, each of which is emitted individually downstream.
+    * `inspect`: Execute a function for every value and pass the value downstream.
     * `interval`: Emit a timestamp at intervals. The interval is a source itself, so it can change over time (this could be useful for exponential backoff).
     * `latch`: Transform a stream of `std::optional<T>` values into a stream of values where the last non-empty value is emitted. Kinda like `filter([](std::optional<T> v) { return v.has_value() }) | cache()`, which has me questioning its value.
     * `lift`: Lift a pipeline to a higher-ordered type so it can be fitted into another pipeline that uses that type. An example is taking an operator that works with bare scalar values (like `bang_bang` or `pid`) and making it work with an `Endable`, `Fallible`, or `std::optional` stream.
-    * `log_errors`: Log errors in an `Endable` stream. Uses the `rheoscape::logging` utility.
+    * `log_errors`: Log errors in a `Fallible` stream. Uses the `rheoscape::logging` utility.
     * `map`: Transform one value type into another.
     * `merge`: Blend multiple streams with a common value type into one.
-    * `normalize`: map a stream of values from one range to another.
+    * `normalize`: Map a stream of values from one range to another.
     * `pid`: A proportional/integral/derivative for high-precision system control. Can be trained.
     * `quadrature_encode`: Takes two boolean inputs and applies 'quadrature' or 'Gray coding' to it. Used for rotary encoders. I'd recommend using `digital_pin_interrupt_source<pin_a, pin_b>()` rather than combining two single non-interrupt-driven digital pin sources; the interrupt version is more responsive.
-    * `sample`: like `combine`, but it only produces a combined value when values are pushed to the first stream.
+    * `sample`: Like `combine`, but it only produces a combined value when values are pushed to the first stream.
     * `scan`: Consume values over time, keeping state, similar to `fold` or `reduce` but emitting an accumulated value for every received value.
     * `settle`: Only emit a value after it's held stable (no new/changed values) for a given settling period. This is equivalent to FRP `debounce` operators; Rheoscape's `debounce` is more like a hardware debounce.
     * `share`: When a value is received, emit it to _all_ downstream subscribers.
     * `start_when`: Don't start emitting values until at least one value matches a given condition.
     * `stopwatch`: Like `timestamp`, but rather than emitting timestamps, it emits durations since a given 'lap start' condition was first met. Laps start whenever the input stream transitions from _not_ matching to matching the lap start condition.
     * `take_while`: Only emit values until at least one value fails to match a given condition.
-    * `take`: Emit an endable stream of the first _n_ of the upstream'*s values.
+    * `take`: Emit an endable stream of the first _n_ of the upstream's values.
     * `tee`: Join a side stream to a stream, pushing received values to both streams.
     * `throttle`: Only emit a value every _n_ time units.
     * `timed_latch`: Given a default value, hold any non-default values for a given interval before reverting back to the default.
@@ -373,7 +429,7 @@ Rheoscape is designed to do as much of its hard work at compile time as possible
 <th colspan="2"><code>RHEOSCAPE_AGGRESSIVE_INLINE</code></th>
 </tr>
 <tr>
-<th>
+<th></th>
 <th>defined</th>
 <th>undefined</th>
 </tr>
