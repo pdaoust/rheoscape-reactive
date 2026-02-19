@@ -47,7 +47,7 @@ void setup() {
     watering_threshold.get_source_fn()
         | sample(soil_moisture_sensor)
         | map([](int threshold, int reading) {
-            return threshold >= reading
+            return reading < threshold
                 // Water pump relay is active low.
                 ? LOW
                 : HIGH;
@@ -179,6 +179,10 @@ sequenceDiagram
 
 In both scenarios, it all happens in a single synchronous stack of function calls. If you want multiple streams to be flowing simultaneously, you have to just pull on them sequentially and hope that they each complete quickly enough to feel simultaneous :)
 
+### A word on exceptions
+
+Rheoscape doesn't throw exceptions. You shouldn't either. On some cores (e.g., RP2040) they're even deprecated and disabled. Instead, if a source can fail, it should emit `Fallible<T, E>` values.
+
 ## Patterns
 
 We've mentioned how Rheoscape is just a pattern for sources and sinks (and, by extension, operators which are both source and sink and let you make long pipes). Here are a couple other patterns you'll see a lot of in the standard library, and you should think about them if you're designing your own sources, sinks, and operators to be reused by other people.
@@ -286,6 +290,77 @@ pull_fn set_gpio_6_to_opposite_of_gpio_3 = gpio_3_source
     | map([](bool v) { return !v; })
     | gpio_6_sink;
 ```
+
+## Useful types
+
+The Rheoscape standard library comes with a lot of good structs, classes, sources, sinks, and operators. Here are a few:
+
+* **Types**
+    * `au_all_units_noio.hpp` and `au_noio.hpp`: a third-party library [au from Aurora Opensource](https://aurora-opensource.github.io/au/main/) that provides type-safe measurement unit math. Many Arduino sources and sinks work with streams of au values.
+    * `Endable`: A struct that's used in streams that can end (e.g., sequences and iterables).
+    * `Fallible`: A struct that's used in streams that can intermittently fail (e.g., sensors that can get unplugged, JSON that can't be
+    deserialised). This should always be used instead of throwing exceptions in a source function.
+    * `mock_clock`: a `std::chrono` clock that lets you set the exact time. Used in tests.
+    * `Range`: a struct that lets you specify an inclusive range between any two values of a comparable type.
+    * `rep_clock`: a `std::chrono` clock that doesn't provide a `now()` method; it just lets you define time points and durations with the magnitude and representation types you need.
+    * `State`: a struct that lets you store and mutate state. (In some libraries this is called a 'reactive value'.) It provides a source function and a sink function, and you can choose whether it pushes values immediately or only on pull.
+* **Sources**
+    * `arduino`: digital and analogue GPIOs, popular sensors, EEPROM
+    * `constant`: keep on emitting the same value whenever it's pulled
+    * `done`: a source that immediately emits an ended `Endable` and shuts up.
+    * `Emitter`: a struct that provides a source function. You can push values to it, and it'll proactively push it out to all subscribed sinks. It's like `State` but doesn't hold any state.
+    * `empty`: a source function that doesn't ever produce any values, no matter how many times you pull on it.
+    * `from_clock`: a source function that takes a `std::chrono` clock and samples it whenever pulled.
+    * `from_iterator`: A source function that iterates over an interator, producing `Endable<T>` values until it's been fully iterated.
+    * `from_observable`: A source function that receives a subscriber function, passes its own observer function to it, and pushes observed values.
+    * `sequence`: A source function that counts from a start value to an end value, with optional step increments (default 1).
+* **Sinks**
+    * `arduino`: digital and analogue GPIOs, serial console, controls, EEPROM, and Adafruit GFX-based displays.
+    * `dummy_sink`: A sink that does nothing. Its sole purpose is to pull from sources that can push to multiple sinks at once, but don't do any pushing until at least one sink pulls on it. (Right now, this means the `share` operator, which takes any stream and broadcasts to all downstream subscribers.)
+* **Operators**
+    * `bang_bang`: A simple thermostat with a configurable dead zone.
+    * `cache`: Remember the last value pushed from upstream and emit it if a new value isn't pushed on pull.
+    * `choose`: Switch between multiple sources based on the value of a switcher source.
+    * `combine`: Join two or more streams together into a stream that emits a tuple of all streams. Only emits a value if all upstream sources can produce a value at the same time.
+    * `concat`: Join two endable streams of the same type together.
+    * `count`: Two operators, `count`, which emits a stream that counts the number of values received from upstream, and `tag_count`, which emits a stream of the original values tagged with the count.
+    * `debounce`: When an upstream source changes, watch for a settling period, then emit the new value if it survives fluctuation after the settling period is over. If you're an electrical engineer, this is like hardware debounce. If you're an FRP programmer, you're probably looking for `settle`.
+    * `dedupe`: Turn a continuous stream into a stream that only emits values on a change.
+    * `exponential_moving_average`: A single-pole infinite-impulse-response filter. In simpler terms, it's a rolling average that smooths out high-frequency variations.
+    * `filter_map`: Filter and map a stream's values at one time.
+    * `filter`: Remove values from a stream that don't match the given predicate.
+    * `flat_map`: Turn one value into zero or more values.
+    * `inspect`: Execute a function for every value.
+    * `interval`: Emit a timestamp at intervals. The interval is a source itself, so it can change over time (this could be useful for exponential backoff).
+    * `latch`: Transform a stream of `std::optional<T>` values into a stream of values where the last non-empty value is emitted. Kinda like `filter([](std::optional<T> v) { return v.has_value() }) | cache()`, which has me questioning its value.
+    * `lift`: Lift a pipeline to a higher-ordered type so it can be fitted into another pipeline that uses that type. An example is taking an operator that works with bare scalar values (like `bang_bang` or `pid`) and making it work with an `Endable`, `Fallible`, or `std::optional` stream.
+    * `log_errors`: Log errors in an `Endable` stream. Uses the `rheoscape::logging` utility.
+    * `map`: Transform one value type into another.
+    * `merge`: Blend multiple streams with a common value type into one.
+    * `normalize`: map a stream of values from one range to another.
+    * `pid`: A proportional/integral/derivative for high-precision system control. Can be trained.
+    * `quadrature_encode`: Takes two boolean inputs and applies 'quadrature' or 'Gray coding' to it. Used for rotary encoders. I'd recommend using `digital_pin_interrupt_source<pin_a, pin_b>()` rather than combining two single non-interrupt-driven digital pin sources; the interrupt version is more responsive.
+    * `sample`: like `combine`, but it only produces a combined value when values are pushed to the first stream.
+    * `scan`: Consume values over time, keeping state, similar to `fold` or `reduce` but emitting an accumulated value for every received value.
+    * `settle`: Only emit a value after it's held stable (no new/changed values) for a given settling period. This is equivalent to FRP `debounce` operators; Rheoscape's `debounce` is more like a hardware debounce.
+    * `share`: When a value is received, emit it to _all_ downstream subscribers.
+    * `start_when`: Don't start emitting values until at least one value matches a given condition.
+    * `stopwatch`: Like `timestamp`, but rather than emitting timestamps, it emits durations since a given 'lap start' condition was first met. Laps start whenever the input stream transitions from _not_ matching to matching the lap start condition.
+    * `take_while`: Only emit values until at least one value fails to match a given condition.
+    * `take`: Emit an endable stream of the first _n_ of the upstream'*s values.
+    * `tee`: Join a side stream to a stream, pushing received values to both streams.
+    * `throttle`: Only emit a value every _n_ time units.
+    * `timed_latch`: Given a default value, hold any non-default values for a given interval before reverting back to the default.
+    * `timestamp`: Tag values with a timestamp.
+    * `toggle`: Turn one source on or off with a boolean value from another source.
+    * `unwrap`: Operators to unwrap optional, fallible, or endable values; null, error, and ended values respectively are not emitted.
+    * `waves`: Generate waveforms using a time source.
+* **Helpers**:
+    * `au_helpers`: Helper functions for working with `au` measurement values.
+    * `chrono_helpers`: Helper functions for working with `std::chrono` measurement values.
+    * `make_state_editor`: Construct a pipeline that changes a `state` using an input stream and a mapper function.
+* **Utilities**
+    * `logging`: A logging implementation that you can configure in a centralised way. Different log levels or topics can have different loggers bound to them.
 
 ## Performance considerations
 
