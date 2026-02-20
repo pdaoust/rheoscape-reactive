@@ -85,6 +85,7 @@
 #include <operators/share.hpp>
 #include <operators/split_and_combine.hpp>
 #include <operators/start_when.hpp>
+#include <operators/stopwatch_changes.hpp>
 #include <operators/stopwatch_when.hpp>
 #include <operators/take.hpp>
 #include <operators/take_while.hpp>
