@@ -61,7 +61,7 @@ namespace rheoscape {
           case EndableStatus::Last: return EndableIsLast::Yes;
           case EndableStatus::NotLast: return EndableIsLast::No;
           case EndableStatus::Indeterminate: return EndableIsLast::Unknowable;
-          case EndableStatus::Ended: assert("Tried to call is_last on an Endable that's already ended";);
+          case EndableStatus::Ended: assert("Tried to call is_last on an Endable that's already ended");
         }
       }
   };
