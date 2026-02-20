@@ -1,6 +1,6 @@
 #include <unity.h>
 #include <functional>
-#include <operators/stopwatch.hpp>
+#include <operators/stopwatch_when.hpp>
 #include <operators/map.hpp>
 #include <operators/unwrap.hpp>
 #include <sources/constant.hpp>
@@ -17,7 +17,7 @@ void test_stopwatch_is_contiguous_before_first_lap() {
   //auto clock_source_as_duration = map<mock_clock_ulong_millis::duration, mock_clock_ulong_millis::time_point>(clock_source, [](mock_clock_ulong_millis::time_point v) { return v.time_since_epoch(); });
   std::vector<int> numbers { 0, -1, -2, 1, 2, 3, 0, 5, 6, 7, 0, 8, 9, 10 };
   auto numbers_source = unwrap_endable(from_iterator(numbers.begin(), numbers.end()));
-  auto sw = stopwatch<mock_clock_ulong_millis::duration>(numbers_source, clock_source, [](auto v) { return v > 0; });
+  auto sw = stopwatch_when<mock_clock_ulong_millis::duration>(numbers_source, clock_source, [](auto v) { return v > 0; });
 
   mock_clock_ulong_millis::duration timestamp;
   int pushed_value;
@@ -40,7 +40,7 @@ void test_stopwatch_is_contiguous_through_first_lap() {
   //auto clock_source_as_duration = map<mock_clock_ulong_millis::duration, mock_clock_ulong_millis::time_point>(clock_source, [](mock_clock_ulong_millis::time_point v) { return v.time_since_epoch(); });
   std::vector<int> numbers { 0, 1, 2, 3, 0, 5, 6, 7, 0, 8, 9, 10 };
   auto numbers_source = unwrap_endable(from_iterator(numbers.begin(), numbers.end()));
-  auto sw = stopwatch<mock_clock_ulong_millis::duration>(numbers_source, clock_source, [](auto v) { return v > 0; });
+  auto sw = stopwatch_when<mock_clock_ulong_millis::duration>(numbers_source, clock_source, [](auto v) { return v > 0; });
 
   mock_clock_ulong_millis::duration timestamp;
   int pushed_value;
@@ -68,7 +68,7 @@ void test_stopwatch_is_contiguous_through_second_lap() {
   //auto clock_source_as_duration = map<mock_clock_ulong_millis::duration, mock_clock_ulong_millis::time_point>(clock_source, [](mock_clock_ulong_millis::time_point v) { return v.time_since_epoch(); });
   std::vector<int> numbers { 0, 1, 2, 3, 0, 5, 6, 7, 0, 8, 9, 10, 0 };
   auto numbers_source = unwrap_endable(from_iterator(numbers.begin(), numbers.end()));
-  auto sw = stopwatch<mock_clock_ulong_millis::duration>(numbers_source, clock_source, [](auto v) { return v > 0; });
+  auto sw = stopwatch_when<mock_clock_ulong_millis::duration>(numbers_source, clock_source, [](auto v) { return v > 0; });
 
   mock_clock_ulong_millis::duration timestamp;
   int pushed_value;

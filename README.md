@@ -401,7 +401,7 @@ The Rheoscape standard library comes with a lot of good structs, classes, source
     * `settle`: Only emit a value after it's held stable (no new/changed values) for a given settling period. This is equivalent to FRP `debounce` operators; Rheoscape's `debounce` is more like a hardware debounce.
     * `share`: When a value is received, emit it to _all_ downstream subscribers.
     * `start_when`: Don't start emitting values until at least one value matches a given condition.
-    * `stopwatch`: Like `timestamp`, but rather than emitting timestamps, it emits durations since a given 'lap start' condition was first met. Laps start whenever the input stream transitions from _not_ matching to matching the lap start condition.
+    * `stopwatch_when`: Like `timestamp`, but rather than emitting timestamps, it emits durations since a given 'lap start' condition was first met. Laps start whenever the input stream transitions from _not_ matching to matching the lap start condition.
     * `take_while`: Only emit values until at least one value fails to match a given condition.
     * `take`: Emit an endable stream of the first _n_ of the upstream's values.
     * `tee`: Join a side stream to a stream, pushing received values to both streams.

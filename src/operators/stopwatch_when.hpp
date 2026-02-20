@@ -18,7 +18,7 @@ namespace rheoscape::operators {
     requires concepts::Source<SourceT> && concepts::Source<ClockSourceT> &&
              concepts::TimePointAndDurationCompatible<source_value_t<ClockSourceT>, TDuration> &&
              concepts::Predicate<FilterFn, source_value_t<SourceT>>
-  auto stopwatch(SourceT source, ClockSourceT clock_source, FilterFn&& lap_condition) {
+  auto stopwatch_when(SourceT source, ClockSourceT clock_source, FilterFn&& lap_condition) {
     using T = source_value_t<SourceT>;
     using TTimePoint = source_value_t<ClockSourceT>;
     using FilterFnDecayed = std::decay_t<FilterFn>;
@@ -49,7 +49,7 @@ namespace rheoscape::operators {
 
   namespace detail {
     template <typename TDuration, typename ClockSourceT, typename FilterFn>
-    struct StopwatchPipeFactory {
+    struct StopwatchWhenPipeFactory {
       ClockSourceT clock_source;
       FilterFn lap_condition;
 
@@ -57,7 +57,7 @@ namespace rheoscape::operators {
         requires concepts::Source<SourceT> &&
                  concepts::Predicate<FilterFn, source_value_t<SourceT>>
       RHEOSCAPE_CALLABLE auto operator()(SourceT source) const {
-        return stopwatch<TDuration>(std::move(source), ClockSourceT(clock_source), FilterFn(lap_condition));
+        return stopwatch_when<TDuration>(std::move(source), ClockSourceT(clock_source), FilterFn(lap_condition));
       }
     };
   }
@@ -66,8 +66,8 @@ namespace rheoscape::operators {
   template <typename TDuration, typename ClockSourceT, typename FilterFn>
     requires concepts::Source<ClockSourceT> &&
              concepts::TimePointAndDurationCompatible<source_value_t<ClockSourceT>, TDuration>
-  auto stopwatch(ClockSourceT clock_source, FilterFn&& lap_condition) {
-    return detail::StopwatchPipeFactory<TDuration, ClockSourceT, std::decay_t<FilterFn>>{
+  auto stopwatch_when(ClockSourceT clock_source, FilterFn&& lap_condition) {
+    return detail::StopwatchWhenPipeFactory<TDuration, ClockSourceT, std::decay_t<FilterFn>>{
       std::move(clock_source),
       std::forward<FilterFn>(lap_condition)
     };
