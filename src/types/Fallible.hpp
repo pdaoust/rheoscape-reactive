@@ -1,24 +1,9 @@
 #pragma once
 
 #include <types/core_types.hpp>
-#include <util/exceptional_condition.hpp>
 #include <operators/filter_map.hpp>
 
 namespace rheoscape {
-
-  class fallible_bad_get_value_access : std::exception {
-    public:
-      const char* what() {
-        return "Tried to get a value from a Fallible that contains an error";
-      }
-  };
-
-  class fallible_bad_get_error_access : std::exception {
-    public:
-      const char* what() {
-        return "Tried to get an error from a Fallible that contains a value";
-      }
-  };
 
   template <typename T, typename TErr>
   class Fallible {
@@ -126,28 +111,28 @@ namespace rheoscape {
 
       T& value() {
         if (!is_ok()) {
-          RHEOSCAPE_EXCEPTIONAL_CONDITION(fallible_bad_get_value_access);
+          assert("Tried to get a value from a Fallible that contains an error");
         }
         return _value;
       }
 
       const T& value() const {
         if (!is_ok()) {
-          RHEOSCAPE_EXCEPTIONAL_CONDITION(fallible_bad_get_value_access);
+          assert("Tried to get a value from a Fallible that contains an error");
         }
         return _value;
       }
 
       TErr& error() {
         if (!is_error()) {
-          RHEOSCAPE_EXCEPTIONAL_CONDITION(fallible_bad_get_error_access);
+          assert("Tried to get an error from a Fallible that contains a value");
         }
         return _error;
       }
 
       const TErr& error() const {
         if (!is_error()) {
-          RHEOSCAPE_EXCEPTIONAL_CONDITION(fallible_bad_get_error_access);
+          assert("Tried to get an error from a Fallible that contains a value");
         }
         return _error;
       }
