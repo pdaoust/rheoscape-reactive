@@ -28,7 +28,7 @@ void setup() {
     static State watering_threshold(50);
     // Rotary encoder on pins 4 and 5.
     static auto rotary_encoder = digital_pin_interrupt_source<4, 5>(INPUT_PULLUP)
-        | quadrature_encode;
+        | quadrature_encode();
     handle_watering_threshold_input = make_state_editor(
         rotary_encoder,
         watering_threshold,
@@ -421,31 +421,38 @@ The Rheoscape standard library comes with a lot of good structs, classes, source
 
 ## Performance considerations
 
-Rheoscape is designed to do as much of its hard work at compile time as possible. Depending on your needs, you can trade off between larger binary weight and larger call stacks with the `RHEOSCAPE_AGGRESSIVE_INLINE` macro:
+Rheoscape is designed to do as much of its hard work at compile time as possible. It does this in these ways:
 
-<table>
-<thead>
-<tr>
-<th></th>
-<th colspan="2"><code>RHEOSCAPE_AGGRESSIVE_INLINE</code></th>
-</tr>
-<tr>
-<th></th>
-<th>defined</th>
-<th>undefined</th>
-</tr>
-</thead>
+* **No exceptions**: Sources that can error emit streams of `Fallible<T, Err>` values instead of throwing exceptions. Truly exceptional conditions are handled by `assert` rather than `throw`. (This doesn't cover the standard library -- you're still on your own if you try to call `.value()` on a `std::nullopt`.)
+* **Configurable aggressive inlining**: Flow graphs are just stacks of functions, and they can get quite tall (each operator adds at least two functions to a call stack). These stacks can be aggressively inlined (albeit at the cost of larger binary weight) with the `RHEOSCAPE_AGGRESSIVE_INLINE` macro.
 
-<tbody>
-<tr>
-<th>Binary weight</th>
-<td>higher ⚠️</td>
-<td>lower ✅</td>
-</tr>
-<tr>
-<th>Call stack size</th>
-<td>lower ✅</td>
-<td>higher ⚠️</td>
-</tr>
-</tbody>
-</table>
+    <table>
+    <thead>
+    <tr>
+    <th></th>
+    <th colspan="2"><code>RHEOSCAPE_AGGRESSIVE_INLINE</code></th>
+    </tr>
+    <tr>
+    <th></th>
+    <th>defined</th>
+    <th>undefined</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    <tr>
+    <th>Binary weight</th>
+    <td>higher ⚠️</td>
+    <td>lower ✅</td>
+    </tr>
+    <tr>
+    <th>Call stack size</th>
+    <td>lower ✅</td>
+    <td>higher ⚠️</td>
+    </tr>
+    </tbody>
+    </table>
+
+## Gratitude and evolution
+
+This project owes a great debt of gratitude to [André Staltz](https://staltz.com/)'s [callbag](https://github.com/callbag/callbag) pattern. I adapted it to C++ idioms and had the insight that binding a sink to a source doesn't need quite as much ceremony -- it can be as simple as passing an observer function and receiving a pull function. That takes care of two of callbag's semaphores (registration and acknowledgment); the other two (termination and errors) are handled by `Endable` and `Fallible` value types.
