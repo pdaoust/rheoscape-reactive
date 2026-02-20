@@ -18,6 +18,7 @@
 #include <types/Wrapper.hpp>
 
 // ======== UTILITIES
+#include <util/exceptional_condition.hpp>
 #include <util/logging.hpp>
 #include <util/misc.hpp>
 

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <util/exceptional_condition.hpp>
+
 namespace rheoscape {
 
   class endable_bad_get_value_access : std::exception {
@@ -58,17 +60,17 @@ namespace rheoscape {
 
       T value() {
         if (!has_value()) {
-          throw endable_bad_get_value_access();
+          RHEOSCAPE_EXCEPTIONAL_CONDITION(endable_bad_get_value_access);
         }
         return _value;
       }
-      
+
       EndableIsLast is_last() const {
         switch (_status) {
           case EndableStatus::Last: return EndableIsLast::Yes;
           case EndableStatus::NotLast: return EndableIsLast::No;
           case EndableStatus::Indeterminate: return EndableIsLast::Unknowable;
-          case EndableStatus::Ended: throw endable_bad_get_value_access();
+          case EndableStatus::Ended: RHEOSCAPE_EXCEPTIONAL_CONDITION(endable_bad_get_value_access);
         }
       }
   };

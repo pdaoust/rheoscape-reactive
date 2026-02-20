@@ -1,6 +1,7 @@
 #pragma once
 
 #include <types/core_types.hpp>
+#include <util/exceptional_condition.hpp>
 #include <operators/filter_map.hpp>
 
 namespace rheoscape {
@@ -125,28 +126,28 @@ namespace rheoscape {
 
       T& value() {
         if (!is_ok()) {
-          throw fallible_bad_get_value_access();
+          RHEOSCAPE_EXCEPTIONAL_CONDITION(fallible_bad_get_value_access);
         }
         return _value;
       }
 
       const T& value() const {
         if (!is_ok()) {
-          throw fallible_bad_get_value_access();
+          RHEOSCAPE_EXCEPTIONAL_CONDITION(fallible_bad_get_value_access);
         }
         return _value;
       }
 
       TErr& error() {
         if (!is_error()) {
-          throw fallible_bad_get_error_access();
+          RHEOSCAPE_EXCEPTIONAL_CONDITION(fallible_bad_get_error_access);
         }
         return _error;
       }
 
       const TErr& error() const {
         if (!is_error()) {
-          throw fallible_bad_get_error_access();
+          RHEOSCAPE_EXCEPTIONAL_CONDITION(fallible_bad_get_error_access);
         }
         return _error;
       }
