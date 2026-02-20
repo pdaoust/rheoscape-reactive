@@ -1,7 +1,6 @@
 #pragma once
 
 #include <chrono>
-#include <functional>
 #include <types/core_types.hpp>
 #include <operators/lift.hpp>
 

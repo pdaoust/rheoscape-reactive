@@ -5,11 +5,9 @@
 #include <utility>
 #include <tuple>
 #include <optional>
-#include <util/logging.hpp>
 #include <types/core_types.hpp>
 #include <types/Wrapper.hpp>
 #include <operators/map.hpp>
-#include <util/misc.hpp>
 
 namespace rheoscape::operators {
 

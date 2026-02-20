@@ -1,8 +1,6 @@
 #pragma once
 #include <functional>
 #include <types/core_types.hpp>
-#include <sources/constant.hpp>
-#include <fmt/format.h>
 
 namespace rheoscape::operators {
 

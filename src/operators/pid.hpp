@@ -7,7 +7,6 @@
 #include <operators/scan.hpp>
 #include <operators/map.hpp>
 #include <operators/combine.hpp>
-#include <operators/map.hpp>
 
 namespace rheoscape::operators {
 

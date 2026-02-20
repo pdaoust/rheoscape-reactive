@@ -1,7 +1,6 @@
 #pragma once
 
 #include <functional>
-#include <util/misc.hpp>
 
 namespace rheoscape::logging {
 

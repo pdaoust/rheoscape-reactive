@@ -4,7 +4,6 @@
 #include <cstdarg>
 #include <string>
 #include <vector>
-#include <types/core_types.hpp>
 
 namespace rheoscape {
 

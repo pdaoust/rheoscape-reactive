@@ -5,7 +5,6 @@
 #include <operators/map.hpp>
 #include <operators/share.hpp>
 #include <operators/combine.hpp>
-#include <operators/map.hpp>
 
 namespace rheoscape::operators {
 

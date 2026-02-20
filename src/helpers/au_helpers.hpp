@@ -1,6 +1,5 @@
 #pragma once
 
-#include <functional>
 #include <types/au_all_units_noio.hpp>
 #include <types/core_types.hpp>
 #include <util/misc.hpp>

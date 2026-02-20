@@ -2,7 +2,6 @@
 
 #if defined(RHEOSCAPE_USE_LVGL)
 
-#include <functional>
 #include <memory>
 #include <types/core_types.hpp>
 #include <operators/foreach.hpp>
