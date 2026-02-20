@@ -19,7 +19,7 @@ namespace rheoscape::operators {
 
   template <typename SourceT>
     requires concepts::Source<SourceT>
-      && std::is_same_v<std::tuple<bool, bool>, typename SourceT::value_type>
+      && std::is_same_v<std::tuple<bool, bool>, source_value_t<SourceT>>
   RHEOSCAPE_CALLABLE auto quadrature_encode(SourceT source) {
     using acc_type = std::tuple<int8_t, int8_t, uint8_t>;
 
@@ -61,6 +61,21 @@ namespace rheoscape::operators {
           return std::vector<QuadratureEncodeDirection>();
         }
       });
+  }
+
+  namespace detail {
+    struct QuadratureEncodePipeFactory {
+      template <typename SourceT>
+        requires concepts::Source<SourceT>
+          && std::is_same_v<std::tuple<bool, bool>, source_value_t<SourceT>>
+      RHEOSCAPE_CALLABLE auto operator()(SourceT source) const {
+        return quadrature_encode(std::move(source));
+      }
+    };
+  }
+
+  auto quadrature_encode() {
+    return detail::QuadratureEncodePipeFactory{};
   }
 
 }
