@@ -204,7 +204,10 @@ namespace rheoscape {
     template <typename S>
     concept Source = requires {
       typename source_value_type<std::decay_t<S>>::type;
-    };
+    } && std::invocable<
+      std::decay_t<S>,
+      push_fn<typename source_value_type<std::decay_t<S>>::type>
+    >;
   }
 
   // Ergonomic chaining of source and sink using the `|` operator.
