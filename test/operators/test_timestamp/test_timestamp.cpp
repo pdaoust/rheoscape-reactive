@@ -17,7 +17,7 @@ void test_timestamp_timestamps() {
   int pushed_value = -1;
   mock_clock_ulong_millis::time_point timestamp;
   auto pull = timestamped(
-    [&pushed_value, &timestamp](TaggedValue<int, mock_clock_ulong_millis::time_point> value) {
+    [&pushed_value, &timestamp](std::tuple<int, mock_clock_ulong_millis::time_point> value) {
       pushed_value = value.value;
       timestamp = value.tag;
     }

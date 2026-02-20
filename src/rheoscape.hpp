@@ -12,7 +12,6 @@
 #include <types/Range.hpp>
 #include <types/rep_clock.hpp>
 #include <types/State.hpp>
-#include <types/TaggedValue.hpp>
 #include <types/thermal_sim.hpp>
 #include <types/TuningStorage.hpp>
 #include <types/Wrapper.hpp>

@@ -33,11 +33,11 @@ namespace rheoscape::operators {
           TInterval interval;
           PushFn push;
           std::shared_ptr<Wrapper<bool>> did_pull;
-          mutable std::optional<TaggedValue<T, TTimePoint>> testing_new_state;
+          mutable std::optional<std::tuple<T, TTimePoint>> testing_new_state;
           mutable std::optional<T> current_state;
           mutable bool current_state_has_been_pushed;
 
-          RHEOSCAPE_CALLABLE void operator()(TaggedValue<T, TTimePoint> value) const {
+          RHEOSCAPE_CALLABLE void operator()(std::tuple<T, TTimePoint> value) const {
             if (testing_new_state.has_value()
                 // NOTE: This equation has to be this way
                 // to guard against wraparound for unsigned time representations.

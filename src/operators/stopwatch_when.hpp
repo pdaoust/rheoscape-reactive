@@ -2,7 +2,6 @@
 
 #include <functional>
 #include <types/core_types.hpp>
-#include <types/TaggedValue.hpp>
 #include <operators/combine.hpp>
 #include <operators/map.hpp>
 
@@ -30,7 +29,7 @@ namespace rheoscape::operators {
       mutable std::optional<TTimePoint> lap_start;
       mutable bool last_value_matched = false;
 
-      RHEOSCAPE_CALLABLE TaggedValue<T, TDuration> operator()(T value, TTimePoint ts) const {
+      RHEOSCAPE_CALLABLE std::tuple<T, TDuration> operator()(T value, TTimePoint ts) const {
         bool this_value_matches = lap_condition(value);
         if (!lap_start.has_value() || (!last_value_matched && this_value_matches)) {
           // We've either just started the stream
@@ -39,7 +38,7 @@ namespace rheoscape::operators {
         }
 
         last_value_matched = this_value_matches;
-        return TaggedValue(value, ts - lap_start.value());
+        return std::tuple(value, ts - lap_start.value());
       }
     };
 

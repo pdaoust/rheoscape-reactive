@@ -4,7 +4,6 @@
 #include <cmath>
 #include <types/core_types.hpp>
 #include <util/misc.hpp>
-#include <types/TaggedValue.hpp>
 #include <operators/combine.hpp>
 #include <operators/map.hpp>
 #include <operators/scan.hpp>
@@ -40,15 +39,15 @@ namespace rheoscape::operators {
     struct Scanner {
       TIntervalConverterDecayed interval_converter;
 
-      RHEOSCAPE_CALLABLE std::optional<TaggedValue<TVal, TTimePoint>> operator()(
-        std::optional<TaggedValue<TVal, TTimePoint>> prev,
-        TaggedValue<std::tuple<TVal, TInterval>, TTimePoint> next
+      RHEOSCAPE_CALLABLE std::optional<std::tuple<TVal, TTimePoint>> operator()(
+        std::optional<std::tuple<TVal, TTimePoint>> prev,
+        std::tuple<std::tuple<TVal, TInterval>, TTimePoint> next
       ) const {
         TVal next_value = std::get<0>(next.value);
 
         if (!prev.has_value()) {
           // First run, no average to be taken.
-          return std::optional<TaggedValue<TVal, TTimePoint>>{ { next_value, next.tag } };
+          return std::optional<std::tuple<TVal, TTimePoint>>{ { next_value, next.tag } };
         }
 
         TVal prev_value = prev.value().value;
@@ -66,13 +65,13 @@ namespace rheoscape::operators {
         auto alpha = decltype(ratio){1} - std::exp(-ratio);
 
         TVal integrated = prev_value + (next_value - prev_value) * alpha;
-        return std::optional<TaggedValue<TVal, TTimePoint>>{ { integrated, next.tag } };
+        return std::optional<std::tuple<TVal, TTimePoint>>{ { integrated, next.tag } };
       }
     };
 
-    // Named callable for extracting value from optional TaggedValue.
+    // Named callable for extracting value from optional std::tuple.
     struct ValueExtractor {
-      RHEOSCAPE_CALLABLE TVal operator()(std::optional<TaggedValue<TVal, TTimePoint>> value) const {
+      RHEOSCAPE_CALLABLE TVal operator()(std::optional<std::tuple<TVal, TTimePoint>> value) const {
         return value.value().value;
       }
     };
@@ -80,7 +79,7 @@ namespace rheoscape::operators {
     return combine(std::move(source), std::move(time_constant_source))
       | timestamp(std::move(clock_source))
       | scan(
-        std::optional<TaggedValue<TVal, TTimePoint>>{},
+        std::optional<std::tuple<TVal, TTimePoint>>{},
         Scanner{ std::forward<TIntervalConverter>(interval_converter) }
       )
       | map(ValueExtractor{});

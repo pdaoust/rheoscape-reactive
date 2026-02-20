@@ -6,7 +6,6 @@
 #include <types/Fallible.hpp>
 #include <operators/filter.hpp>
 #include <operators/map.hpp>
-#include <types/TaggedValue.hpp>
 #include <types/Wrapper.hpp>
 
 namespace rheoscape::operators {
@@ -178,11 +177,11 @@ namespace rheoscape::operators {
 
   template <typename TTag, typename TOut, typename TIn>
   auto lift_to_tagged_value(pipe_fn<TOut, TIn> inner_pipe_fn)
-  -> pipe_fn<TaggedValue<TOut, TTag>, TaggedValue<TIn, TTag>> {
+  -> pipe_fn<std::tuple<TOut, TTag>, std::tuple<TIn, TTag>> {
     return lift(
       inner_pipe_fn,
-      [](TOut value, TaggedValue<TIn, TTag> tagged_in) { return TaggedValue<TOut, TTag>{ value, tagged_in.tag }; },
-      [](TaggedValue<TIn, TTag> value) { return (std::variant<TIn, TaggedValue<TOut, TTag>>)value.value; }
+      [](TOut value, std::tuple<TIn, TTag> tagged_in) { return std::tuple<TOut, TTag>{ value, tagged_in.tag }; },
+      [](std::tuple<TIn, TTag> value) { return (std::variant<TIn, std::tuple<TOut, TTag>>)value.value; }
     );
   }
 

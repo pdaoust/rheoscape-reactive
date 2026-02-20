@@ -2,7 +2,6 @@
 
 #include <functional>
 #include <types/core_types.hpp>
-#include <types/TaggedValue.hpp>
 #include <operators/combine.hpp>
 #include <operators/map.hpp>
 
@@ -15,8 +14,8 @@ namespace rheoscape::operators {
     using TTimePoint = source_value_t<ClockSourceT>;
 
     struct Tagger {
-      RHEOSCAPE_CALLABLE TaggedValue<T, TTimePoint> operator()(T value, TTimePoint timestamp) const {
-        return TaggedValue<T, TTimePoint>{ value, timestamp };
+      RHEOSCAPE_CALLABLE std::tuple<T, TTimePoint> operator()(T value, TTimePoint timestamp) const {
+        return std::tuple<T, TTimePoint>{ value, timestamp };
       }
     };
 

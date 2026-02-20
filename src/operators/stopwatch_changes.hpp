@@ -2,7 +2,6 @@
 
 #include <functional>
 #include <types/core_types.hpp>
-#include <types/TaggedValue.hpp>
 #include <operators/combine.hpp>
 #include <operators/scan.hpp>
 #include <operators/filter_map.hpp>
@@ -38,9 +37,9 @@ namespace rheoscape::operators {
 
     return combine(std::move(source), std::move(clock_source))
       | scan(std::optional<TAcc>{}, LapScanner{})
-      | filter_map([](std::optional<TAcc> v) -> std::optional<TaggedValue<T, TDuration>> {
+      | filter_map([](std::optional<TAcc> v) -> std::optional<std::tuple<T, TDuration>> {
         if (v.has_value()) {
-            return TaggedValue(std::get<0>(v.value()), std::get<2>(v.value()) - std::get<1>(v.value()));
+            return std::tuple(std::get<0>(v.value()), std::get<2>(v.value()) - std::get<1>(v.value()));
         }
         return std::nullopt;
       });

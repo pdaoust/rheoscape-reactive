@@ -21,8 +21,8 @@ void test_count_counts() {
 void test_tag_count_tags_and_counts() {
   auto some_numbers = unwrap_endable(sequence(1, 15, 1));
   auto counter = tag_count(some_numbers);
-  TaggedValue<int, unsigned long> pushed_value;
-  pull_fn pull = counter([&pushed_value](TaggedValue<int, unsigned long> v) { pushed_value = v; });
+  std::tuple<int, unsigned long> pushed_value;
+  pull_fn pull = counter([&pushed_value](std::tuple<int, unsigned long> v) { pushed_value = v; });
   for (int i = 1; i <= 15; i ++) {
     pull();
     TEST_ASSERT_EQUAL_MESSAGE(i, pushed_value.tag, "counter should count");

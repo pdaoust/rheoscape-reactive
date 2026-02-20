@@ -26,7 +26,7 @@ namespace rheoscape::operators {
           PushFn push;
           mutable std::optional<TTimePoint> interval_start;
 
-          RHEOSCAPE_CALLABLE void operator()(TaggedValue<T, TTimePoint> value) const {
+          RHEOSCAPE_CALLABLE void operator()(std::tuple<T, TTimePoint> value) const {
             if (interval_start.has_value() && value.tag - interval_start.value() > interval) {
               interval_start = std::nullopt;
             }

@@ -75,17 +75,17 @@ TEST_ASSERT_FALSE_MESSAGE(last_pushed_value.has_value(), "Should have pushed emp
 void test_lift_to_taggedValue_lifts() {
   pipe_fn<int, int> doubling_pipe = map([](int v) { return v * 2; });
   auto lifted = lift_to_tagged_value<int>(doubling_pipe);
-  std::vector<TaggedValue<int, int>> tagged_numbers {
-    TaggedValue { 1, -1 },
-    TaggedValue { 2, -2 },
-    TaggedValue { 3, -3 },
+  std::vector<std::tuple<int, int>> tagged_numbers {
+    std::tuple { 1, -1 },
+    std::tuple { 2, -2 },
+    std::tuple { 3, -3 },
   };
   auto tagged_numbers_source = unwrap_endable(from_iterator(tagged_numbers.begin(), tagged_numbers.end()));
   auto doubled_tagged_numbers = lifted(tagged_numbers_source);
 
-  TaggedValue<int, int> last_pushed_value;
+  std::tuple<int, int> last_pushed_value;
   pull_fn pull = doubled_tagged_numbers(
-    [&last_pushed_value](TaggedValue<int, int> v) { last_pushed_value = v; }
+    [&last_pushed_value](std::tuple<int, int> v) { last_pushed_value = v; }
   );
 
   pull();

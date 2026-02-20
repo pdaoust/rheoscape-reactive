@@ -2,7 +2,6 @@
 
 #include <functional>
 #include <types/core_types.hpp>
-#include <types/TaggedValue.hpp>
 
 namespace rheoscape::operators {
 
@@ -34,7 +33,7 @@ namespace rheoscape::operators {
     template <typename SourceT>
     struct TagCountSourceBinder {
       using T = source_value_t<SourceT>;
-      using value_type = TaggedValue<T, size_t>;
+      using value_type = std::tuple<T, size_t>;
 
       SourceT source;
 
@@ -47,7 +46,7 @@ namespace rheoscape::operators {
 
           RHEOSCAPE_CALLABLE void operator()(T value) const {
             counter++;
-            push(TaggedValue<T, size_t>{value, counter});
+            push(std::tuple<T, size_t>{value, counter});
           }
         };
 
