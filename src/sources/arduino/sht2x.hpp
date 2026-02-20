@@ -1,4 +1,5 @@
 #pragma once
+#if __has_include(<SHT2x.h>)
 
 #include <fmt/format.h>
 #include <memory>
@@ -199,3 +200,4 @@ namespace rheoscape::sources::arduino::sht2x {
   }
 
 }
+#endif // __has_include(<SHT2x.h>)

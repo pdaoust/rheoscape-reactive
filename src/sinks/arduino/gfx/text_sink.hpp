@@ -1,4 +1,5 @@
 #pragma once
+#if __has_include(<Adafruit_GFX.h>)
 
 #include <functional>
 #include <types/core_types.hpp>
@@ -30,3 +31,4 @@ namespace rheoscape::sinks::arduino::gfx {
   }
 
 }
+#endif // __has_include(<Adafruit_GFX.h>)

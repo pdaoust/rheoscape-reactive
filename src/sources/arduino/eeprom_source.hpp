@@ -1,4 +1,5 @@
 #pragma once
+#if __has_include(<EEPROM.h>)
 
 #include <types/core_types.hpp>
 #include <types/Fallible.hpp>
@@ -53,3 +54,4 @@ namespace rheoscape::sources::arduino {
   }
 
 }
+#endif // __has_include(<EEPROM.h>)

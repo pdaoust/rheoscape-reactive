@@ -1,4 +1,5 @@
 #pragma once
+#if __has_include(<Adafruit_SSD1306.h>)
 
 #include <types/core_types.hpp>
 #include <Adafruit_SSD1306.h>
@@ -38,3 +39,4 @@ namespace rheoscape::sinks::arduino::gfx {
   }
 
 }
+#endif // __has_include(<Adafruit_SSD1306.h>)

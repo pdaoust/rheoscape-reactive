@@ -1,4 +1,5 @@
 #pragma once
+#if __has_include(<EEPROM.h>)
 
 #include <types/core_types.hpp>
 #include <Arduino.h>
@@ -45,3 +46,4 @@ namespace rheoscape::sinks::arduino {
   }
 
 }
+#endif // __has_include(<EEPROM.h>)

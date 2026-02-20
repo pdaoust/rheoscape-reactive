@@ -1,4 +1,5 @@
 #pragma once
+#if __has_include(<BH1750.h>)
 
 #include <memory>
 #include <types/core_types.hpp>
@@ -43,3 +44,4 @@ namespace rheoscape::sources::arduino {
   }
 
 }
+#endif // __has_include(<BH1750.h>)

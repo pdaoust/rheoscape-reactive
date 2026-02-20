@@ -1,4 +1,6 @@
 #pragma once
+#if (defined(ARDUINO_ARCH_ESP32) && __has_include(<ESP32Servo.h>)) || \
+    (!defined(ARDUINO_ARCH_ESP32) && __has_include(<Servo.h>))
 
 #include <memory>
 #include <types/core_types.hpp>
@@ -41,3 +43,4 @@ namespace rheoscape::sinks::arduino {
   }
 
 }
+#endif // __has_include(<ESP32Servo.h>) || __has_include(<Servo.h>)

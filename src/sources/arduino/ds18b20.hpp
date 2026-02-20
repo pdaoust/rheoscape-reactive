@@ -1,4 +1,5 @@
 #pragma once
+#if __has_include(<DallasTemperature.h>)
 
 #include <array>
 #include <memory>
@@ -116,3 +117,4 @@ namespace rheoscape::sources::arduino::ds18b20 {
   }
 
 }
+#endif // __has_include(<DallasTemperature.h>)
