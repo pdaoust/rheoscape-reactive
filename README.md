@@ -21,7 +21,7 @@ void setup() {
     set_servo_to_soil_moisture_reading = soil_moisture_sensor
         // Translate that into a rotation angle for our servo.
         | normalize(constant(Range(0, 100)), constant(Range(0, 180)))
-        // We have a cheap servo on GPIO 4.
+        // We have a cheap micro servo on GPIO 4.
         | servo_sink(4);
 
     // Allow the user to calibrate the point where the water pump turns on to water the plants.
@@ -178,6 +178,12 @@ pull_fn pull_threes = threes_source([](int v) {
 ```
 
 Every time you call `pull_threes()`, it'll print a message to the serial port.
+
+### State
+
+A state holds, well, state! It keeps track of mutable values and provides both a source function (which emits values whenever the state is changed, but can also be pulled any time you like) and a sink function (which updates the state with each value pushed to it). Other frameworks call them 'reactive values'.
+
+Currently there are two different state types: `MemoryState`, which is backed by RAM, and `EepromState`, which is backed by NVRAM via the Arduino `EEPROM` library.
 
 ### Stream
 
@@ -373,6 +379,9 @@ The Rheoscape standard library comes with a lot of good structs, classes, source
 * **Sinks**
     * `arduino`: Digital and analogue GPIOs, serial console, controls, EEPROM, and Adafruit GFX-based displays.
     * `dummy_sink`: A sink that does nothing. Its sole purpose is to pull from sources that can push to multiple sinks at once, but don't do any pushing until at least one sink pulls on it. (Right now, this means the `share` operator, which takes any stream and broadcasts to all downstream subscribers.)
+* **States**
+    * `EepromState`: Uses Arduino's EEPROM library to store and retrieve state that survives restarts.
+    * `MemoryState`: An in-memory state.
 * **Operators**
     * `bang_bang`: A simple thermostat with a configurable dead zone.
     * `cache`: Remember the last value pushed from upstream and emit it if a new value isn't pushed on pull.
