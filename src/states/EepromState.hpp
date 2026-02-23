@@ -252,10 +252,10 @@ namespace rheoscape::states {
     };
 
     template<std::size_t Offset, typename ClockSourceFn, typename TDuration, typename... Ts>
-    struct MemoryBufferedEepromStateTupleBinder;
+    struct MemoryBufferedEepromStateTupleBuilder;
 
     template<std::size_t Offset, typename ClockSourceFn, typename TDuration>
-    struct MemoryBufferedEepromStateTupleBinder<Offset, ClockSourceFn, TDuration> {
+    struct MemoryBufferedEepromStateTupleBuilder<Offset, ClockSourceFn, TDuration> {
       ClockSourceFn clock_source;
       TDuration buffer_duration;
 
@@ -264,13 +264,13 @@ namespace rheoscape::states {
     };
 
     template<std::size_t Offset, typename ClockSourceFn, typename TDuration, typename T, typename... Rest>
-    struct MemoryBufferedEepromStateTupleBinder<Offset, ClockSourceFn, TDuration, T, Rest...> {
+    struct MemoryBufferedEepromStateTupleBuilder<Offset, ClockSourceFn, TDuration, T, Rest...> {
       ClockSourceFn clock_source;
       TDuration buffer_duration;
 
       using type = decltype(std::tuple_cat(
         std::declval<std::tuple<MemoryState<T>>>(),
-        std::declval<typename MemoryBufferedEepromStateTupleBinder<Offset + sizeof(T) + 2, ClockSourceFn, TDuration, Rest...>::type>()
+        std::declval<typename MemoryBufferedEepromStateTupleBuilder<Offset + sizeof(T) + 2, ClockSourceFn, TDuration, Rest...>::type>()
       ));
 
       type make() {
@@ -278,8 +278,9 @@ namespace rheoscape::states {
 
         type result = std::tuple_cat(
           std::make_tuple(MemoryState<T>()),
-          MemoryBufferedEepromStateTupleBinder<Offset + sizeof(T) + 2, ClockSourceFn, TDuration, Rest...>{clock_source, buffer_duration}.make()
+          MemoryBufferedEepromStateTupleBuilder<Offset + sizeof(T) + 2, ClockSourceFn, TDuration, Rest...>{clock_source, buffer_duration}.make()
         );
+
         MemoryState<T>& memory_state = std::get<0>(result);
         auto& eeprom_state = EepromState<T, Offset>::get_instance();
         eeprom_state.get_source_fn() // push_initial defaults to true, so the memory state gets populated on bind.
@@ -301,7 +302,7 @@ namespace rheoscape::states {
     requires concepts::Source<std::decay_t<ClockSourceFn>>
       && concepts::TimePointAndDurationCompatible<source_value_t<ClockSourceFn>, TDuration>
   auto make_memory_buffered_eeprom_states(ClockSourceFn clock_source, TDuration buffer_duration) {
-    return detail::MemoryBufferedEepromStateTupleBinder<Offset, ClockSourceFn, TDuration, Ts...>(clock_source, buffer_duration).make();
+    return detail::MemoryBufferedEepromStateTupleBuilder<Offset, ClockSourceFn, TDuration, Ts...>(clock_source, buffer_duration).make();
   }
 
 }
