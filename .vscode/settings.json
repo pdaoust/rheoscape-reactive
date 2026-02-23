@@ -70,5 +70,6 @@
     "semaphore": "cpp",
     "stop_token": "cpp",
     "text_encoding": "cpp"
-  }
+  },
+  "editor.tabSize": 2
 }
