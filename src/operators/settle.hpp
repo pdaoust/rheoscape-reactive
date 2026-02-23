@@ -39,18 +39,19 @@ namespace rheoscape::operators {
           mutable bool current_state_has_been_pushed;
 
           RHEOSCAPE_CALLABLE void operator()(std::tuple<T, TTimePoint> value) const {
+            auto& [val, tag] = value;
             if (
               !testing_new_state.has_value()
-              || value.value != testing_new_state.value().value) {
+              || val != std::get<0>(testing_new_state.value())) {
               // New value has come in.
               // Reset the test period.
               testing_new_state = std::optional(value);
             }
 
-            if (value.tag - testing_new_state.value().tag >= interval) {
+            if (tag - std::get<1>(testing_new_state.value()) >= interval) {
               // Passed the settling period.
               // This is the new value.
-              current_state = std::optional(value.value);
+              current_state = std::optional(val);
             }
 
             // Guard against initial non-state.
