@@ -24,37 +24,60 @@ namespace rheoscape::states {
   // with the desired starting memory offset and the types for each slot.
   // In return, you get a tuple of `EepromState` objects that correspond to the types you passed.
   //
-  // Given that you usually need to create ways for these EEPROM states to be updated,
-  // and those ways usually take the form of pipes
-  // (say, to buffer the values before saving so they don't wear the flash too quickly
-  // and/or present feedback on how soon the states will be saved)
-  // there's a convenience factory function that mirrors the EEPROM states into in-memory states
-  // and lets you pass pipes that are inserted in between the memory states' source functions
-  // and the EEPROM states' getter sink functions.
-  // The type of each slot in the EEPROM will be deduced from the input/output type of the pipe function,
-  // and the input/output must be identical.
+  // When you're using NVRAM memory, it's usually because you're working with user-configurable settings.
+  // But you don't want to be writing to NVRAM with every twiddle of a rotary encoder.
+  // So it's a good idea to construct a pipeline that loads the value from NVRAM into a `MemoryState`,
+  // create a loop to process and update it in there,
+  // and then buffer changes using an appropriate pipeline.
+  // This is such a common pattern that Rheoscape provides a factory function, `make_memory_mirrored_eeprom_pipes`,
+  // which constructs an `EepromState` object and `MemoryState` object for each type,
+  // then pipes their inputs and outputs to each other,
+  // inserting the passed pipe between the `MemoryState` object's output and the `EepromState`'s input.
+  // The type of each EEPROM value is deduced from the input and output types of the pipe,
+  // which must be identical.
+  // What you get back are not `EepromState` objects but `MemoryState` objects,
+  // which should be more foolproof to work with.
   //
-  // For instance:
+  // Example:
   //
   // ```c++
-  // auto persistent_configs = make_eeprom_states<0, Range<int>, int, bool, MyStruct>();
-  // auto moisture_sensor_low_high_config = std::get<0>(persistent_configs);
-  // auto watering_threshold_config = std::get<1>(persistent_configs);
-  // auto is_running_config = std::get<2>(persistent_configs);
-  // auto extra_config = std::get<3>(persistent_configs);
+  // auto clock = from_clock<arduino_millis_clock>();
+  // // Create a 1-minute buffer pipe that waits for a value to settle before emitting.
+  // // Using `settle` allows us to both avoid writing intermediate values while the user is making up their mind,
+  // // and avoid writing a value if they revert it back to what it was before.
+  // auto buffer_writes_pipe = settle(clock, constant(arduino_millis_clock::duration(60000)))
   //
-  // // We're about to construct a pipeline to edit the config,
-  // // but we never want to update an EEPROM directly as a result of user input.
-  // // That would cause rapid flash wear.
-  // // So instead we populate an in-memory state object
-  // // and then buffer changes to that state so we only update flash when the value has settled.
+  // auto [
+  //   moisture_sensor_low_high,
+  //   watering_threshold,
+  //   is_running,
+  //   extra_config
+  // ] = make_memory_mirrored_eeprom_pipes(
+  //   // Tip: use the `typed_pipe` to give a generic pipe function an input/output type.
+  //   typed_pipe<Range<int>>(buffer_writes_pipe),
+  //   typed_pipe<int>(buffer_writes_pipe),
+  //   typed_pipe<bool>(buffer_writes_pipe),
+  //   typed_pipe<MyConfigStruct>(buffer_writes_pipe)
+  // );
+  // ```
   //
-  // moisture_sensor_low_high_config.get_source_fn() // initial_push is true; that populates the in-mem state.
-  //   | moisture_sensor_low_high_in_mem_state.get_setter_sink_function();
-  // moisture_sensor_low_high_in_mem_state.get_source_fn()
-  //   | settle(clock, arduino_millis_clock::duration(60000)) // Buffer the values for 1 minute.
-  //   | moisture_sensor_low_high_config.get_setter_sink_fn(false); // Don't push on set; this'll cause an infinite loop.
-  // // Not shown: pulling on these pipelines, updating the in-memory state.
+  // Here are two other suggestions for pipes.
+  // This one allows you to give the user feedback about how soon their new value will be written:
+  //
+  // ```c++
+  // auto timer_feedback_buffer_writes_pipe = stopwatch_changes(clock)
+  //   | tee(some_ui_pipe_that_displays_seconds_until_ts_reaches_60000)
+  //   | filter([](auto value, auto ts) {
+  //       return ts >= arduino_millis_clock::duration(60000);
+  //     })
+  //   | map([](auto value, auto ts) { return value; })
+  //   | dedupe(); // We only want the first value after it changes.
+  // ```
+  //
+  // This one waits for the user to press a 'save' button:
+  //
+  // ```c++
+  // auto manual_save_pipe = sample_every(save_button_events);
   // ```
 
   namespace detail {
