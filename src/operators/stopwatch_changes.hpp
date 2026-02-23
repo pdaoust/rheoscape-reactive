@@ -46,28 +46,25 @@ namespace rheoscape::operators {
   }
 
   namespace detail {
-    template <typename TDuration, typename ClockSourceT, typename FilterFn>
+    template <typename TDuration, typename ClockSourceT>
     struct StopwatchChangesPipeFactory {
       ClockSourceT clock_source;
-      FilterFn lap_condition;
 
       template <typename SourceT>
-        requires concepts::Source<SourceT> &&
-                 concepts::Predicate<FilterFn, source_value_t<SourceT>>
+        requires concepts::Source<SourceT>
       RHEOSCAPE_CALLABLE auto operator()(SourceT source) const {
-        return stopwatch_changes<TDuration>(std::move(source), ClockSourceT(clock_source), FilterFn(lap_condition));
+        return stopwatch_changes<TDuration>(std::move(source), ClockSourceT(clock_source));
       }
     };
   }
 
   // Pipe factory
-  template <typename TDuration, typename ClockSourceT, typename FilterFn>
+  template <typename TDuration, typename ClockSourceT>
     requires concepts::Source<ClockSourceT> &&
              concepts::TimePointAndDurationCompatible<source_value_t<ClockSourceT>, TDuration>
-  auto stopwatch_changes(ClockSourceT clock_source, FilterFn&& lap_condition) {
-    return detail::StopwatchChangesPipeFactory<TDuration, ClockSourceT, std::decay_t<FilterFn>>{
-      std::move(clock_source),
-      std::forward<FilterFn>(lap_condition)
+  auto stopwatch_changes(ClockSourceT clock_source) {
+    return detail::StopwatchChangesPipeFactory<TDuration, ClockSourceT>{
+      std::move(clock_source)
     };
   }
 
