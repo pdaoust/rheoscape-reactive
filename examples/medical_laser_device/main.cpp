@@ -54,7 +54,6 @@ enum UiState {
   _count
 };
 
-Adafruit_SSD1306 display(128, 64, &Wire, -1);
 
 extern "C" void __attribute__((weak)) panic(const char *fmt, ...) {
   char buf[256];
