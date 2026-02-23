@@ -15,17 +15,17 @@ void setup() {
     static auto soil_moisture_sensor = analog_pin_source(3)
         // We've calibrated the sensor and it's fully wet at 350 and fully dry at 800.
         // Change that range to 0-100%.
-        | normalize(Range(800, 350), Range(0, 100));
+        | normalize(constant(Range(800, 350)), constant(Range(0, 100)));
 
     // Show the moisture reading on a servo-controlled gauge.
     set_servo_to_soil_moisture_reading = soil_moisture_sensor
         // Translate that into a rotation angle for our servo.
-        | normalize(Range(0, 100), Range(0, 180))
+        | normalize(constant(Range(0, 100)), constant(Range(0, 180)))
         // We have a cheap servo on GPIO 4.
         | servo_sink(4);
 
     // Allow the user to calibrate the point where the water pump turns on to water the plants.
-    static State watering_threshold(50);
+    static MemoryState watering_threshold(50);
     // Rotary encoder on pins 4 and 5.
     static auto rotary_encoder = digital_pin_interrupt_source<4, 5>(INPUT_PULLUP)
         | quadrature_encode();
@@ -359,12 +359,12 @@ The Rheoscape standard library comes with a lot of good structs, classes, source
     * `mock_clock`: A `std::chrono` clock that lets you set the exact time. Used in tests.
     * `Range`: A struct that lets you specify an inclusive range between any two values of a comparable type.
     * `rep_clock`: A `std::chrono` clock that doesn't provide a `now()` method; it just lets you define time points and durations with the magnitude and representation types you need.
-    * `State`: A struct that lets you store and mutate state. (In some libraries this is called a 'reactive value'.) It provides a source function and a sink function, and you can choose whether it pushes values immediately or only on pull.
+    * `MemoryState`: A struct that lets you store and mutate state. (In some libraries this is called a 'reactive value'.) It provides a source function and a sink function, and you can choose whether it pushes values immediately or only on pull.
 * **Sources**
     * `arduino`: Digital and analogue GPIOs, popular sensors, EEPROM
     * `constant`: Keep on emitting the same value whenever it's pulled
     * `done`: A source that immediately emits an ended `Endable` and shuts up.
-    * `Emitter`: A struct that provides a source function. You can push values to it, and it'll proactively push it out to all subscribed sinks. It's like `State` but doesn't hold any state.
+    * `Emitter`: A struct that provides a source function. You can push values to it, and it'll proactively push it out to all subscribed sinks. It's like `MemoryState` but doesn't hold any state.
     * `empty`: A source function that doesn't ever produce any values, no matter how many times you pull on it.
     * `from_clock`: A source function that takes a `std::chrono` clock and samples it whenever pulled.
     * `from_iterator`: A source function that iterates over an iterator, producing `Endable<T>` values until it's been fully iterated.
@@ -424,6 +424,7 @@ The Rheoscape standard library comes with a lot of good structs, classes, source
 Rheoscape is designed to do as much of its hard work at compile time as possible. It does this in these ways:
 
 * **No exceptions**: Sources that can error emit streams of `Fallible<T, Err>` values instead of throwing exceptions. Truly exceptional conditions are handled by `assert` rather than `throw`. (This doesn't cover the standard library -- you're still on your own if you try to call `.value()` on a `std::nullopt`.)
+* **Disciplined ownership semantics**: Rheoscape avoids duplicating values as they're passed down a stream.
 * **Configurable aggressive inlining**: Flow graphs are just stacks of functions, and they can get quite tall (each operator adds at least two functions to a call stack). These stacks can be aggressively inlined (albeit at the cost of larger binary weight) with the `RHEOSCAPE_AGGRESSIVE_INLINE` macro.
 
     <table>
