@@ -161,7 +161,7 @@ void setup() {
       )
     );
   /*
-  auto setpoint = rheoscape::State<TempC>(au::celsius_pt(20.0f), false);
+  auto setpoint = rheoscape::states::MemoryState<TempC>(au::celsius_pt(20.0f), false);
 
   auto empty_style_source = constant(std::vector<lvgl::StyleAndSelector>());
 

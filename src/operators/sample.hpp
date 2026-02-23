@@ -34,7 +34,7 @@ namespace rheoscape::operators {
           RHEOSCAPE_CALLABLE void operator()(TSample sample_value) const {
             if (last_event_value->has_value()) {
               // Extract the event value and clear BEFORE pushing.
-              // This prevents re-entrant pushes (e.g., from State.set() in downstream)
+              // This prevents re-entrant pushes (e.g., from MemoryState.set() in downstream)
               // from emitting again with the same event.
               TEvent event_value = std::move(last_event_value->value());
               last_event_value->reset();

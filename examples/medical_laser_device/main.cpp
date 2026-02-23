@@ -112,19 +112,17 @@ void setup() {
   // Annoyingly the au::degrees quantity maker clashes with the Arduino library's converter.
   // I thought that's what namespaces were supposed to prevent...
   // Use unsigned char since that's what servo_sink expects; normalize handles the conversion.
-  static State servo_angle_range(Range(au::make_quantity_point<au::Degrees, unsigned char>(35), au::make_quantity_point<au::Degrees, unsigned char>(100)));
-  static State red_pwm_duty_cycle(au::percent(100));
-  static State blue_pwm_duty_cycle(au::percent(100));
-  static State servo_sweep_duration(float_millis_clock::duration(5000.0f));
-  static State programme_index(1);
+  static MemoryState servo_angle_range(Range(au::make_quantity_point<au::Degrees, unsigned char>(35), au::make_quantity_point<au::Degrees, unsigned char>(100)));
+  static MemoryState red_pwm_duty_cycle(au::percent(100));
+  static MemoryState blue_pwm_duty_cycle(au::percent(100));
+  static MemoryState servo_sweep_duration(float_millis_clock::duration(5000.0f));
+  static MemoryState programme_index(1);
 
   // Load settings from flash.
   using programme_t = std::tuple<Range<au::QuantityPoint<au::Degrees, unsigned char>>, au::Quantity<au::Percent, int>, au::Quantity<au::Percent, int>, float_millis_clock::duration>;
   using settings_t = std::tuple<programme_t, programme_t>;
 
   auto load_settings = eeprom_source<settings_t>(settings_address);
-  eeprom_source
-    | map([settings_t v] { return v })
 
   // Connect the servo sweep duration and angle range to the servo.
   auto servo_position = triangle_wave(
@@ -144,7 +142,7 @@ void setup() {
     | analog_pin_sink(blue_pwm_pin, 10, laser_pwm_frequency);
 
   // Set up the editors.
-  static State<UiState> ui_state(EDIT_SERVO_SWEEP_DURATION);
+  static MemoryState<UiState> ui_state(EDIT_SERVO_SWEEP_DURATION);
 
   // First, the button and encoder.
   auto encoder_source = digital_pin_interrupt_source<encoder_a_pin, encoder_b_pin>(INPUT_PULLUP)

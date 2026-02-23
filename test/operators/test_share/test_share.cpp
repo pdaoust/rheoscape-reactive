@@ -1,6 +1,6 @@
 #include <unity.h>
 #include <functional>
-#include <types/State.hpp>
+#include <states/MemoryState.hpp>
 #include <operators/unwrap.hpp>
 #include <sources/sequence.hpp>
 
@@ -13,7 +13,7 @@ using namespace rheoscape::operators;
 // Turns out that's how normal source functions work.
 
 void test_normal_source_function_pushes_to_all() {
-  State<int> push_stream(0);
+  MemoryState<int> push_stream(0);
   auto source = push_stream.get_source_fn();
   int pushed_value1 = 0;
   source([&pushed_value1](int v) { pushed_value1 = v; });

@@ -3,7 +3,7 @@
 #include <operators/timed_latch.hpp>
 #include <sources/from_clock.hpp>
 #include <types/mock_clock.hpp>
-#include <types/State.hpp>
+#include <states/MemoryState.hpp>
 #include <fmt/format.h>
 
 using namespace rheoscape;
@@ -13,7 +13,7 @@ using namespace rheoscape::sources;
 void test_timed_latch_latches_simple_state() {
   mock_clock_ulong_millis::set_time(0);
   auto clock_source = from_clock<mock_clock_ulong_millis>();
-  auto value_source = State(false, false);
+  auto value_source = MemoryState(false, false);
   auto latched_source = timed_latch(value_source.get_source_fn(false), clock_source, mock_clock_ulong_millis::duration(10), false);
   bool value = false;
   int pushed_count = 0;
@@ -43,7 +43,7 @@ void test_timed_latch_latches_simple_state() {
 void test_timed_latch_latches_simple_state_when_using_push_source() {
   mock_clock_ulong_millis::set_time(0);
   auto clock_source = from_clock<mock_clock_ulong_millis>();
-  auto value_source = State(false, true);
+  auto value_source = MemoryState(false, true);
   auto latched_source = timed_latch(value_source.get_source_fn(true), clock_source, mock_clock_ulong_millis::duration(10), false);
   bool value = false;
   int pushed_count = 0;
@@ -70,7 +70,7 @@ void test_timed_latch_latches_simple_state_when_using_push_source() {
 void test_timed_latch_handles_complex_state() {
   mock_clock_ulong_millis::set_time(0);
   auto clock_source = from_clock<mock_clock_ulong_millis>();
-  auto value_source = State(0, false);
+  auto value_source = MemoryState(0, false);
   auto latched_source = timed_latch(value_source.get_source_fn(false), clock_source, mock_clock_ulong_millis::duration(10), 0);
   int value = INT_MAX;
   int pushed_count = 0;

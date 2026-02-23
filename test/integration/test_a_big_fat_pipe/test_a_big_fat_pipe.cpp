@@ -10,7 +10,7 @@ void test_a_big_fat_pipe_actually_works() {
   //logging::register_subscriber([](uint8_t log_level, const char* topic, const char* message) {
   //  printf(fmt::format("[{}:{}] {}\n", LOG_LEVEL_LABEL(log_level), topic, message).c_str()); });
 
-  auto temp_and_hum_state = rheoscape::State<rheoscape::Fallible<std::tuple<float, float>, int>>();
+  auto temp_and_hum_state = rheoscape::states::MemoryState<rheoscape::Fallible<std::tuple<float, float>, int>>();
   auto temp_and_hum = temp_and_hum_state.get_source_fn();
   auto clock = from_clock<mock_clock_ulong_millis>();
   auto temp_and_hum_smooth = temp_and_hum

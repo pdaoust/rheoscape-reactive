@@ -3,7 +3,7 @@
 #include <operators/pid_autotune/rule_based_advisor.hpp>
 #include <operators/pid.hpp>
 #include <types/mock_clock.hpp>
-#include <types/State.hpp>
+#include <states/MemoryState.hpp>
 #include <sources/constant.hpp>
 
 using namespace rheoscape;
@@ -51,7 +51,7 @@ void test_advisor_detects_oscillation() {
     0.1f        // target_fitness (low = good, we won't reach this)
   };
 
-  State<PidOutput<float, float, float>> pid_output_state(make_pid_output(0.0f));
+  MemoryState<PidOutput<float, float, float>> pid_output_state(make_pid_output(0.0f));
 
   auto advisor_source = rule_based_advisor<float, float, float, float, unsigned long, float>(
     pid_output_state.get_source_fn(),
@@ -94,7 +94,7 @@ void test_advisor_detects_overshoot() {
     0.1f        // target_fitness
   };
 
-  State<PidOutput<float, float, float>> pid_output_state(make_pid_output(0.0f));
+  MemoryState<PidOutput<float, float, float>> pid_output_state(make_pid_output(0.0f));
 
   auto advisor_source = rule_based_advisor<float, float, float, float, unsigned long, float>(
     pid_output_state.get_source_fn(),
@@ -138,7 +138,7 @@ void test_advisor_detects_steady_state_error() {
     0.1f        // target_fitness
   };
 
-  State<PidOutput<float, float, float>> pid_output_state(make_pid_output(0.0f));
+  MemoryState<PidOutput<float, float, float>> pid_output_state(make_pid_output(0.0f));
 
   auto advisor_source = rule_based_advisor<float, float, float, float, unsigned long, float>(
     pid_output_state.get_source_fn(),
@@ -179,7 +179,7 @@ void test_advisor_respects_min_adjustment_interval() {
     0.1f        // target_fitness
   };
 
-  State<PidOutput<float, float, float>> pid_output_state(make_pid_output(0.0f));
+  MemoryState<PidOutput<float, float, float>> pid_output_state(make_pid_output(0.0f));
 
   auto advisor_source = rule_based_advisor<float, float, float, float, unsigned long, float>(
     pid_output_state.get_source_fn(),
@@ -220,7 +220,7 @@ void test_advisor_cools_down_at_target_fitness() {
     100.0f      // target_fitness = high (easy to achieve, lower is better)
   };
 
-  State<PidOutput<float, float, float>> pid_output_state(make_pid_output(0.0f));
+  MemoryState<PidOutput<float, float, float>> pid_output_state(make_pid_output(0.0f));
 
   auto advisor_source = rule_based_advisor<float, float, float, float, unsigned long, float>(
     pid_output_state.get_source_fn(),
@@ -262,8 +262,8 @@ void test_advisor_with_dynamic_fitness_target() {
     0.1f        // target_fitness (unused with dynamic)
   };
 
-  State<PidOutput<float, float, float>> pid_output_state(make_pid_output(0.0f));
-  State<float> target_fitness_state(100.0f);  // Start with easy target
+  MemoryState<PidOutput<float, float, float>> pid_output_state(make_pid_output(0.0f));
+  MemoryState<float> target_fitness_state(100.0f);  // Start with easy target
 
   auto advisor_source = rule_based_advisor<float, float, float, float, unsigned long, float>(
     pid_output_state.get_source_fn(),
@@ -320,7 +320,7 @@ void test_advisor_priority_oscillation_with_overshoot() {
     0.01f       // target_fitness (very strict, won't cool down)
   };
 
-  State<PidOutput<float, float, float>> pid_output_state(make_pid_output(0.0f));
+  MemoryState<PidOutput<float, float, float>> pid_output_state(make_pid_output(0.0f));
 
   auto advisor_source = rule_based_advisor<float, float, float, float, unsigned long, float>(
     pid_output_state.get_source_fn(),
@@ -389,7 +389,7 @@ void test_advisor_first_sample_handling() {
     2.0f, 1.0f, 5000UL, 0.5f, 0.1f, 1000UL, 0.1f
   };
 
-  State<PidOutput<float, float, float>> pid_output_state(make_pid_output(5.0f));
+  MemoryState<PidOutput<float, float, float>> pid_output_state(make_pid_output(5.0f));
 
   auto advisor_source = rule_based_advisor<float, float, float, float, unsigned long, float>(
     pid_output_state.get_source_fn(),

@@ -3,7 +3,7 @@
 #include <map>
 #include <vector>
 #include <sinks/table_sink.hpp>
-#include <types/State.hpp>
+#include <states/MemoryState.hpp>
 
 using namespace rheoscape;
 using namespace rheoscape::sinks;
@@ -17,12 +17,12 @@ void test_table_sink_calls_store_fn() {
     return true;
   };
 
-  State<TableSinkInput<std::string, int>> input_state(
+  MemoryState<TableSinkInput<std::string, int>> input_state(
     make_table_sink_input(std::string("key1"), 42)
   );
 
   auto sink = table_sink<std::string, int>(store);
-  // Use initial_push=false to avoid double-push (State would push on bind + pull)
+  // Use initial_push=false to avoid double-push (MemoryState would push on bind + pull)
   sink(input_state.get_source_fn(false));
 
   TEST_ASSERT_EQUAL_MESSAGE(1, stored_items.size(),
@@ -42,7 +42,7 @@ void test_table_sink_pullable_returns_pull_fn() {
     return true;
   };
 
-  State<TableSinkInput<std::string, int>> input_state(
+  MemoryState<TableSinkInput<std::string, int>> input_state(
     make_table_sink_input(std::string("initial"), 0)
   );
 
@@ -88,7 +88,7 @@ void test_table_sink_with_quality_filter() {
     return false;  // Rejected: existing is better
   };
 
-  State<TableSinkInput<std::string, Record>> input_state(
+  MemoryState<TableSinkInput<std::string, Record>> input_state(
     make_table_sink_input(std::string("key1"), Record{10, 0.5f})
   );
 
@@ -134,7 +134,7 @@ void test_table_sink_with_knn_storage() {
     return true;
   };
 
-  State<TableSinkInput<Point, PidWeights>> input_state(
+  MemoryState<TableSinkInput<Point, PidWeights>> input_state(
     make_table_sink_input(Point{1.0f, 2.0f}, PidWeights{0.5f, 0.1f, 0.05f})
   );
 
@@ -170,7 +170,7 @@ void test_table_sink_multiple_keys() {
     return true;
   };
 
-  State<TableSinkInput<std::string, int>> input_state(
+  MemoryState<TableSinkInput<std::string, int>> input_state(
     make_table_sink_input(std::string("key1"), 10)
   );
 
@@ -199,7 +199,7 @@ void test_table_sink_store_fn_return_value() {
     return should_accept;
   };
 
-  State<TableSinkInput<std::string, int>> input_state(
+  MemoryState<TableSinkInput<std::string, int>> input_state(
     make_table_sink_input(std::string("key"), 42)
   );
 

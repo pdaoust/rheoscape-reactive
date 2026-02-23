@@ -3,7 +3,7 @@
 #include <operators/throttle.hpp>
 #include <sources/from_clock.hpp>
 #include <types/mock_clock.hpp>
-#include <types/State.hpp>
+#include <states/MemoryState.hpp>
 
 using namespace rheoscape;
 using namespace rheoscape::operators;
@@ -12,7 +12,7 @@ using namespace rheoscape::sources;
 
 void test_throttle_throttles() {
   auto clock_source = from_clock<mock_clock_ulong_millis>();
-  State<int> value_source(0);
+  MemoryState<int> value_source(0);
   auto throttled = throttle(value_source.get_source_fn(), clock_source, mock_clock_ulong_millis::duration(10));
 
   int pushed_count = 0;

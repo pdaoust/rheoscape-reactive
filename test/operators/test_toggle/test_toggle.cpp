@@ -2,7 +2,7 @@
 #include <functional>
 #include <operators/toggle.hpp>
 #include <sources/constant.hpp>
-#include <types/State.hpp>
+#include <states/MemoryState.hpp>
 
 using namespace rheoscape;
 using namespace rheoscape::operators;
@@ -11,7 +11,7 @@ using namespace rheoscape::sources;
 
 void test_toggle_toggles() {
   auto value_source = constant(5);
-  State<bool> toggler(false);
+  MemoryState<bool> toggler(false);
   auto toggled = toggle(value_source, toggler.get_source_fn());
   int pushed_value = -1;
   int pushed_count = 0;

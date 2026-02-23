@@ -41,7 +41,7 @@ namespace rheoscape::autotune {
     TFitness current_fitness;       // Computed from performance metrics
     bool is_cooled_down;            // True when fitness <= target
 
-    // State flags
+    // MemoryState flags
     bool first_sample;              // First sample flag
     TTimePoint settling_start_time;      // When error entered tolerance band
     bool in_tolerance_band;         // Currently within settling tolerance

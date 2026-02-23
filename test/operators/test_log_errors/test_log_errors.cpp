@@ -2,7 +2,7 @@
 #include <iostream>
 #include <util/logging.hpp>
 #include <operators/log_errors.hpp>
-#include <types/State.hpp>
+#include <states/MemoryState.hpp>
 #include <types/Fallible.hpp>
 #include <fmt/format.h>
 
@@ -19,7 +19,7 @@ void test_log_errors_logs_errors() {
   });
   std::cout << "Registered logging subscriber\n";
 
-  auto source = State(Fallible<int, bool>(true), false);
+  auto source = MemoryState(Fallible<int, bool>(true), false);
   auto logged_source = log_errors(source.get_source_fn(false), [](bool e) { return fmt::format("The error value was {}", e); });
   std::cout << "Built logigng pipeline\n";
 

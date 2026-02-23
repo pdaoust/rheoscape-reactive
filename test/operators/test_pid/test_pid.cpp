@@ -2,7 +2,7 @@
 #include <cmath>
 #include <operators/pid.hpp>
 #include <types/mock_clock.hpp>
-#include <types/State.hpp>
+#include <states/MemoryState.hpp>
 #include <types/thermal_sim.hpp>
 #include <sources/from_clock.hpp>
 #include <sources/constant.hpp>
@@ -26,9 +26,9 @@ void test_pid_basic_proportional_control() {
   clock_type::set_time(1000);  // Start at 1000ms to avoid zero timestamp issues
   auto clock = from_clock<clock_type>();
 
-  State<float> process_variable(20.0f);
-  State<float> setpoint(25.0f);
-  State<PidWeights<float, float, float>> weights(PidWeights<float, float, float>{ 1.0f, 0.0f, 0.0f });
+  MemoryState<float> process_variable(20.0f);
+  MemoryState<float> setpoint(25.0f);
+  MemoryState<PidWeights<float, float, float>> weights(PidWeights<float, float, float>{ 1.0f, 0.0f, 0.0f });
 
   auto pid_source = pid<float, time_point>(
     process_variable.get_source_fn(),
@@ -57,10 +57,10 @@ void test_pid_integral_accumulates() {
   clock_type::set_time(1000);
   auto clock = from_clock<clock_type>();
 
-  State<float> process_variable(20.0f);
-  State<float> setpoint(25.0f);
+  MemoryState<float> process_variable(20.0f);
+  MemoryState<float> setpoint(25.0f);
   // Only integral gain (Ki in units per second, so use a larger value since dt is in seconds)
-  State<PidWeights<float, float, float>> weights(PidWeights<float, float, float>{ 0.0f, 10.0f, 0.0f });
+  MemoryState<PidWeights<float, float, float>> weights(PidWeights<float, float, float>{ 0.0f, 10.0f, 0.0f });
 
   auto pid_source = pid<float, time_point>(
     process_variable.get_source_fn(),
@@ -96,9 +96,9 @@ void test_pid_clamps_output() {
   clock_type::set_time(1000);
   auto clock = from_clock<clock_type>();
 
-  State<float> process_variable(0.0f);
-  State<float> setpoint(100.0f);  // Large error
-  State<PidWeights<float, float, float>> weights(PidWeights<float, float, float>{ 10.0f, 0.0f, 0.0f });
+  MemoryState<float> process_variable(0.0f);
+  MemoryState<float> setpoint(100.0f);  // Large error
+  MemoryState<PidWeights<float, float, float>> weights(PidWeights<float, float, float>{ 10.0f, 0.0f, 0.0f });
 
   // Clamp output between 0 and 1
   Range<float> clamp_range{ 0.0f, 1.0f };
@@ -128,9 +128,9 @@ void test_pid_clamps_output_negative() {
   clock_type::set_time(1000);
   auto clock = from_clock<clock_type>();
 
-  State<float> process_variable(100.0f);  // Process above setpoint
-  State<float> setpoint(0.0f);
-  State<PidWeights<float, float, float>> weights(PidWeights<float, float, float>{ 10.0f, 0.0f, 0.0f });
+  MemoryState<float> process_variable(100.0f);  // Process above setpoint
+  MemoryState<float> setpoint(0.0f);
+  MemoryState<PidWeights<float, float, float>> weights(PidWeights<float, float, float>{ 10.0f, 0.0f, 0.0f });
 
   // Clamp output between 0 and 1
   Range<float> clamp_range{ 0.0f, 1.0f };
@@ -160,9 +160,9 @@ void test_pid_detailed_exposes_all_terms() {
   clock_type::set_time(1000);
   auto clock = from_clock<clock_type>();
 
-  State<float> process_variable(20.0f);
-  State<float> setpoint(25.0f);
-  State<PidWeights<float, float, float>> weights(PidWeights<float, float, float>{ 1.0f, 10.0f, 0.1f });
+  MemoryState<float> process_variable(20.0f);
+  MemoryState<float> setpoint(25.0f);
+  MemoryState<PidWeights<float, float, float>> weights(PidWeights<float, float, float>{ 1.0f, 10.0f, 0.1f });
 
   auto pid_source = pid_detailed<float, time_point>(
     process_variable.get_source_fn(),
@@ -193,9 +193,9 @@ void test_pid_detailed_shows_saturation() {
   clock_type::set_time(1000);
   auto clock = from_clock<clock_type>();
 
-  State<float> process_variable(0.0f);
-  State<float> setpoint(100.0f);  // Large error
-  State<PidWeights<float, float, float>> weights(PidWeights<float, float, float>{ 10.0f, 0.0f, 0.0f });
+  MemoryState<float> process_variable(0.0f);
+  MemoryState<float> setpoint(100.0f);  // Large error
+  MemoryState<PidWeights<float, float, float>> weights(PidWeights<float, float, float>{ 10.0f, 0.0f, 0.0f });
 
   Range<float> clamp_range{ 0.0f, 1.0f };
 
@@ -223,9 +223,9 @@ void test_pid_dynamic_weight_change() {
   clock_type::set_time(1000);
   auto clock = from_clock<clock_type>();
 
-  State<float> process_variable(20.0f);
-  State<float> setpoint(25.0f);
-  State<PidWeights<float, float, float>> weights(PidWeights<float, float, float>{ 1.0f, 0.0f, 0.0f });
+  MemoryState<float> process_variable(20.0f);
+  MemoryState<float> setpoint(25.0f);
+  MemoryState<PidWeights<float, float, float>> weights(PidWeights<float, float, float>{ 1.0f, 0.0f, 0.0f });
 
   auto pid_source = pid<float, time_point>(
     process_variable.get_source_fn(),
@@ -263,9 +263,9 @@ void test_pid_responds_to_setpoint_change() {
   clock_type::set_time(1000);
   auto clock = from_clock<clock_type>();
 
-  State<float> process_variable(50.0f);
-  State<float> setpoint(50.0f);  // Initially at setpoint
-  State<PidWeights<float, float, float>> weights(PidWeights<float, float, float>{ 1.0f, 0.0f, 0.0f });
+  MemoryState<float> process_variable(50.0f);
+  MemoryState<float> setpoint(50.0f);  // Initially at setpoint
+  MemoryState<PidWeights<float, float, float>> weights(PidWeights<float, float, float>{ 1.0f, 0.0f, 0.0f });
 
   auto pid_source = pid<float, time_point>(
     process_variable.get_source_fn(),
@@ -305,10 +305,10 @@ void test_pid_derivative_opposes_error_change() {
   clock_type::set_time(1000);
   auto clock = from_clock<clock_type>();
 
-  State<float> process_variable(20.0f);
-  State<float> setpoint(25.0f);
+  MemoryState<float> process_variable(20.0f);
+  MemoryState<float> setpoint(25.0f);
   // Only derivative, no P or I
-  State<PidWeights<float, float, float>> weights(PidWeights<float, float, float>{ 0.0f, 0.0f, 1.0f });
+  MemoryState<PidWeights<float, float, float>> weights(PidWeights<float, float, float>{ 0.0f, 0.0f, 1.0f });
 
   auto pid_source = pid_detailed<float, time_point>(
     process_variable.get_source_fn(),
@@ -390,12 +390,12 @@ float run_thermal_sim_with_pid(
 ) {
   clock_type::set_time(1000);  // Start at 1s
 
-  // State variables for closed loop
-  State<float> duty(0.0f);
-  State<float> temperature(initial_temp);
-  State<float> setpoint(target_temp);
-  State<PidWeights<float, float, float>> pid_weights(weights);
-  State<float> disturbance(0.0f);
+  // MemoryState variables for closed loop
+  MemoryState<float> duty(0.0f);
+  MemoryState<float> temperature(initial_temp);
+  MemoryState<float> setpoint(target_temp);
+  MemoryState<PidWeights<float, float, float>> pid_weights(weights);
+  MemoryState<float> disturbance(0.0f);
 
   // Create clock sources
   // Thermal sim uses raw milliseconds
@@ -565,10 +565,10 @@ void test_pid_thermal_sim_tracks_setpoint_change() {
 
   clock_type::set_time(1000);
 
-  State<float> duty(0.0f);
-  State<float> temperature(initial_temp);
-  State<float> setpoint(first_setpoint);
-  State<PidWeights<float, float, float>> pid_weights(weights);
+  MemoryState<float> duty(0.0f);
+  MemoryState<float> temperature(initial_temp);
+  MemoryState<float> setpoint(first_setpoint);
+  MemoryState<PidWeights<float, float, float>> pid_weights(weights);
 
   // Use raw clock for thermal sim, time_point clock for PID
   auto raw_clock = raw_clock_source();

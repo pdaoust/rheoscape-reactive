@@ -5,7 +5,7 @@
 #include <sources/constant.hpp>
 #include <sources/from_iterator.hpp>
 #include <sources/sequence.hpp>
-#include <types/State.hpp>
+#include <states/MemoryState.hpp>
 
 using namespace rheoscape;
 using namespace rheoscape::operators;
@@ -46,8 +46,8 @@ void test_merge_merges_disparate_pull_streams() {
 }
 
 void test_merge_merges_disparate_push_streams() {
-  State<char> letters_source;
-  State<int> numbers_source;
+  MemoryState<char> letters_source;
+  MemoryState<int> numbers_source;
   auto merged = merge_mixed(letters_source.get_source_fn(), numbers_source.get_source_fn());
 
   std::variant<char, int> last_pushed_value;
@@ -70,8 +70,8 @@ void test_merge_merges_disparate_push_streams() {
 }
 
 void test_merge_merges_similar_streams() {
-  State<int> numbers_source1;
-  State<int> numbers_source2;
+  MemoryState<int> numbers_source1;
+  MemoryState<int> numbers_source2;
   auto merged = merge(numbers_source1.get_source_fn(), numbers_source2.get_source_fn());
 
   std::vector<int> pushed_values;

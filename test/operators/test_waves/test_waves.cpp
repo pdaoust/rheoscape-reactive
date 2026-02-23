@@ -3,7 +3,7 @@
 #include <operators/waves.hpp>
 #include <sources/constant.hpp>
 #include <sources/sequence.hpp>
-#include <types/State.hpp>
+#include <states/MemoryState.hpp>
 #include <fmt/format.h>
 
 using namespace rheoscape;
@@ -142,7 +142,7 @@ void test_pwm_wave_waves() {
   auto input_source = sequence_open(0, 1);
   auto period_source = constant(100);
   auto phase_shift_source = constant(0);
-  State<float> duty_state(0.0f, false);
+  MemoryState<float> duty_state(0.0f, false);
   auto pwm_source = pwm_wave(input_source, period_source, phase_shift_source, duty_state.get_source_fn(false));
 
   float pushed_value;

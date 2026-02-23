@@ -11,7 +11,6 @@
 #include <types/mock_clock.hpp>
 #include <types/Range.hpp>
 #include <types/rep_clock.hpp>
-#include <types/State.hpp>
 #include <types/thermal_sim.hpp>
 #include <types/TuningStorage.hpp>
 #include <types/Wrapper.hpp>
@@ -53,6 +52,11 @@
 #endif
 #include <sinks/dummy_sink.hpp>
 #include <sinks/table_sink.hpp>
+
+// ======== STATES
+// These are both sources and sinks, meant to hold mutable values.
+#include <states/EepromState.hpp>
+#include <states/MemoryState.hpp>
 
 // ======== OPERATORS
 #include <operators/bang_bang.hpp>

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <types/core_types.hpp>
-#include <types/State.hpp>
+#include <states/MemoryState.hpp>
 #include <operators/map.hpp>
 #include <operators/sample.hpp>
 
@@ -10,7 +10,7 @@ using namespace rheoscape::operators;
 
 namespace rheoscape::helpers {
 
-  // Construct a pipeline that binds a State<T> to a stream consisting of input events
+  // Construct a pipeline that binds a MemoryState<T> to a stream consisting of input events
   // (for instance, button presses and rotary encoder clicks).
   // The mapper function that you supply should take an input event as its first argument
   // and the current value of the state as its argument,
@@ -21,7 +21,7 @@ namespace rheoscape::helpers {
     requires concepts::Source<InputSource>
       && concepts::Transformer<MapFn, std::tuple<source_value_t<InputSource>, T>>
       && std::same_as<invoke_maybe_apply_result_t<std::decay_t<MapFn>, std::tuple<source_value_t<InputSource>, T>>, T>
-  auto make_state_editor(InputSource input_source, State<T> state, MapFn mapper) {
+  auto make_state_editor(InputSource input_source, MemoryState<T> state, MapFn mapper) {
     return input_source
       | sample(state.get_source_fn())
       | map(mapper)

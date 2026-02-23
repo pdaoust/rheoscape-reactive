@@ -16,7 +16,7 @@ static pull_fn pull_set_pwm_pin;
 
 void setup() {
     auto encoder = quadrature_encode(digital_pin_interrupt_source<encoder_a_pin, encoder_b_pin>(INPUT_PULLUP));
-    static State pwm_state(0);
+    static MemoryState pwm_state(0);
     pull_change_pwm_state = make_state_editor(encoder, pwm_state, [](QuadratureEncodeDirection dir, int pwm) {
         switch (dir) {
             case QuadratureEncodeDirection::Clockwise:

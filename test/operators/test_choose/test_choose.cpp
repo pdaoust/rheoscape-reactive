@@ -1,7 +1,7 @@
 #include <unity.h>
 #include <operators/choose.hpp>
 #include <sources/constant.hpp>
-#include <types/State.hpp>
+#include <states/MemoryState.hpp>
 
 using namespace rheoscape;
 using namespace rheoscape::sources;
@@ -13,7 +13,7 @@ void test_choose_chooses_right_stream() {
     { 2, constant(4) },
     { 3, constant(6) }
   };
-  State<int> chooser(0);
+  MemoryState<int> chooser(0);
   auto choose_streams = choose(streams, chooser.get_source_fn());
   int last_pushed_value = 0;
   pull_fn pull = choose_streams([&last_pushed_value](int v) { last_pushed_value = v; });

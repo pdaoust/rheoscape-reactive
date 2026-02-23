@@ -1,12 +1,12 @@
 #include <unity.h>
-#include <types/State.hpp>
+#include <states/MemoryState.hpp>
 #include <operators/dedupe.hpp>
 
 using namespace rheoscape;
 using namespace rheoscape::operators;
 
 void test_dedupe_dedupes() {
-  rheoscape::State<int> state;
+  rheoscape::states::MemoryState<int> state;
   auto deduped_state = dedupe(state.get_source_fn());
   int value = 0;
   int pushed_count = 0;

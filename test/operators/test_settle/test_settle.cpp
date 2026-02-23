@@ -1,17 +1,18 @@
 #include <unity.h>
 #include <operators/settle.hpp>
 #include <types/mock_clock.hpp>
-#include <types/State.hpp>
+#include <states/MemoryState.hpp>
 #include <sources/from_clock.hpp>
 
 using namespace rheoscape;
+using namespace states;
 using namespace operators;
 using namespace sources;
 
 void test_settle_waits_for_stable_value() {
   mock_clock_ulong_millis::set_time(0);
   auto mock_clock = from_clock<mock_clock_ulong_millis>();
-  State<int> input(10);
+  MemoryState<int> input(10);
   auto settled = settle(input.get_source_fn(), mock_clock, mock_clock_ulong_millis::duration(50));
   int pushed_value = -1;
   int push_count = 0;
@@ -38,7 +39,7 @@ void test_settle_waits_for_stable_value() {
 void test_settle_resets_on_value_change() {
   mock_clock_ulong_millis::set_time(0);
   auto mock_clock = from_clock<mock_clock_ulong_millis>();
-  State<int> input(10);
+  MemoryState<int> input(10);
   auto settled = settle(input.get_source_fn(), mock_clock, mock_clock_ulong_millis::duration(50));
   int pushed_value = -1;
   int push_count = 0;
@@ -79,7 +80,7 @@ void test_settle_discards_intermediate_values() {
   // and only emits the final stable value.
   mock_clock_ulong_millis::set_time(0);
   auto mock_clock = from_clock<mock_clock_ulong_millis>();
-  State<int> input(1);
+  MemoryState<int> input(1);
   auto settled = settle(input.get_source_fn(), mock_clock, mock_clock_ulong_millis::duration(50));
   int pushed_value = -1;
   int push_count = 0;
@@ -122,7 +123,7 @@ void test_settle_discards_intermediate_values() {
 void test_settle_continues_emitting_stable_value_on_pull() {
   mock_clock_ulong_millis::set_time(0);
   auto mock_clock = from_clock<mock_clock_ulong_millis>();
-  State<int> input(42);
+  MemoryState<int> input(42);
   auto settled = settle(input.get_source_fn(), mock_clock, mock_clock_ulong_millis::duration(50));
   int pushed_value = -1;
   int push_count = 0;
@@ -145,11 +146,11 @@ void test_settle_continues_emitting_stable_value_on_pull() {
 }
 
 void test_settle_does_not_push_during_bounce_from_push_source() {
-  // When the upstream pushes without a pull (e.g. State::set triggers push),
+  // When the upstream pushes without a pull (e.g. MemoryState::set triggers push),
   // settle should NOT emit values that are still bouncing.
   mock_clock_ulong_millis::set_time(0);
   auto mock_clock = from_clock<mock_clock_ulong_millis>();
-  State<int> input(0);
+  MemoryState<int> input(0);
   auto settled = settle(input.get_source_fn(), mock_clock, mock_clock_ulong_millis::duration(50));
   int pushed_value = -1;
   int push_count = 0;
@@ -164,7 +165,7 @@ void test_settle_does_not_push_during_bounce_from_push_source() {
   }
   TEST_ASSERT_EQUAL_MESSAGE(1, push_count, "initial settle");
 
-  // Now rapidly change via push (State::set) without pulling.
+  // Now rapidly change via push (MemoryState::set) without pulling.
   input.set(1);
   input.set(2);
   input.set(3);
@@ -177,7 +178,7 @@ void test_settle_incomplete_turn_no_output() {
   // No new value should be emitted.
   mock_clock_ulong_millis::set_time(0);
   auto mock_clock = from_clock<mock_clock_ulong_millis>();
-  State<int> input(0);
+  MemoryState<int> input(0);
   auto settled = settle(input.get_source_fn(), mock_clock, mock_clock_ulong_millis::duration(50));
   int pushed_value = -1;
   int push_count = 0;
@@ -213,7 +214,7 @@ void test_settle_incomplete_turn_no_output() {
 void test_settle_pipe_factory() {
   mock_clock_ulong_millis::set_time(0);
   auto mock_clock = from_clock<mock_clock_ulong_millis>();
-  State<int> input(99);
+  MemoryState<int> input(99);
   auto settled = input.get_source_fn()
     | settle(mock_clock, mock_clock_ulong_millis::duration(30));
   int pushed_value = -1;

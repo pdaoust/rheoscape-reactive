@@ -3,7 +3,7 @@
 #include <operators/unwrap.hpp>
 #include <sources/constant.hpp>
 #include <sources/sequence.hpp>
-#include <types/State.hpp>
+#include <states/MemoryState.hpp>
 
 using namespace rheoscape;
 using namespace rheoscape::sources;

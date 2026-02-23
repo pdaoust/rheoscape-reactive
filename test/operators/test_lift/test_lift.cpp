@@ -3,7 +3,7 @@
 #include <operators/lift.hpp>
 #include <operators/map.hpp>
 #include <operators/unwrap.hpp>
-#include <types/State.hpp>
+#include <states/MemoryState.hpp>
 #include <sources/from_iterator.hpp>
 
 using namespace rheoscape;
@@ -13,7 +13,7 @@ using namespace rheoscape::sources;
 void test_lift_to_optional_can_push() {
   pipe_fn<int, int> doubling_pipe = map([](int v) { return v * 2; });
   auto lifted = lift_to_optional(doubling_pipe);
-  State<std::optional<int>> state;
+  MemoryState<std::optional<int>> state;
   auto doubled_optional_numbers = lifted(state.get_source_fn());
 
   std::optional<int> last_pushed_value = std::nullopt;

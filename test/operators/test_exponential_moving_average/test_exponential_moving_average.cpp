@@ -8,7 +8,7 @@
 #include <sources/from_clock.hpp>
 #include <sources/sequence.hpp>
 #include <types/mock_clock.hpp>
-#include <types/State.hpp>
+#include <states/MemoryState.hpp>
 #include <fmt/format.h>
 
 using namespace rheoscape;
@@ -40,7 +40,7 @@ void test_exponential_moving_average_stays_stable() {
 void test_exponential_moving_average_accommodates_discontinuous_time_jumps() {
   auto clock_source = from_clock<mock_clock_ulong_millis>()
     | map([](mock_clock_ulong_millis::time_point v) { return v.time_since_epoch().count(); });
-  auto period_source = State(100UL, false);
+  auto period_source = MemoryState(100UL, false);
   auto value_source = sine_wave(clock_source, period_source.get_source_fn(), constant(0UL))
     | map([](float v) { return v * 10; });
   auto time_constant_source = constant(400UL);
@@ -85,7 +85,7 @@ void test_exponential_moving_average_responds_to_time_constant_change() {
   auto clock_source = sequence_open(1, 1);
   auto value_source = sine_wave(clock_source, constant(200), constant(0))
     | map([](float v) { return v * 10; });
-  auto time_constant_source = State(400, false);
+  auto time_constant_source = MemoryState(400, false);
   auto avg = exponential_moving_average(value_source, clock_source, time_constant_source.get_source_fn());
 
   float value = 0.0f;
@@ -119,7 +119,7 @@ void test_exponential_moving_average_responds_to_time_constant_change() {
 
 void test_exponential_moving_average_works_as_high_cut_and_low_pass() {
   auto clock_source = sequence_open(1, 1);
-  auto period_source = State(100, false);
+  auto period_source = MemoryState(100, false);
   auto value_source = sine_wave(clock_source, period_source.get_source_fn(false), constant(0))
     | map([](float v) { return v * 10; });
   auto time_constant_source = constant(400);

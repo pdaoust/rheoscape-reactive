@@ -22,7 +22,7 @@ namespace rheoscape::operators {
   //
   // This ensures that combine only emits when ALL sources provide fresh values
   // as a direct consequence of the current cascade. Spontaneous pushes from sources
-  // (e.g., State.set() pushing to subscribers) will not cause emissions with stale
+  // (e.g., MemoryState.set() pushing to subscribers) will not cause emissions with stale
   // values from other sources.
   //
   // For pull-based usage, pulling combine will pull the first source, which triggers
@@ -130,7 +130,7 @@ namespace rheoscape::operators {
                 RHEOSCAPE_CALLABLE void operator()(TValue value) const {
                   if (!*in_cascade) {
                     // This push is NOT from a pull cascade
-                    // (e.g., spontaneous push from State.set()).
+                    // (e.g., spontaneous push from MemoryState.set()).
                     // Start a new cascade: reset all values to clear any stale data.
                     detail::reset_all(*current_values);
                     *in_cascade = true;

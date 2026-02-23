@@ -1,7 +1,7 @@
 #include <unity.h>
 #include <operators/debounce.hpp>
 #include <types/mock_clock.hpp>
-#include <types/State.hpp>
+#include <states/MemoryState.hpp>
 #include <sources/from_clock.hpp>
 
 using namespace rheoscape;
@@ -11,7 +11,7 @@ using namespace sources;
 void test_debounce_debounces_to_new_state() {
   mock_clock_ulong_millis::set_time(0);
   auto mock_clock = from_clock<mock_clock_ulong_millis>();
-  State<bool> button(false);
+  MemoryState<bool> button(false);
   auto debounced_button = debounce(button.get_source_fn(), mock_clock, mock_clock_ulong_millis::duration(50));
   bool button_state = false;
   int pushed_count = 0;
@@ -58,7 +58,7 @@ void test_debounce_debounces_to_new_state() {
 void test_debounce_debounces_to_old_state() {
   mock_clock_ulong_millis::set_time(0);
   auto mock_clock = from_clock<mock_clock_ulong_millis>();
-  State<bool> button(false);
+  MemoryState<bool> button(false);
   auto debounced_button = debounce(button.get_source_fn(), mock_clock, mock_clock_ulong_millis::duration(50));
   bool button_state = false;
   int pushed_count = 0;
@@ -87,7 +87,7 @@ void test_debounce_debounces_to_old_state() {
     mock_clock_ulong_millis::tick();
     // Noisy button!
     button.set((bool)(i % 2));
-    // Pull not needed because the State just pushed on change.
+    // Pull not needed because the MemoryState just pushed on change.
     TEST_ASSERT_FALSE_MESSAGE(button_state, "Should still be false while waiting for bouncy period to settle");
     TEST_ASSERT_EQUAL_MESSAGE(i + 49, pushed_count, "Should not have pushed anything just because upstream pushed");
     pull();
@@ -109,7 +109,7 @@ void test_debounce_debounces_to_old_state() {
 void test_debounce_debounces_tri_state() {
   mock_clock_ulong_millis::set_time(0);
   auto mock_clock = from_clock<mock_clock_ulong_millis>();
-  State<int> button(0);
+  MemoryState<int> button(0);
   auto debounced_button = debounce(button.get_source_fn(), mock_clock, mock_clock_ulong_millis::duration(50));
   int button_state = -1;
   int pushed_count = 0;
@@ -138,7 +138,7 @@ void test_debounce_debounces_tri_state() {
     mock_clock_ulong_millis::tick();
     // Noisy button!
     button.set(i % 3);
-    // Pull not needed because the State just pushed on change.
+    // Pull not needed because the MemoryState just pushed on change.
     TEST_ASSERT_EQUAL_MESSAGE(0, button_state, "Should still be false while waiting for bouncy period to settle");
   }
   

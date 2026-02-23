@@ -2,7 +2,7 @@
 #include <cmath>
 #include <operators/pid_autotune/relay_autotune.hpp>
 #include <types/mock_clock.hpp>
-#include <types/State.hpp>
+#include <states/MemoryState.hpp>
 #include <types/thermal_sim.hpp>
 #include <sources/from_clock.hpp>
 #include <sources/constant.hpp>
@@ -27,8 +27,8 @@ void test_relay_autotune_produces_oscillations() {
   // Test that relay autotune alternates between high and low output.
   clock_type::set_time(1000);
 
-  State<float> process_variable(40.0f);
-  State<float> setpoint(45.0f);
+  MemoryState<float> process_variable(40.0f);
+  MemoryState<float> setpoint(45.0f);
 
   RelayAutotuneConfig<float, float, unsigned long> config{
     1.0f,      // high_output
@@ -74,8 +74,8 @@ void test_relay_autotune_calculates_ku_tu() {
   // Test that after enough oscillations, Ku and Tu are calculated.
   clock_type::set_time(1000);
 
-  State<float> process_variable(45.0f);
-  State<float> setpoint(45.0f);
+  MemoryState<float> process_variable(45.0f);
+  MemoryState<float> setpoint(45.0f);
 
   RelayAutotuneConfig<float, float, unsigned long> config{
     1.0f,      // high_output
@@ -133,8 +133,8 @@ void test_relay_autotune_classic_rule() {
   // Test that classic Z-N rule produces correct gain ratios.
   clock_type::set_time(1000);
 
-  State<float> process_variable(45.0f);
-  State<float> setpoint(45.0f);
+  MemoryState<float> process_variable(45.0f);
+  MemoryState<float> setpoint(45.0f);
 
   RelayAutotuneConfig<float, float, unsigned long> config{
     1.0f,      // high_output
@@ -185,8 +185,8 @@ void test_relay_autotune_no_overshoot_rule() {
   // Test that no_overshoot Z-N rule produces more conservative gains.
   clock_type::set_time(1000);
 
-  State<float> process_variable(45.0f);
-  State<float> setpoint(45.0f);
+  MemoryState<float> process_variable(45.0f);
+  MemoryState<float> setpoint(45.0f);
 
   RelayAutotuneConfig<float, float, unsigned long> config{
     1.0f,      // high_output
@@ -235,8 +235,8 @@ void test_relay_autotune_respects_hysteresis() {
   // Test that relay doesn't switch within hysteresis band.
   clock_type::set_time(1000);
 
-  State<float> process_variable(45.0f);
-  State<float> setpoint(45.0f);
+  MemoryState<float> process_variable(45.0f);
+  MemoryState<float> setpoint(45.0f);
 
   RelayAutotuneConfig<float, float, unsigned long> config{
     1.0f,      // high_output
@@ -285,8 +285,8 @@ void test_relay_autotune_respects_min_period() {
   // Test that short oscillations are ignored.
   clock_type::set_time(1000);
 
-  State<float> process_variable(45.0f);
-  State<float> setpoint(45.0f);
+  MemoryState<float> process_variable(45.0f);
+  MemoryState<float> setpoint(45.0f);
 
   RelayAutotuneConfig<float, float, unsigned long> config{
     1.0f,      // high_output
@@ -326,8 +326,8 @@ void test_relay_autotune_times_out() {
   // Test that autotuning fails after max_duration.
   clock_type::set_time(1000);
 
-  State<float> process_variable(45.0f);
-  State<float> setpoint(45.0f);
+  MemoryState<float> process_variable(45.0f);
+  MemoryState<float> setpoint(45.0f);
 
   RelayAutotuneConfig<float, float, unsigned long> config{
     1.0f,      // high_output
@@ -377,8 +377,8 @@ void test_relay_autotune_with_thermal_sim() {
   float initial_temp = 40.0f;
   float target_temp = 45.0f;
 
-  State<float> duty(0.5f);  // Start at 50% duty
-  State<float> setpoint_state(target_temp);
+  MemoryState<float> duty(0.5f);  // Start at 50% duty
+  MemoryState<float> setpoint_state(target_temp);
 
   auto raw_clock = raw_clock_source();
 
@@ -405,7 +405,7 @@ void test_relay_autotune_with_thermal_sim() {
     ZieglerNicholsRule::no_overshoot
   };
 
-  State<float> temp_state(current_temp);
+  MemoryState<float> temp_state(current_temp);
 
   auto autotune_source = relay_autotune<float, float, unsigned long>(
     temp_state.get_source_fn(),

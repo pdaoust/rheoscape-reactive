@@ -2,7 +2,7 @@
 #include <cmath>
 #include <sources/knn_interpolate.hpp>
 #include <types/KnnStorage.hpp>
-#include <types/State.hpp>
+#include <states/MemoryState.hpp>
 
 using namespace rheoscape;
 using namespace rheoscape::sources;
@@ -24,7 +24,7 @@ void test_knn_returns_nullopt_when_empty() {
   // Test that interpolation returns nullopt when storage is empty.
   KnnStorage<Point2D, float, float, 16> storage(euclidean_distance);
 
-  State<Point2D> query_state(Point2D{1.0f, 1.0f});
+  MemoryState<Point2D> query_state(Point2D{1.0f, 1.0f});
 
   auto interp_source = knn_interpolate(
     query_state.get_source_fn(),
@@ -49,7 +49,7 @@ void test_knn_returns_exact_match() {
   storage.insert(Point2D{2.0f, 2.0f}, 20.0f);
   storage.insert(Point2D{3.0f, 3.0f}, 30.0f);
 
-  State<Point2D> query_state(Point2D{2.0f, 2.0f});
+  MemoryState<Point2D> query_state(Point2D{2.0f, 2.0f});
 
   auto interp_source = knn_interpolate(
     query_state.get_source_fn(),
@@ -79,7 +79,7 @@ void test_knn_interpolates_between_neighbors() {
   storage.insert(Point2D{2.0f, 2.0f}, 40.0f);
 
   // Query at the center
-  State<Point2D> query_state(Point2D{1.0f, 1.0f});
+  MemoryState<Point2D> query_state(Point2D{1.0f, 1.0f});
 
   auto interp_source = knn_interpolate(
     query_state.get_source_fn(),
@@ -115,7 +115,7 @@ void test_knn_uses_custom_distance_fn() {
   storage.insert(Point2D{2.0f, 0.0f}, 30.0f);  // Manhattan dist to (0.5, 0) = 1.5
 
   // With Manhattan distance, (1,1) and (2,0) are equidistant from (0.5, 0)
-  State<Point2D> query_state(Point2D{0.5f, 0.0f});
+  MemoryState<Point2D> query_state(Point2D{0.5f, 0.0f});
 
   auto interp_source = knn_interpolate(
     query_state.get_source_fn(),
@@ -140,7 +140,7 @@ void test_knn_uses_custom_weight_fn() {
   storage.insert(Point2D{0.0f, 0.0f}, 10.0f);
   storage.insert(Point2D{2.0f, 0.0f}, 20.0f);
 
-  State<Point2D> query_state(Point2D{1.0f, 0.0f});  // Equidistant from both
+  MemoryState<Point2D> query_state(Point2D{1.0f, 0.0f});  // Equidistant from both
 
   // Custom weight: all equal weight (ignores distance)
   auto uniform_weight = [](float distance) { return 1.0f; };
@@ -173,7 +173,7 @@ void test_knn_uses_custom_combine_fn() {
   storage.insert(Point2D{2.0f, 0.0f}, 30.0f);
 
   // Query point is not an exact match with any stored point
-  State<Point2D> query_state(Point2D{0.5f, 0.0f});
+  MemoryState<Point2D> query_state(Point2D{0.5f, 0.0f});
 
   // Custom combiner: return max value instead of weighted average
   auto max_combiner = [](const std::vector<std::pair<float, float>>& weighted_values) {
@@ -214,7 +214,7 @@ void test_knn_respects_k_parameter() {
   storage.insert(Point2D{10.0f, 0.0f}, 1000.0f); // distance = 10
   storage.insert(Point2D{100.0f, 0.0f}, 10000.0f); // distance = 100
 
-  State<Point2D> query_state(Point2D{0.0f, 0.0f});
+  MemoryState<Point2D> query_state(Point2D{0.0f, 0.0f});
 
   // With k=1, should only get the exact match at origin
   auto interp_source_k1 = knn_interpolate(

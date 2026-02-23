@@ -3,7 +3,7 @@
 #include <operators/combine.hpp>
 #include <sources/constant.hpp>
 #include <sources/sequence.hpp>
-#include <types/State.hpp>
+#include <states/MemoryState.hpp>
 #include <sources/Emitter.hpp>
 
 using namespace rheoscape;
@@ -26,7 +26,7 @@ void test_combine_combines_to_tuple() {
 }
 
 void test_combine_combines_on_push_from_push_source() {
-  State<int> state(0);
+  MemoryState<int> state(0);
   auto push_source = state.get_source_fn();
   auto normal_source = constant(3);
   auto combined = combine(push_source, normal_source);
