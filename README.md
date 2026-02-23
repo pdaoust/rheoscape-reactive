@@ -183,7 +183,21 @@ Every time you call `pull_threes()`, it'll print a message to the serial port.
 
 A state holds, well, state! It keeps track of mutable values and provides both a source function (which emits values whenever the state is changed, but can also be pulled any time you like) and a sink function (which updates the state with each value pushed to it). Other frameworks call them 'reactive values'.
 
-Currently there are two different state types: `MemoryState`, which is backed by RAM, and `EepromState`, which is backed by NVRAM via the Arduino `EEPROM` library.
+Currently there are two different state types:
+
+* `MemoryState`, which is backed by RAM
+* `EepromState`, which is backed by NVRAM via the Arduino `EEPROM` library
+
+State objects have a common interface:
+
+* `get_source_fn(bool initial_push = true)`: Get a source function that presents the value in the state object as a stream. `initial_push` controls whether sinks get pushed a value as soon as they bind to the source.
+* `get_setter_sink_fn(bool push_on_set = true)`: Get a pullable sink function that updates the state whenever values are pushed to it. `push_on_set` controls whether the state's source function also pushes values downstream.
+* `get_setter_push_fn(bool push_on_set = true)`: Get a push function that you can bind to sources.
+* `set(T value, bool push = true)`: Update the state, and optionally push its value to bound sinks.
+* `get()`: Get the value. You should guard calls to this function with `has_value()` or use `try_get()` instead.
+* `has_value()`: Check whether the state has a value.
+* `try_get()`: Get the value wrapped in a `std::optional`, if it exists.
+* `add_sink(PushFn push, bool initial_value = true)`: An alternative way of binding a push function to the state rather than using its source function.
 
 ### Stream
 
