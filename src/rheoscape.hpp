@@ -25,7 +25,6 @@
   #include <sources/arduino/bh1750.hpp>
   #include <sources/arduino/digital_pin_source.hpp>
   #include <sources/arduino/ds18b20.hpp>
-  #include <sources/arduino/eeprom_source.hpp>
   #include <sources/arduino/sht2x.hpp>
 #endif
 #include <sources/constant.hpp>
@@ -46,7 +45,6 @@
   #include <sinks/arduino/gfx/text_sink.hpp>
   #include <sinks/arduino/analog_pin_sink.hpp>
   #include <sinks/arduino/digital_pin_sink.hpp>
-  #include <sinks/arduino/eeprom_sink.hpp>
   #include <sinks/arduino/serial_sinks.hpp>
   #include <sinks/arduino/servo_sink.hpp>
 #endif

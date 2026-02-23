@@ -539,29 +539,7 @@ namespace rheoscape {
       { (t1 - t2) >= d } -> std::convertible_to<bool>;
     };
 
-    // Deserializable: A type that can be validated after raw deserialization
-    // (e.g., from EEPROM via memcpy).
-    // Scalars are always considered valid (no way to detect garbage).
-    // Non-scalar types must provide `bool is_valid() const`.
-    template <typename T>
-    concept Deserializable = std::is_scalar_v<T> || requires(const T& t) {
-      { t.is_valid() } -> std::convertible_to<bool>;
-    };
-
   } // namespace concepts
-
-  // Check whether a deserialized value is valid.
-  // Encapsulates the two arms of the Deserializable concept
-  // so callers don't need to know which arm applies.
-  template <typename T>
-    requires concepts::Deserializable<T>
-  bool is_deserialized_valid(const T& value) {
-    if constexpr (std::is_scalar_v<T>) {
-      return true;
-    } else {
-      return value.is_valid();
-    }
-  }
 
   // ============================================================================
   // Inline Control Macro
