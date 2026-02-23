@@ -198,6 +198,38 @@ namespace rheoscape {
   template <typename TOut, typename TIn>
   using pipe_fn = sink_fn<source_fn<TOut>, TIn>;
 
+  // Helper trait to extract the input and output value types from a pipe.
+  //
+  // Two paths:
+  // 1. Structs with `using input_type = TIn; using output_type = TOut;`
+  //    (pipe factory structs, once annotated)
+  // 2. pipe_fn<TOut, TIn> (backward compat, also covers std::function)
+  //
+  // Pipe factory structs that currently use a deduced SourceT template parameter
+  // should add these aliases to opt into the Pipe concept.
+  template<typename T, typename = void>
+  struct pipe_types {};
+
+  // Path 1: struct with explicit input_type and output_type members
+  template<typename T>
+  struct pipe_types<T, std::void_t<typename T::input_type, typename T::output_type>> {
+    using input_type = typename T::input_type;
+    using output_type = typename T::output_type;
+  };
+
+  // Path 2: pipe_fn<TOut, TIn> (backward compat)
+  template<typename TOut, typename TIn>
+  struct pipe_types<pipe_fn<TOut, TIn>, void> {
+    using input_type = TIn;
+    using output_type = TOut;
+  };
+
+  template<typename T>
+  using pipe_input_t = typename pipe_types<std::decay_t<T>>::input_type;
+
+  template<typename T>
+  using pipe_output_t = typename pipe_types<std::decay_t<T>>::output_type;
+
   // Forward-declare the Source concept so operator| can use it.
   // Full concept definitions are in the concepts namespace below.
   namespace concepts {
@@ -447,6 +479,26 @@ namespace rheoscape {
     template <typename S, typename T>
     concept SourceOf = Source<S> && std::same_as<source_value_t<S>, T>;
 
+    // Pipe: A callable that transforms a source of one type into a source of another.
+    // Requires the pipe factory struct to declare `input_type` and `output_type` aliases.
+    // Also checks that the pipe is actually callable with a source_fn<input_type>.
+    template <typename P>
+    concept Pipe = requires {
+      typename pipe_types<std::decay_t<P>>::input_type;
+      typename pipe_types<std::decay_t<P>>::output_type;
+    } && std::invocable<
+      std::decay_t<P>,
+      source_fn<typename pipe_types<std::decay_t<P>>::input_type>
+    >;
+
+    // PipeFrom: Constrains a pipe to accept a specific input type.
+    template <typename P, typename TIn>
+    concept PipeFrom = Pipe<P> && std::same_as<pipe_input_t<P>, TIn>;
+
+    // PipeOf: Constrains a pipe to specific input and output types.
+    template <typename P, typename TIn, typename TOut>
+    concept PipeOf = PipeFrom<P, TIn> && std::same_as<pipe_output_t<P>, TOut>;
+
     // Base callable concept - anything invocable with given arguments
     template<typename F, typename... Args>
     concept Callable = std::invocable<F, Args...>;
@@ -647,4 +699,5 @@ namespace rheoscape {
 
   template<typename F>
   inline constexpr size_t arity_of = callable_traits<std::decay_t<F>>::arity;
+
 }

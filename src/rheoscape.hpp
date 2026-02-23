@@ -13,6 +13,7 @@
 #include <types/rep_clock.hpp>
 #include <types/thermal_sim.hpp>
 #include <types/TuningStorage.hpp>
+#include <types/typed_pipe.hpp>
 #include <types/Wrapper.hpp>
 
 // ======== UTILITIES

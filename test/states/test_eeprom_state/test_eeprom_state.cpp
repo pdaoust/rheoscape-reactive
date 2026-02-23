@@ -1,7 +1,9 @@
 #include <unity.h>
 #include <states/EepromState.hpp>
 #include <types/mock_clock.hpp>
+#include <types/typed_pipe.hpp>
 #include <sources/from_clock.hpp>
+#include <operators/settle.hpp>
 
 using namespace rheoscape;
 using namespace rheoscape::states;
@@ -136,28 +138,24 @@ void test_initial_push_on_add_sink() {
   TEST_ASSERT_EQUAL(55, pushed_value);
 }
 
-// -- Buffered EEPROM pattern tests --
-// These use make_memory_buffered_eeprom_states,
+// -- Mirrored EEPROM pattern tests --
+// These use make_memory_mirrored_eeprom_pipes,
 // which sets up push-driven pipelines:
 //   EEPROM -> memory (initial populate, push on bind)
-//   memory -> settle -> EEPROM (buffered write-back)
+//   memory -> pipe -> EEPROM (buffered write-back)
 //
 // The settle pipeline is driven by pushes from memory_state.set().
 // Each set() triggers combine to pull the clock for a timestamp,
 // so no external pull loop is needed.
 
-// Helper alias: the clock source type is needed
-// to explicitly fill in template params
-// between Offset and Ts... in make_memory_buffered_eeprom_states.
-using MockClockSource = decltype(from_clock<mock_clock_ulong_millis>());
 using MockDuration = mock_clock_ulong_millis::duration;
 
 void test_buffered_value_doesnt_write_immediately() {
   mock_clock_ulong_millis::set_time(0);
 
-  auto [mem_state] = make_memory_buffered_eeprom_states<
-    300, MockClockSource, MockDuration, int
-  >(from_clock<mock_clock_ulong_millis>(), MockDuration(50));
+  auto [mem_state] = make_memory_mirrored_eeprom_pipes<300>(
+    typed_pipe<int>(settle(from_clock<mock_clock_ulong_millis>(), MockDuration(50)))
+  );
   auto& eeprom_state = states::detail::EepromState<int, 300>::get_instance();
 
   // Set a value on the memory state.
@@ -171,9 +169,9 @@ void test_buffered_value_doesnt_write_immediately() {
 void test_buffered_value_writes_after_settling() {
   mock_clock_ulong_millis::set_time(0);
 
-  auto [mem_state] = make_memory_buffered_eeprom_states<
-    310, MockClockSource, MockDuration, int
-  >(from_clock<mock_clock_ulong_millis>(), MockDuration(50));
+  auto [mem_state] = make_memory_mirrored_eeprom_pipes<310>(
+    typed_pipe<int>(settle(from_clock<mock_clock_ulong_millis>(), MockDuration(50)))
+  );
   auto& eeprom_state = states::detail::EepromState<int, 310>::get_instance();
 
   // First push records the value and timestamp at t=0.
@@ -193,9 +191,9 @@ void test_buffered_value_writes_after_settling() {
 void test_buffered_rapid_changes_write_final_value() {
   mock_clock_ulong_millis::set_time(0);
 
-  auto [mem_state] = make_memory_buffered_eeprom_states<
-    320, MockClockSource, MockDuration, int
-  >(from_clock<mock_clock_ulong_millis>(), MockDuration(50));
+  auto [mem_state] = make_memory_mirrored_eeprom_pipes<320>(
+    typed_pipe<int>(settle(from_clock<mock_clock_ulong_millis>(), MockDuration(50)))
+  );
   auto& eeprom_state = states::detail::EepromState<int, 320>::get_instance();
 
   // Rapid changes; each one resets settle's timer.
@@ -225,9 +223,9 @@ void test_buffered_revert_before_settling_preserves_original() {
   // Pre-populate EEPROM before setting up buffered pipelines.
   states::detail::EepromState<int, 330>::get_instance().set(100);
 
-  auto [mem_state] = make_memory_buffered_eeprom_states<
-    330, MockClockSource, MockDuration, int
-  >(from_clock<mock_clock_ulong_millis>(), MockDuration(50));
+  auto [mem_state] = make_memory_mirrored_eeprom_pipes<330>(
+    typed_pipe<int>(settle(from_clock<mock_clock_ulong_millis>(), MockDuration(50)))
+  );
   auto& eeprom_state = states::detail::EepromState<int, 330>::get_instance();
 
   // Initial EEPROM value (100) was pushed to mem_state during pipeline binding.

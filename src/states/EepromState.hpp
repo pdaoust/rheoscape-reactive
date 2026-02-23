@@ -6,7 +6,7 @@
 #include <CRCx.h>
 #include <types/core_types.hpp>
 #include <states/MemoryState.hpp>
-#include <operators/settle.hpp>
+#include <types/typed_pipe.hpp>
 
 namespace rheoscape::states {
 
@@ -23,6 +23,16 @@ namespace rheoscape::states {
   // Instead, you call the `make_eeprom_states` factory function
   // with the desired starting memory offset and the types for each slot.
   // In return, you get a tuple of `EepromState` objects that correspond to the types you passed.
+  //
+  // Given that you usually need to create ways for these EEPROM states to be updated,
+  // and those ways usually take the form of pipes
+  // (say, to buffer the values before saving so they don't wear the flash too quickly
+  // and/or present feedback on how soon the states will be saved)
+  // there's a convenience factory function that mirrors the EEPROM states into in-memory states
+  // and lets you pass pipes that are inserted in between the memory states' source functions
+  // and the EEPROM states' getter sink functions.
+  // The type of each slot in the EEPROM will be deduced from the input/output type of the pipe function,
+  // and the input/output must be identical.
   //
   // For instance:
   //
@@ -251,43 +261,60 @@ namespace rheoscape::states {
       }
     };
 
-    template<std::size_t Offset, typename ClockSourceFn, typename TDuration, typename... Ts>
-    struct MemoryBufferedEepromStateTupleBuilder;
+    // Helper to get the tail of a tuple (all elements except the first).
+    template <typename Tuple, std::size_t... Is>
+    auto tuple_tail_impl(Tuple&& t, std::index_sequence<Is...>) {
+      return std::make_tuple(std::get<Is + 1>(std::forward<Tuple>(t))...);
+    }
 
-    template<std::size_t Offset, typename ClockSourceFn, typename TDuration>
-    struct MemoryBufferedEepromStateTupleBuilder<Offset, ClockSourceFn, TDuration> {
-      ClockSourceFn clock_source;
-      TDuration buffer_duration;
+    template <typename Tuple>
+    auto tuple_tail(Tuple&& t) {
+      return tuple_tail_impl(
+        std::forward<Tuple>(t),
+        std::make_index_sequence<std::tuple_size_v<std::decay_t<Tuple>> - 1>{}
+      );
+    }
+
+    template<std::size_t Offset, typename... PipeFns>
+    struct MemoryMirroredEepromStateTupleBuilder;
+
+    template<std::size_t Offset>
+    struct MemoryMirroredEepromStateTupleBuilder<Offset> {
+      std::tuple<> pipes;
 
       using type = std::tuple<>;
       type make() { return {}; }
     };
 
-    template<std::size_t Offset, typename ClockSourceFn, typename TDuration, typename T, typename... Rest>
-    struct MemoryBufferedEepromStateTupleBuilder<Offset, ClockSourceFn, TDuration, T, Rest...> {
-      ClockSourceFn clock_source;
-      TDuration buffer_duration;
+    template<std::size_t Offset, typename PipeFn, typename... RestPipeFns>
+    struct MemoryMirroredEepromStateTupleBuilder<Offset, PipeFn, RestPipeFns...> {
+      std::tuple<PipeFn, RestPipeFns...> pipes;
+
+      using T = pipe_input_t<PipeFn>;
 
       using type = decltype(std::tuple_cat(
         std::declval<std::tuple<MemoryState<T>>>(),
-        std::declval<typename MemoryBufferedEepromStateTupleBuilder<Offset + sizeof(T) + 2, ClockSourceFn, TDuration, Rest...>::type>()
+        std::declval<typename MemoryMirroredEepromStateTupleBuilder<Offset + sizeof(T) + 2, RestPipeFns...>::type>()
       ));
 
       type make() {
-        using rheoscape::operators::settle;
-
         type result = std::tuple_cat(
           std::make_tuple(MemoryState<T>()),
-          MemoryBufferedEepromStateTupleBuilder<Offset + sizeof(T) + 2, ClockSourceFn, TDuration, Rest...>{clock_source, buffer_duration}.make()
+          MemoryMirroredEepromStateTupleBuilder<Offset + sizeof(T) + 2, RestPipeFns...>{tuple_tail(pipes)}.make()
         );
 
         MemoryState<T>& memory_state = std::get<0>(result);
         auto& eeprom_state = EepromState<T, Offset>::get_instance();
-        eeprom_state.get_source_fn() // push_initial defaults to true, so the memory state gets populated on bind.
-          | memory_state.get_setter_sink_fn(); // push_on_set defaults to true, keeping the pipe alive w/o a pull function.
-        memory_state.get_source_fn() // ditto
-          | settle(clock_source, buffer_duration)
-          | eeprom_state.get_setter_sink_fn(false); // avoid inifinite loops from eeprom to memory and back!
+        // Push_initial defaults to true,
+        // so the memory state gets populated on bind.
+        eeprom_state.get_source_fn()
+          // Push_on_set defaults to true,
+          // keeping the pipe alive w/o a pull function.
+          | memory_state.get_setter_sink_fn();
+        memory_state.get_source_fn()
+          | std::get<0>(pipes)
+          // Avoid infinite loops from eeprom to memory and back!
+          | eeprom_state.get_setter_sink_fn(false);
         return result;
       }
     };
@@ -298,11 +325,22 @@ namespace rheoscape::states {
     return detail::EepromStateTupleBuilder<Offset, Ts...>::make();
   }
 
-  template <uint Offset, typename ClockSourceFn, typename TDuration, typename... Ts>
-    requires concepts::Source<std::decay_t<ClockSourceFn>>
-      && concepts::TimePointAndDurationCompatible<source_value_t<ClockSourceFn>, TDuration>
-  auto make_memory_buffered_eeprom_states(ClockSourceFn clock_source, TDuration buffer_duration) {
-    return detail::MemoryBufferedEepromStateTupleBuilder<Offset, ClockSourceFn, TDuration, Ts...>(clock_source, buffer_duration).make();
+  // Creates a tuple of MemoryState objects, each mirrored to a corresponding EEPROM slot.
+  // For each slot, two pipelines are set up:
+  //   1. EEPROM -> MemoryState (initial populate on bind)
+  //   2. MemoryState -> pipe -> EEPROM (buffered write-back)
+  //
+  // Each pipe must satisfy the Pipe concept
+  // and have matching input and output types
+  // (since the value goes from MemoryState<T> through the pipe back to EepromState<T>).
+  // Use typed_pipe<T>() to annotate an untyped pipe factory with its value type.
+  template <uint Offset, typename... PipeFns>
+    requires (concepts::Pipe<std::decay_t<PipeFns>> && ...)
+      && (std::same_as<pipe_input_t<PipeFns>, pipe_output_t<PipeFns>> && ...)
+  auto make_memory_mirrored_eeprom_pipes(PipeFns... pipes) {
+    return detail::MemoryMirroredEepromStateTupleBuilder<Offset, std::decay_t<PipeFns>...>{
+      std::make_tuple(std::move(pipes)...)
+    }.make();
   }
 
 }
