@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-namespace rheoscape {
+namespace rheoscape::util {
 
   // Convert a function pointer to a std::function.
   template <typename Func>
