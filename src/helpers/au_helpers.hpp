@@ -79,12 +79,12 @@ namespace rheoscape::helpers {
 
   template <typename TUnit, typename TRep>
   std::string au_to_string(au::Quantity<TUnit, TRep> qty, uint8_t precision = 0) {
-    return string_format("%.*f%s", precision, qty.in(TUnit{}), unit_label(TUnit{}));
+    return fmt::format("{:.{}}{}", qty.in(TUnit{}), precision, unit_label(TUnit{}));
   }
 
   template <typename TUnit, typename TRep>
   std::string au_to_string(au::QuantityPoint<TUnit, TRep> qty, uint8_t precision = 0) {
-    return string_format("%.*f%s", precision, qty.in(TUnit{}), unit_label(TUnit{}));
+    return fmt::format("{:.{}}{}", qty.in(TUnit{}), precision, unit_label(TUnit{}));
   }
 }
 
