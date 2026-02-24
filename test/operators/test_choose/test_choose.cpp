@@ -6,6 +6,7 @@
 using namespace rheoscape;
 using namespace rheoscape::sources;
 using namespace rheoscape::operators;
+using namespace rheoscape::states;
 
 void test_choose_chooses_right_stream() {
   std::map<int, source_fn<int>> streams {

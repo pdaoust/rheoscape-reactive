@@ -23,8 +23,8 @@ void test_stopwatch_is_contiguous_before_first_lap() {
   int pushed_value;
   auto pull = sw(
     [&timestamp, &pushed_value](auto v) {
-      timestamp = v.tag;
-      pushed_value = v.value;
+      timestamp = std::get<1>(v);
+      pushed_value = std::get<0>(v);
     }
   );
   for (int i = 0; i < 3; i ++) {
@@ -46,8 +46,8 @@ void test_stopwatch_is_contiguous_through_first_lap() {
   int pushed_value;
   auto pull = sw(
     [&timestamp, &pushed_value](auto v) {
-      timestamp = v.tag;
-      pushed_value = v.value;
+      timestamp = std::get<1>(v);
+      pushed_value = std::get<0>(v);
     }
   );
   for (int i = 0; i < 5; i ++) {
@@ -74,8 +74,8 @@ void test_stopwatch_is_contiguous_through_second_lap() {
   int pushed_value;
   auto pull = sw(
     [&timestamp, &pushed_value](auto v) {
-      timestamp = v.tag;
-      pushed_value = v.value;
+      timestamp = std::get<1>(v);
+      pushed_value = std::get<0>(v);
     }
   );
   for (int i = 0; i < 9; i ++) {

@@ -10,6 +10,7 @@
 using namespace rheoscape;
 using namespace rheoscape::operators;
 using namespace rheoscape::sources;
+using namespace rheoscape::states;
 
 // Use time_point type for proper chrono integration
 using clock_type = mock_clock_ulong_millis;

@@ -43,16 +43,16 @@ namespace rheoscape::operators {
         std::optional<std::tuple<TVal, TTimePoint>> prev,
         std::tuple<std::tuple<TVal, TInterval>, TTimePoint> next
       ) const {
-        TVal next_value = std::get<0>(next.value);
+        auto [next_v, next_ts] = next;
+        auto [next_value, time_constant] = next_v;
 
         if (!prev.has_value()) {
           // First run, no average to be taken.
-          return std::optional<std::tuple<TVal, TTimePoint>>{ { next_value, next.tag } };
+          return std::optional<std::tuple<TVal, TTimePoint>>{ { next_value, next_ts } };
         }
 
-        TVal prev_value = prev.value().value;
-        TInterval time_constant = std::get<1>(next.value);
-        TInterval time_delta = next.tag - prev.value().tag;
+        auto [prev_value, prev_ts] = prev.value();
+        TInterval time_delta = next_ts - prev_ts;
 
         // Convert intervals to float-rep for arithmetic.
         // The division time_delta/time_constant is dimensionless (units cancel).
@@ -65,14 +65,14 @@ namespace rheoscape::operators {
         auto alpha = decltype(ratio){1} - std::exp(-ratio);
 
         TVal integrated = prev_value + (next_value - prev_value) * alpha;
-        return std::optional<std::tuple<TVal, TTimePoint>>{ { integrated, next.tag } };
+        return std::optional<std::tuple<TVal, TTimePoint>>{ { integrated, next_ts } };
       }
     };
 
     // Named callable for extracting value from optional std::tuple.
     struct ValueExtractor {
       RHEOSCAPE_CALLABLE TVal operator()(std::optional<std::tuple<TVal, TTimePoint>> value) const {
-        return value.value().value;
+        return std::get<0>(value.value());
       }
     };
 

@@ -7,7 +7,7 @@
 using namespace rheoscape;
 using namespace rheoscape::operators;
 using namespace rheoscape::sources;
-
+using namespace rheoscape::states;
 
 void test_toggle_toggles() {
   auto value_source = constant(5);

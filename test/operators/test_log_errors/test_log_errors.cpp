@@ -8,6 +8,7 @@
 
 using namespace rheoscape;
 using namespace rheoscape::operators;
+using namespace rheoscape::states;
 
 void test_log_errors_logs_errors() {
   std::cout << "Starting\n";

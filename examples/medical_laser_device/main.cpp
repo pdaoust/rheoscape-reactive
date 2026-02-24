@@ -19,6 +19,7 @@ using namespace rheoscape::sinks::arduino;
 using namespace rheoscape::sinks::arduino::gfx;
 using namespace rheoscape::sources;
 using namespace rheoscape::sources::arduino;
+using namespace rheoscape::states;
 
 #ifndef LOG_LEVEL
 #define LOG_LEVEL logging::LOG_LEVEL_DEBUG

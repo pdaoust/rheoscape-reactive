@@ -25,7 +25,7 @@ void test_tag_count_tags_and_counts() {
   pull_fn pull = counter([&pushed_value](std::tuple<int, unsigned long> v) { pushed_value = v; });
   for (int i = 1; i <= 15; i ++) {
     pull();
-    TEST_ASSERT_EQUAL_MESSAGE(i, pushed_value.tag, "counter should count");
+    TEST_ASSERT_EQUAL_MESSAGE(i, std::get<1>(pushed_value), "counter should count");
   }
 }
 

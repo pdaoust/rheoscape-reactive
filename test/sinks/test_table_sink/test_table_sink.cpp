@@ -7,6 +7,7 @@
 
 using namespace rheoscape;
 using namespace rheoscape::sinks;
+using namespace rheoscape::states;
 
 void test_table_sink_calls_store_fn() {
   // Test that table_sink calls the injected store function.

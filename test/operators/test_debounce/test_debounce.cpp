@@ -5,8 +5,9 @@
 #include <sources/from_clock.hpp>
 
 using namespace rheoscape;
-using namespace operators;
-using namespace sources;
+using namespace rheoscape::operators;
+using namespace rheoscape::sources;
+using namespace rheoscape::states;
 
 void test_debounce_debounces_to_new_state() {
   mock_clock_ulong_millis::set_time(0);
@@ -45,7 +46,7 @@ void test_debounce_debounces_to_new_state() {
     pull();
     TEST_ASSERT_EQUAL_MESSAGE(i + 50, pushed_count, "Should only push a new value for unsettled button when pulled");
   }
-  
+
   // At the end, after two more ticks
   // (to push it past the debounce period)
   // it should have settled to true.
@@ -93,7 +94,7 @@ void test_debounce_debounces_to_old_state() {
     pull();
     TEST_ASSERT_EQUAL_MESSAGE(i + 50, pushed_count, "Should only push a new value for unsettled button when pulled");
   }
-  
+
   // At the end, after three more tick
   // (to push it past the debounce period)
   // it should have settled to the old false state
@@ -141,7 +142,7 @@ void test_debounce_debounces_tri_state() {
     // Pull not needed because the MemoryState just pushed on change.
     TEST_ASSERT_EQUAL_MESSAGE(0, button_state, "Should still be false while waiting for bouncy period to settle");
   }
-  
+
   // At the end, after four more ticks
   // (to push it past the debounce period)
   // it should not have settled on the new state,

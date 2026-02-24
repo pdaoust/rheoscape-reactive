@@ -175,16 +175,6 @@ namespace rheoscape::operators {
     );
   }
 
-  template <typename TTag, typename TOut, typename TIn>
-  auto lift_to_tagged_value(pipe_fn<TOut, TIn> inner_pipe_fn)
-  -> pipe_fn<std::tuple<TOut, TTag>, std::tuple<TIn, TTag>> {
-    return lift(
-      inner_pipe_fn,
-      [](TOut value, std::tuple<TIn, TTag> tagged_in) { return std::tuple<TOut, TTag>{ value, tagged_in.tag }; },
-      [](std::tuple<TIn, TTag> value) { return (std::variant<TIn, std::tuple<TOut, TTag>>)value.value; }
-    );
-  }
-
   template <typename TErr, typename TOut, typename TIn>
   auto lift_to_fallible(pipe_fn<TOut, TIn> inner_pipe_fn)
   -> pipe_fn<Fallible<TOut, TErr>, Fallible<TIn, TErr>> {

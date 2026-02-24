@@ -20,12 +20,7 @@ void test__endable_has_value() {
 
 void test__endable_has_no_value() {
   auto v = Endable<int>();
-
   TEST_ASSERT_FALSE_MESSAGE(v.has_value(), "ended v should not have value");
-  try {
-    auto inner = v.value();
-    TEST_FAIL_MESSAGE("should have thrown an exception on attempt to get value");
-  } catch (endable_bad_get_value_access e) { }
 }
 
 void test__endable_has_status() {
@@ -47,10 +42,6 @@ void test__endable_knows_if_it_is_last() {
   v = Endable(5, true);
   TEST_ASSERT_EQUAL_MESSAGE(EndableIsLast::Yes, v.status(), "Should be the last");
   v = Endable<int>();
-  try {
-    auto is_last = v.is_last();
-    TEST_FAIL_MESSAGE("Should throw an exception when trying to find out if ended is last");
-  } catch (endable_bad_get_value_access e) { }
 }
 
 int main(int argc, char **argv) {

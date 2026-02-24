@@ -8,7 +8,7 @@
 using namespace rheoscape;
 using namespace rheoscape::operators;
 using namespace rheoscape::sources;
-
+using namespace rheoscape::states;
 
 void test_throttle_throttles() {
   auto clock_source = from_clock<mock_clock_ulong_millis>();

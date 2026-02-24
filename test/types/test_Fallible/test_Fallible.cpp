@@ -11,10 +11,6 @@ void test__fallible_has_value() {
   TEST_ASSERT_TRUE_MESSAGE(v.is_ok(), "Non-error fallible should be OK");
   TEST_ASSERT_FALSE_MESSAGE(v.is_error(), "Non-error fallible should not be an error");
   TEST_ASSERT_EQUAL_MESSAGE(3, v.value(), "Fallible should have the correct value");
-  try {
-    auto err = v.error();
-    TEST_FAIL_MESSAGE("Attempt to get error should've failed");
-  } catch (fallible_bad_get_error_access e) {}
 }
 
 void test__fallible_has_error() {
@@ -22,10 +18,6 @@ void test__fallible_has_error() {
   TEST_ASSERT_FALSE_MESSAGE(v.is_ok(), "Error fallible should not be OK");
   TEST_ASSERT_TRUE_MESSAGE(v.is_error(), "Error fallible should be an error");
   TEST_ASSERT_EQUAL_STRING_MESSAGE("Error: it failed!", v.error().c_str(), "Fallible should have the correct error value");
-  try {
-    auto value = v.value();
-    TEST_FAIL_MESSAGE("Attempt to get value should've failed");
-  } catch (fallible_bad_get_value_access e) {}
 }
 
 int main(int argc, char **argv) {

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cassert>
 #include <types/core_types.hpp>
 #include <operators/filter_map.hpp>
 

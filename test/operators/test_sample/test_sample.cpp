@@ -9,6 +9,7 @@
 using namespace rheoscape;
 using namespace rheoscape::operators;
 using namespace rheoscape::sources;
+using namespace rheoscape::states;
 
 void test_sample_samples_on_events() {
   auto clock = from_clock<mock_clock_ulong_millis>();

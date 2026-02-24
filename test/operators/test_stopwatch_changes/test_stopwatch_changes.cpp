@@ -16,14 +16,14 @@ void test_stopwatch_is_contiguous_through_first_lap() {
   auto clock_source = from_clock<mock_clock_ulong_millis>();
   std::vector<int> numbers { 0, 0, 0, 1, 1, 2, 2, 2, 2, 10, 11, 2, 2, 2 };
   auto numbers_source = unwrap_endable(from_iterator(numbers.begin(), numbers.end()));
-  auto sw = stopwatch_changes<mock_clock_ulong_millis::duration>(numbers_source, clock_source);
+  auto sw = stopwatch_changes(numbers_source, clock_source);
 
   mock_clock_ulong_millis::duration timestamp;
   int pushed_value;
   auto pull = sw(
     [&timestamp, &pushed_value](auto v) {
-      timestamp = v.tag;
-      pushed_value = v.value;
+      timestamp = std::get<1>(v);
+      pushed_value = std::get<0>(v);
     }
   );
   for (int i = 0; i < 3; i ++) {
@@ -38,14 +38,14 @@ void test_stopwatch_is_contiguous_through_second_lap() {
   auto clock_source = from_clock<mock_clock_ulong_millis>();
   std::vector<int> numbers { 0, 0, 0, 1, 1, 2, 2, 2, 2, 10, 11, 2, 2, 2 };
   auto numbers_source = unwrap_endable(from_iterator(numbers.begin(), numbers.end()));
-  auto sw = stopwatch_changes<mock_clock_ulong_millis::duration>(numbers_source, clock_source);
+  auto sw = stopwatch_changes(numbers_source, clock_source);
 
   mock_clock_ulong_millis::duration timestamp;
   int pushed_value;
   auto pull = sw(
     [&timestamp, &pushed_value](auto v) {
-      timestamp = v.tag;
-      pushed_value = v.value;
+      timestamp = std::get<1>(v);
+      pushed_value = std::get<0>(v);
     }
   );
   for (int i = 0; i < 3; i ++) {
@@ -65,14 +65,14 @@ void test_stopwatch_doesnt_resume_prior_lap() {
   auto clock_source = from_clock<mock_clock_ulong_millis>();
   std::vector<int> numbers { 0, 0, 0, 1, 1, 2, 2, 2, 2, 10, 11, 2, 2, 2 };
   auto numbers_source = unwrap_endable(from_iterator(numbers.begin(), numbers.end()));
-  auto sw = stopwatch_changes<mock_clock_ulong_millis::duration>(numbers_source, clock_source);
+  auto sw = stopwatch_changes(numbers_source, clock_source);
 
   mock_clock_ulong_millis::duration timestamp;
   int pushed_value;
   auto pull = sw(
     [&timestamp, &pushed_value](auto v) {
-      timestamp = v.tag;
-      pushed_value = v.value;
+      timestamp = std::get<1>(v);
+      pushed_value = std::get<0>(v);
     }
   );
   for (int i = 0; i < 11; i ++) {

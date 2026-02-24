@@ -6,6 +6,7 @@
 
 using namespace rheoscape;
 using namespace rheoscape::sources;
+using namespace rheoscape::states;
 
 // Simple 2D key for testing
 struct Point2D {

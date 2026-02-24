@@ -14,6 +14,7 @@
 using namespace rheoscape;
 using namespace rheoscape::operators;
 using namespace rheoscape::sources;
+using namespace rheoscape::states;
 
 void test_exponential_moving_average_stays_stable() {
   // We're going to make it as simple as possible

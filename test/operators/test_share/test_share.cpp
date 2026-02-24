@@ -7,10 +7,7 @@
 using namespace rheoscape;
 using namespace rheoscape::sources;
 using namespace rheoscape::operators;
-
-// There used to be an operator called `share`,
-// which shared one source among many sinks.
-// Turns out that's how normal source functions work.
+using namespace rheoscape::states;
 
 void test_normal_source_function_pushes_to_all() {
   MemoryState<int> push_stream(0);

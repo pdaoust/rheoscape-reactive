@@ -42,12 +42,12 @@ namespace rheoscape::operators {
                 // NOTE: This equation has to be this way
                 // to guard against wraparound for unsigned time representations.
                 // https://arduino.stackexchange.com/a/12588
-                && value.tag - testing_new_state.value().tag >= interval) {
+                && std::get<1>(value) - std::get<1>(testing_new_state.value()) >= interval) {
               // The debounce period has settled down.
               // Has it held the new state value to the end of the settling period?
-              if (value.value == testing_new_state.value().value) {
+              if (std::get<0>(value) == std::get<0>(testing_new_state.value())) {
                 // Yup, this is now the new state.
-                current_state = std::optional(value.value);
+                current_state = std::optional(std::get<0>(value));
               }
               // Reset the testing value in preparation for the next state change.
               testing_new_state = std::nullopt;
@@ -57,7 +57,7 @@ namespace rheoscape::operators {
             // or if there is no current or testing states yet,
             // start a new debounce test period.
             if (
-              (!current_state.has_value() || current_state.value() != value.value)
+              (!current_state.has_value() || current_state.value() != std::get<0>(value))
               && !testing_new_state.has_value()
             ) {
               testing_new_state = std::optional(value);

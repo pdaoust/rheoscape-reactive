@@ -27,13 +27,14 @@ namespace rheoscape::operators {
           mutable std::optional<TTimePoint> interval_start;
 
           RHEOSCAPE_CALLABLE void operator()(std::tuple<T, TTimePoint> value) const {
-            if (interval_start.has_value() && value.tag - interval_start.value() > interval) {
+            auto [v, ts] = value;
+            if (interval_start.has_value() && ts - interval_start.value() > interval) {
               interval_start = std::nullopt;
             }
 
             if (!interval_start.has_value()) {
-              interval_start = value.tag;
-              push(value.value);
+              interval_start = ts;
+              push(v);
             }
           }
         };

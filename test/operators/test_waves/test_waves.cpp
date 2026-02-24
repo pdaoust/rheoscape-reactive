@@ -9,7 +9,7 @@
 using namespace rheoscape;
 using namespace rheoscape::operators;
 using namespace rheoscape::sources;
-
+using namespace rheoscape::states;
 
 void test_wave_waves() {
   auto input_source = sequence_open(0, 1);

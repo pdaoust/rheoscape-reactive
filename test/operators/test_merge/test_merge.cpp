@@ -10,6 +10,7 @@
 using namespace rheoscape;
 using namespace rheoscape::operators;
 using namespace rheoscape::sources;
+using namespace rheoscape::states;
 
 void test_merge_merges_disparate_pull_streams() {
   auto letters_source = unwrap_endable(sequence<char>('a', 'c', 1));

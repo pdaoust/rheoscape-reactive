@@ -9,6 +9,7 @@
 using namespace rheoscape;
 using namespace rheoscape::operators;
 using namespace rheoscape::sources;
+using namespace rheoscape::states;
 
 void test_timed_latch_latches_simple_state() {
   mock_clock_ulong_millis::set_time(0);

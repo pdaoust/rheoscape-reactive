@@ -9,6 +9,7 @@
 using namespace rheoscape;
 using namespace rheoscape::operators;
 using namespace rheoscape::sources;
+using namespace rheoscape::states;
 
 void test_combine_combines_to_tuple() {
   source_fn<int> a = constant(3);

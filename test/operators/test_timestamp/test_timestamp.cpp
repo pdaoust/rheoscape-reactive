@@ -18,8 +18,8 @@ void test_timestamp_timestamps() {
   mock_clock_ulong_millis::time_point timestamp;
   auto pull = timestamped(
     [&pushed_value, &timestamp](std::tuple<int, mock_clock_ulong_millis::time_point> value) {
-      pushed_value = value.value;
-      timestamp = value.tag;
+      pushed_value = std::get<0>(value);
+      timestamp = std::get<1>(value);
     }
   );
 

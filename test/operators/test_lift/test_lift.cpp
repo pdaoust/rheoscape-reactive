@@ -9,6 +9,7 @@
 using namespace rheoscape;
 using namespace rheoscape::operators;
 using namespace rheoscape::sources;
+using namespace rheoscape::states;
 
 void test_lift_to_optional_can_push() {
   pipe_fn<int, int> doubling_pipe = map([](int v) { return v * 2; });
@@ -72,37 +73,10 @@ void test_lift_to_optional_can_pull() {
 TEST_ASSERT_FALSE_MESSAGE(last_pushed_value.has_value(), "Should have pushed empty value for empty");
 }
 
-void test_lift_to_taggedValue_lifts() {
-  pipe_fn<int, int> doubling_pipe = map([](int v) { return v * 2; });
-  auto lifted = lift_to_tagged_value<int>(doubling_pipe);
-  std::vector<std::tuple<int, int>> tagged_numbers {
-    std::tuple { 1, -1 },
-    std::tuple { 2, -2 },
-    std::tuple { 3, -3 },
-  };
-  auto tagged_numbers_source = unwrap_endable(from_iterator(tagged_numbers.begin(), tagged_numbers.end()));
-  auto doubled_tagged_numbers = lifted(tagged_numbers_source);
-
-  std::tuple<int, int> last_pushed_value;
-  pull_fn pull = doubled_tagged_numbers(
-    [&last_pushed_value](std::tuple<int, int> v) { last_pushed_value = v; }
-  );
-
-  pull();
-  TEST_ASSERT_EQUAL_MESSAGE(2, last_pushed_value.value, "Lowered value should be transformed");
-  TEST_ASSERT_EQUAL_MESSAGE(-1, last_pushed_value.tag, "Tagged value should remain intact");
-  pull();
-  TEST_ASSERT_EQUAL_MESSAGE(4, last_pushed_value.value, "Lowered value should be transformed");
-  TEST_ASSERT_EQUAL_MESSAGE(-2, last_pushed_value.tag, "Tagged value should remain intact");
-  pull();
-  TEST_ASSERT_EQUAL_MESSAGE(6, last_pushed_value.value, "Lowered value should be transformed");
-  TEST_ASSERT_EQUAL_MESSAGE(-3, last_pushed_value.tag, "Tagged value should remain intact");
-}
 
 int main(int argc, char **argv) {
   UNITY_BEGIN();
   RUN_TEST(test_lift_to_optional_can_push);
   RUN_TEST(test_lift_to_optional_can_pull);
-  RUN_TEST(test_lift_to_taggedValue_lifts);
   UNITY_END();
 }
