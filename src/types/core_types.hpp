@@ -591,6 +591,14 @@ namespace rheoscape {
       { (t1 - t2) >= d } -> std::convertible_to<bool>;
     };
 
+    template <typename TTimePoint>
+    struct time_point_duration {
+      using type = decltype(std::declval<TTimePoint>() - std::declval<TTimePoint>());
+    };
+
+    template <typename TTimePoint>
+    using time_point_duration_t = typename time_point_duration<TTimePoint>::type;
+
   } // namespace concepts
 
   // ============================================================================

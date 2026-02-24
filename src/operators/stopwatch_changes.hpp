@@ -14,12 +14,12 @@ namespace rheoscape::operators {
   // and it wouldn't restart the stopwatch at 0 for every value
   // while the temperature was above 20.
 
-  template <typename TDuration, typename SourceT, typename ClockSourceT>
-    requires concepts::Source<SourceT> && concepts::Source<ClockSourceT> &&
-             concepts::TimePointAndDurationCompatible<source_value_t<ClockSourceT>, TDuration>
+  template <typename SourceT, typename ClockSourceT>
+    requires concepts::Source<SourceT> && concepts::Source<ClockSourceT>
   auto stopwatch_changes(SourceT source, ClockSourceT clock_source) {
     using T = source_value_t<SourceT>;
     using TTimePoint = source_value_t<ClockSourceT>;
+    using TDuration = time_point_duration_t<TTimePoint>;
     // First timestamp is the lap start; second timestamp is the timestamp of the current value.
     using TAcc = std::tuple<T, TTimePoint, TTimePoint>;
 
@@ -46,24 +46,23 @@ namespace rheoscape::operators {
   }
 
   namespace detail {
-    template <typename TDuration, typename ClockSourceT>
+    template <typename ClockSourceT>
     struct StopwatchChangesPipeFactory {
       ClockSourceT clock_source;
 
       template <typename SourceT>
         requires concepts::Source<SourceT>
       RHEOSCAPE_CALLABLE auto operator()(SourceT source) const {
-        return stopwatch_changes<TDuration>(std::move(source), ClockSourceT(clock_source));
+        return stopwatch_changes(std::move(source), ClockSourceT(clock_source));
       }
     };
   }
 
   // Pipe factory
-  template <typename TDuration, typename ClockSourceT>
-    requires concepts::Source<ClockSourceT> &&
-             concepts::TimePointAndDurationCompatible<source_value_t<ClockSourceT>, TDuration>
+  template <typename ClockSourceT>
+    requires concepts::Source<ClockSourceT>
   auto stopwatch_changes(ClockSourceT clock_source) {
-    return detail::StopwatchChangesPipeFactory<TDuration, ClockSourceT>{
+    return detail::StopwatchChangesPipeFactory<ClockSourceT>{
       std::move(clock_source)
     };
   }
