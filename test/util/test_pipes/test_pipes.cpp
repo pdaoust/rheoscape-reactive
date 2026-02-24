@@ -1,6 +1,6 @@
 #include <unity.h>
 #include <types/core_types.hpp>
-#include <types/typed_pipe.hpp>
+#include <util/pipes.hpp>
 #include <types/mock_clock.hpp>
 #include <sources/constant.hpp>
 #include <sources/from_clock.hpp>
@@ -14,6 +14,7 @@
 
 using namespace rheoscape;
 using namespace rheoscape::operators;
+using namespace rheoscape::util;
 using namespace rheoscape::sources;
 
 void setUp() {}
@@ -231,6 +232,82 @@ void test_typed_pipe_is_copyable() {
   TEST_ASSERT_EQUAL(12, b);
 }
 
+// compose_pipes: single pipe (degenerate case).
+void test_compose_pipes_single() {
+  auto composed = compose_pipes(
+    map([](int v) { return v * 2; })
+  );
+
+  auto result_source = constant(5) | composed;
+  int received = 0;
+  auto pull = result_source([&](int v) { received = v; });
+  pull();
+  TEST_ASSERT_EQUAL(10, received);
+}
+
+// compose_pipes: two same-type pipes.
+void test_compose_pipes_same_type() {
+  auto composed = compose_pipes(
+    map([](int v) { return v + 1; }),
+    dedupe()
+  );
+
+  auto result_source = constant(5) | composed;
+  int received = 0;
+  auto pull = result_source([&](int v) { received = v; });
+  pull();
+  TEST_ASSERT_EQUAL(6, received);
+}
+
+// compose_pipes: type-changing pipes (int -> string).
+void test_compose_pipes_type_changing() {
+  auto composed = compose_pipes(
+    map([](int v) { return v + 1; }),
+    map([](int v) { return std::to_string(v); })
+  );
+
+  auto result_source = constant(9) | composed;
+  std::string received;
+  auto pull = result_source([&](std::string v) { received = v; });
+  pull();
+  TEST_ASSERT_EQUAL_STRING("10", received.c_str());
+}
+
+// compose_pipes: multi-stage pipeline (filter + map + dedupe).
+void test_compose_pipes_multi_stage() {
+  auto composed = compose_pipes(
+    filter([](int v) { return v > 0; }),
+    map([](int v) { return v * 10; }),
+    dedupe()
+  );
+
+  auto result_source = constant(3) | composed;
+  int received = 0;
+  auto pull = result_source([&](int v) { received = v; });
+  pull();
+  TEST_ASSERT_EQUAL(30, received);
+}
+
+// compose_pipes wrapped in typed_pipe satisfies Pipe concept.
+void test_compose_pipes_with_typed_pipe() {
+  auto pipe = typed_pipe<int, std::string>(
+    compose_pipes(
+      filter([](int v) { return v > 0; }),
+      map([](int v) { return std::to_string(v); })
+    )
+  );
+
+  static_assert(concepts::Pipe<decltype(pipe)>);
+  static_assert(std::same_as<pipe_input_t<decltype(pipe)>, int>);
+  static_assert(std::same_as<pipe_output_t<decltype(pipe)>, std::string>);
+
+  auto result_source = constant(42) | pipe;
+  std::string received;
+  auto pull = result_source([&](std::string v) { received = v; });
+  pull();
+  TEST_ASSERT_EQUAL_STRING("42", received.c_str());
+}
+
 int main(int argc, char **argv) {
   UNITY_BEGIN();
   RUN_TEST(test_map_with_auto_lambda);
@@ -245,5 +322,10 @@ int main(int argc, char **argv) {
   RUN_TEST(test_scan_type_changing_pipe_auto_args);
   RUN_TEST(test_compose_two_typed_pipes);
   RUN_TEST(test_typed_pipe_is_copyable);
+  RUN_TEST(test_compose_pipes_single);
+  RUN_TEST(test_compose_pipes_same_type);
+  RUN_TEST(test_compose_pipes_type_changing);
+  RUN_TEST(test_compose_pipes_multi_stage);
+  RUN_TEST(test_compose_pipes_with_typed_pipe);
   UNITY_END();
 }

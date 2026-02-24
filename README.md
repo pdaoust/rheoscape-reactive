@@ -440,7 +440,9 @@ The Rheoscape standard library comes with a lot of good structs, classes, source
     * `chrono_helpers`: Helper functions for working with `std::chrono` measurement values.
     * `make_state_editor`: Construct a pipeline that changes a `state` using an input stream and a mapper function.
 * **Utilities**
+    * `compose_pipes`: Compose multiple pipe factories into a single callable that applies them left-to-right when given a source. All type deduction is deferred until the composed pipe is called, so unconstrained pipe factories (whose types aren't known until a source is provided) can be chained without needing the `|` operator. Can be combined with `typed_pipe` to produce a `Pipe`-concept-satisfying wrapper.
     * `logging`: A logging implementation that you can configure in a centralised way. Different log levels or topics can have different loggers bound to them.
+    * `typed_pipe`: Annotate an arbitrary pipe callable with explicit input and output type aliases, making it satisfy the `Pipe` concept. Useful for wrapping pipe factories whose types are fully generic until called.
 
 ## Performance considerations
 

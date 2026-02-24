@@ -1,11 +1,12 @@
 #include <unity.h>
 #include <states/EepromState.hpp>
 #include <types/mock_clock.hpp>
-#include <types/typed_pipe.hpp>
+#include <util/pipes.hpp>
 #include <sources/from_clock.hpp>
 #include <operators/settle.hpp>
 
 using namespace rheoscape;
+using namespace rheoscape::util;
 using namespace rheoscape::states;
 using namespace rheoscape::operators;
 using namespace rheoscape::sources;

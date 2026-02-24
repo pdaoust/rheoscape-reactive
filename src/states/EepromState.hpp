@@ -6,7 +6,7 @@
 #include <CRCx.h>
 #include <types/core_types.hpp>
 #include <states/MemoryState.hpp>
-#include <types/typed_pipe.hpp>
+#include <util/pipes.hpp>
 
 namespace rheoscape::states {
 

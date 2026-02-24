@@ -13,6 +13,7 @@
 using namespace rheoscape;
 using namespace rheoscape::helpers;
 using namespace rheoscape::operators;
+using namespace rheoscape::util;
 using namespace rheoscape::sinks;
 using namespace rheoscape::sinks::arduino;
 using namespace rheoscape::sinks::arduino::gfx;
