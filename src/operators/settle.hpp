@@ -104,6 +104,7 @@ namespace rheoscape::operators {
   namespace detail {
     template <typename ClockSourceT, typename TInterval>
     struct SettlePipeFactory {
+      using is_pipe_factory = void;
       ClockSourceT clock_source;
       TInterval interval;
 

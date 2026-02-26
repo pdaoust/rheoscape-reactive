@@ -37,6 +37,7 @@ namespace rheoscape::operators {
   namespace detail {
     template <typename ToggleSourceT>
     struct ToggleOnPipeFactory {
+      using is_pipe_factory = void;
       ToggleSourceT toggle_source;
 
       template <typename ValueSourceT>
@@ -48,6 +49,7 @@ namespace rheoscape::operators {
 
     template <typename ValueSourceT>
     struct ApplyTogglePipeFactory {
+      using is_pipe_factory = void;
       ValueSourceT value_source;
 
       template <typename ToggleSourceT>

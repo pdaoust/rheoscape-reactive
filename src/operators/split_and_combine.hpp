@@ -25,6 +25,7 @@ namespace rheoscape::operators {
   namespace detail {
     template <typename TIn, typename TPipeIn1, typename TPipeOut1, typename TPipeIn2, typename TPipeOut2, typename CombineFn>
     struct SplitAndCombinePipeFactory {
+      using is_pipe_factory = void;
       map_fn<TPipeIn1, TIn> mapper1;
       pipe_fn<TPipeOut1, TPipeIn1> pipe1;
       map_fn<TPipeIn2, TIn> mapper2;
@@ -40,6 +41,7 @@ namespace rheoscape::operators {
 
     template <typename T, typename T1, typename T2, typename CombineFn>
     struct SplitAndCombineSimplePipeFactory {
+      using is_pipe_factory = void;
       map_fn<T1, T> mapper1;
       pipe_fn<T1, T1> pipe1;
       map_fn<T2, T> mapper2;

@@ -96,6 +96,7 @@ namespace rheoscape::operators {
 
   namespace detail {
     struct CachePipeFactory {
+      using is_pipe_factory = void;
       template <typename SourceT>
         requires concepts::Source<SourceT>
       RHEOSCAPE_CALLABLE auto operator()(SourceT source) const {

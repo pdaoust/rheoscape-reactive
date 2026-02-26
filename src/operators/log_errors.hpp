@@ -66,6 +66,7 @@ namespace rheoscape::operators {
   namespace detail {
     template <typename T, typename TErr, typename MapFn>
     struct LogErrorsPipeFactory {
+      using is_pipe_factory = void;
       MapFn format_error;
       std::optional<std::string> topic;
 

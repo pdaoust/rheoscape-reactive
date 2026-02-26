@@ -86,6 +86,7 @@ namespace rheoscape::operators {
     // Returns a tuple of (event_value, sampled_value).
     template <typename SampleSourceT>
     struct SamplePipeFactory {
+      using is_pipe_factory = void;
       SampleSourceT sample_source;
 
       template <typename EventSourceT>
@@ -101,6 +102,7 @@ namespace rheoscape::operators {
     // Returns a tuple of (event_value, sampled_value).
     template <typename EventSourceT>
     struct SampleEveryPipeFactory {
+      using is_pipe_factory = void;
       EventSourceT event_source;
 
       template <typename SampleSourceT>

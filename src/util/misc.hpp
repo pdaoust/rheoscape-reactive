@@ -2,6 +2,7 @@
 
 #include <functional>
 #include <cstdarg>
+#include <optional>
 #include <string>
 #include <vector>
 

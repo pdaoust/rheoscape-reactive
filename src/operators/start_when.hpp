@@ -49,6 +49,7 @@ namespace rheoscape::operators {
   namespace detail {
     template <typename FilterFn>
     struct StartWhenPipeFactory {
+      using is_pipe_factory = void;
       FilterFn condition;
 
       template <typename SourceT>

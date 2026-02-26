@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cassert>
+#include <memory>
 #include <typeinfo>
 #include <EEPROM.h>
 #include <CRCx.h>
@@ -48,7 +49,7 @@ namespace rheoscape::states {
   // // Create a 1-minute buffer pipe that waits for a value to settle before emitting.
   // // Using `settle` allows us to both avoid writing intermediate values while the user is making up their mind,
   // // and avoid writing a value if they revert it back to what it was before.
-  // auto buffer_writes_pipe = settle(clock, constant(arduino_millis_clock::duration(60000)))
+  // auto buffer_writes_pipe = settle(clock, constant(arduino_millis_clock::duration(60000)));
   //
   // auto [
   //   moisture_sensor_low_high,
@@ -56,11 +57,11 @@ namespace rheoscape::states {
   //   is_running,
   //   extra_config
   // ] = make_memory_mirrored_eeprom_pipes(
-  //   // Tip: use the `typed_pipe` to give a generic pipe function an input/output type.
-  //   typed_pipe<Range<int>>(buffer_writes_pipe),
-  //   typed_pipe<int>(buffer_writes_pipe),
-  //   typed_pipe<bool>(buffer_writes_pipe),
-  //   typed_pipe<MyConfigStruct>(buffer_writes_pipe)
+  //   // Tip: use no_option<T> to specify the value type without a default value.
+  //   no_option<Range<int>>, buffer_writes_pipe,
+  //   no_option<int>, buffer_writes_pipe,
+  //   no_option<bool>, buffer_writes_pipe,
+  //   no_option<MyConfigStruct>, buffer_writes_pipe
   // );
   // ```
   //
@@ -68,13 +69,13 @@ namespace rheoscape::states {
   // This one allows you to give the user feedback about how soon their new value will be written:
   //
   // ```c++
-  // auto timer_feedback_buffer_writes_pipe = stopwatch_changes(clock)
-  //   | tee(some_ui_pipe_that_displays_seconds_until_ts_reaches_60000)
-  //   | filter([](auto value, auto ts) {
-  //       return ts >= arduino_millis_clock::duration(60000);
-  //     })
-  //   | map([](auto value, auto ts) { return value; })
-  //   | dedupe(); // We only want the first value after it changes.
+  // auto timer_feedback_buffer_writes_pipe = compose_pipes(
+  //   stopwatch_changes(clock),
+  //   tee(some_ui_pipe_that_displays_seconds_until_ts_reaches_60000),
+  //   filter([](auto value, auto ts) { return ts >= arduino_millis_clock::duration(60000); }),
+  //   map([](auto value, auto ts) { return value; }),
+  //   dedupe() // We only want the first value after it changes.
+  // );
   // ```
   //
   // This one waits for the user to press a 'save' button:
@@ -328,7 +329,7 @@ namespace rheoscape::states {
   auto make_eeprom_states() {
     return std::tuple_cat(
       std::forward_as_tuple(EepromState<T, Offset>::get_instance()),
-      make_eeprom_states<Rest...>()
+      make_eeprom_states<Offset + sizeof(detail::SizedHashedWrapper<T>), Rest...>()
     );
   }
 
@@ -366,32 +367,50 @@ namespace rheoscape::states {
   // );
 
   // End case.
-  template <uint Offset>
-  std::tuple<> make_memory_mirrored_eeprom_pipes() {
-    return std::tuple<>{};
+  // Implementation uses shared_ptr<MemoryState<T>> internally
+  // to ensure MemoryState addresses remain stable after pipeline binding.
+  // The binders and handlers in MemoryState/EepromState capture `this` pointers,
+  // which would dangle if the MemoryState were moved after binding.
+  //
+  // The returned tuple contains MemoryState<T>& references
+  // (same as make_eeprom_states returns EepromState references),
+  // with ownership managed by a shared_ptr stored inside the pipeline closures.
+
+  namespace detail {
+    template <uint Offset>
+    std::tuple<> make_memory_mirrored_eeprom_pipes_impl() {
+      return std::tuple<>{};
+    }
+
+    template <uint Offset, typename T, typename PipeFn, typename... Rest>
+    auto make_memory_mirrored_eeprom_pipes_impl(std::optional<T> initial, PipeFn pipe, Rest... rest) {
+      auto mem_ptr = std::make_shared<MemoryState<T>>();
+      make_memory_mirrored_eeprom_pipe<Offset>(*mem_ptr, initial, pipe);
+
+      // Prevent the MemoryState from being destroyed
+      // by capturing the shared_ptr in the EepromState's sink.
+      // The EepromState is a singleton so this effectively gives static lifetime.
+      auto& eeprom_state = initial.has_value()
+        ? EepromState<T, Offset>::get_instance(initial.value())
+        : EepromState<T, Offset>::get_instance();
+      eeprom_state.add_sink(
+        [mem_ptr](T) {
+          // No-op sink; exists solely to prevent the shared_ptr
+          // (and thus the MemoryState) from being destroyed.
+        },
+        false
+      );
+
+      return std::tuple_cat(
+        std::forward_as_tuple(*mem_ptr),
+        make_memory_mirrored_eeprom_pipes_impl<Offset + sizeof(SizedHashedWrapper<T>)>(rest...)
+      );
+    }
   }
 
   template <uint Offset, typename T, typename PipeFn, typename... Rest>
   auto make_memory_mirrored_eeprom_pipes(std::optional<T> initial, PipeFn pipe, Rest... rest) {
-    auto result = std::tuple_cat(
-      std::forward_as_tuple(MemoryState<T>()),
-      make_memory_mirrored_eeprom_pipes<Offset + sizeof(detail::SizedHashedWrapper<T>)>(rest...)
-    );
-    detail::make_memory_mirrored_eeprom_pipe<Offset>(std::get<0>(result), initial, pipe);
-    return result;
-  }
-
-  template <uint Offset, typename PipeFn, typename... RestPipeFns>
-    requires (concepts::Pipe<PipeFn>)
-      && (std::same_as<pipe_input_t<PipeFn>, pipe_output_t<PipeFn>>)
-  auto make_memory_mirrored_eeprom_pipes(PipeFn pipe, RestPipeFns... rest) {
-    using T = pipe_input_t<PipeFn>;
-    auto result = std::tuple_cat(
-      std::forward_as_tuple(MemoryState<T>()),
-      make_memory_mirrored_eeprom_pipes<Offset + sizeof(detail::SizedHashedWrapper<T>)>(rest...)
-    );
-    detail::make_memory_mirrored_eeprom_pipe<Offset>(std::get<0>(result), no_option<T>, pipe);
-    return result;
+    return detail::make_memory_mirrored_eeprom_pipes_impl<Offset>(initial, pipe, rest...);
   }
 
 }

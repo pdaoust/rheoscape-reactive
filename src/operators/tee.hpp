@@ -71,6 +71,7 @@ namespace rheoscape::operators {
   namespace detail {
     template <typename SinkFn>
     struct TeePipeFactory {
+      using is_pipe_factory = void;
       SinkFn sink;
 
       template <typename SourceT>

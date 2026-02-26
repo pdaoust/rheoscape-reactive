@@ -29,6 +29,7 @@ namespace rheoscape::util {
   //   auto pipe = typed_pipe<int>(compose_pipes(filter(pred), dedupe()));
   template <typename... PipeFns>
   struct ComposedPipe {
+    using is_pipe_factory = void;
     std::tuple<PipeFns...> pipes;
 
     template <typename SourceT>
@@ -41,6 +42,46 @@ namespace rheoscape::util {
   template <typename... PipeFns>
   auto compose_pipes(PipeFns... pipes) {
     return ComposedPipe<std::decay_t<PipeFns>...>{std::make_tuple(std::move(pipes)...)};
+  }
+
+  // Wraps any callable into a pipe factory that can compose with |.
+  // Analogous to source_fn<T>() for sources, but without type params
+  // since pipe factories are intentionally untyped.
+  template <typename Fn>
+  struct PipeFactoryWrapper {
+    using is_pipe_factory = void;
+    Fn fn;
+
+    template <typename SourceT>
+      requires concepts::Source<SourceT>
+    RHEOSCAPE_CALLABLE auto operator()(SourceT source) const {
+      return fn(std::move(source));
+    }
+  };
+
+  template <typename Fn>
+  auto as_pipe(Fn fn) {
+    return PipeFactoryWrapper<std::decay_t<Fn>>{std::move(fn)};
+  }
+
+  // Wraps any callable into a Source without type erasure.
+  // Analogous to source_fn<T> but preserves the concrete callable type
+  // for inlining and optimization.
+  template <typename T, typename Fn>
+  struct SourceWrapper {
+    using value_type = T;
+    Fn fn;
+
+    template <typename PushFn>
+      requires concepts::Visitor<PushFn, T>
+    RHEOSCAPE_CALLABLE auto operator()(PushFn push) const {
+      return fn(std::move(push));
+    }
+  };
+
+  template <typename T, typename Fn>
+  auto as_source(Fn fn) {
+    return SourceWrapper<T, std::decay_t<Fn>>{std::move(fn)};
   }
 
   // A wrapper that annotates an arbitrary pipe callable

@@ -109,6 +109,7 @@ namespace rheoscape::operators {
   namespace detail {
     template <typename IntervalSourceT>
     struct IntervalPipeFactory {
+      using is_pipe_factory = void;
       IntervalSourceT interval_source;
 
       template <typename TimeSourceT>

@@ -308,6 +308,80 @@ void test_compose_pipes_with_typed_pipe() {
   TEST_ASSERT_EQUAL_STRING("42", received.c_str());
 }
 
+// --- Pipe factory | composition tests ---
+
+// Two pipe factories composed with |.
+void test_pipe_factory_compose_two() {
+  auto composed = map([](int v) { return v + 1; }) | filter([](int v) { return v > 0; });
+
+  static_assert(concepts::PipeFactory<decltype(composed)>);
+
+  auto result_source = constant(5) | composed;
+  int received = 0;
+  auto pull = result_source([&](int v) { received = v; });
+  pull();
+  TEST_ASSERT_EQUAL(6, received);
+}
+
+// Three pipe factories composed with |.
+void test_pipe_factory_compose_three() {
+  auto composed = map([](int v) { return v * 2; })
+    | filter([](int v) { return v > 0; })
+    | dedupe();
+
+  static_assert(concepts::PipeFactory<decltype(composed)>);
+
+  auto result_source = constant(3) | composed;
+  int received = 0;
+  auto pull = result_source([&](int v) { received = v; });
+  pull();
+  TEST_ASSERT_EQUAL(6, received);
+}
+
+// as_pipe wraps a lambda into a pipe factory that composes with |.
+void test_as_pipe_compose() {
+  auto my_pipe = as_pipe([](auto source) { return source | map([](int v) { return v + 10; }); });
+
+  static_assert(concepts::PipeFactory<decltype(my_pipe)>);
+
+  auto composed = my_pipe | filter([](int v) { return v > 0; });
+  auto result_source = constant(5) | composed;
+  int received = 0;
+  auto pull = result_source([&](int v) { received = v; });
+  pull();
+  TEST_ASSERT_EQUAL(15, received);
+}
+
+// --- as_source<T> tests ---
+
+// as_source wraps a lambda into a Source without type erasure.
+void test_as_source_satisfies_concept() {
+  auto src = as_source<int>([](auto push) {
+    push(42);
+    return pull_fn([](){});
+  });
+
+  static_assert(concepts::Source<decltype(src)>);
+  static_assert(std::same_as<source_value_t<decltype(src)>, int>);
+
+  int received = 0;
+  auto pull = src([&](int v) { received = v; });
+  TEST_ASSERT_EQUAL(42, received);
+}
+
+// as_source works with | pipe operator.
+void test_as_source_with_pipe() {
+  auto src = as_source<int>([](auto push) {
+    push(7);
+    return pull_fn([](){});
+  });
+
+  auto piped = src | map([](int v) { return v * 3; });
+  int received = 0;
+  auto pull = piped([&](int v) { received = v; });
+  TEST_ASSERT_EQUAL(21, received);
+}
+
 int main(int argc, char **argv) {
   UNITY_BEGIN();
   RUN_TEST(test_map_with_auto_lambda);
@@ -327,5 +401,10 @@ int main(int argc, char **argv) {
   RUN_TEST(test_compose_pipes_type_changing);
   RUN_TEST(test_compose_pipes_multi_stage);
   RUN_TEST(test_compose_pipes_with_typed_pipe);
+  RUN_TEST(test_pipe_factory_compose_two);
+  RUN_TEST(test_pipe_factory_compose_three);
+  RUN_TEST(test_as_pipe_compose);
+  RUN_TEST(test_as_source_satisfies_concept);
+  RUN_TEST(test_as_source_with_pipe);
   UNITY_END();
 }

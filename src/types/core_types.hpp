@@ -242,6 +242,14 @@ namespace rheoscape {
     >;
   }
 
+  namespace concepts {
+    // PipeFactory: A callable that transforms a source,
+    // identified by having a `using is_pipe_factory = void;` member.
+    // Parallel to how Source is detected via `value_type`.
+    template <typename T>
+    concept PipeFactory = requires { typename std::decay_t<T>::is_pipe_factory; };
+  }
+
   // Ergonomic chaining of source and sink using the `|` operator.
   // This lets you go:
   //
@@ -264,6 +272,37 @@ namespace rheoscape {
       using T = source_value_t<SourceT>;
       return std::forward<SinkFn>(right)(source_fn<T>(std::forward<SourceT>(left)));
     }
+  }
+
+  // Compose two pipe factories with `|`.
+  // The result is a new pipe factory that applies left, then right.
+  // This lets you write `map(fn) | filter(pred) | dedupe()`.
+  //
+  // Implementation note: we can't call compose_pipes here
+  // (it's in util/pipes.hpp), so we define a lightweight
+  // ComposedPipeFactory that applies two pipe factories in sequence.
+  namespace detail {
+    template <typename PipeA, typename PipeB>
+    struct ComposedPipeFactory {
+      using is_pipe_factory = void;
+      PipeA left;
+      PipeB right;
+
+      template <typename SourceT>
+        requires concepts::Source<SourceT>
+      inline auto operator()(SourceT source) const {
+        return right(left(std::move(source)));
+      }
+    };
+  }
+
+  template <typename PipeA, typename PipeB>
+    requires concepts::PipeFactory<PipeA>
+  inline auto operator|(PipeA&& left, PipeB&& right) {
+    return detail::ComposedPipeFactory<std::decay_t<PipeA>, std::decay_t<PipeB>>{
+      std::forward<PipeA>(left),
+      std::forward<PipeB>(right)
+    };
   }
 
   // Some types for common functional operators.

@@ -48,6 +48,7 @@ namespace rheoscape::operators {
   namespace detail {
     template <typename ClockSourceT>
     struct StopwatchChangesPipeFactory {
+      using is_pipe_factory = void;
       ClockSourceT clock_source;
 
       template <typename SourceT>

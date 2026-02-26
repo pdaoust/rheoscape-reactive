@@ -50,6 +50,7 @@ namespace rheoscape::operators {
 
   namespace detail {
     struct SharePipeFactory {
+      using is_pipe_factory = void;
       template <typename SourceT>
         requires concepts::Source<SourceT>
       RHEOSCAPE_CALLABLE auto operator()(SourceT source) const {

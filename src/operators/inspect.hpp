@@ -55,6 +55,7 @@ namespace rheoscape::operators {
   namespace detail {
     template <typename ExecFn>
     struct InspectPipeFactory {
+      using is_pipe_factory = void;
       ExecFn exec;
 
       template <typename SourceT>

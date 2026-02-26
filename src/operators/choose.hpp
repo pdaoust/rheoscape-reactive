@@ -101,6 +101,7 @@ namespace rheoscape::operators {
     // A pipe that uses a switch source to switch the given value source.
     template <typename TKey, typename TVal>
     struct ChooseAmongPipeFactory {
+      using is_pipe_factory = void;
       std::map<TKey, source_fn<TVal>> value_source_map;
 
       template <typename SwitchSourceT>

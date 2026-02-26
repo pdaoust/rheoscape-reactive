@@ -313,6 +313,7 @@ namespace rheoscape::autotune {
   namespace detail {
     template <typename TP, typename TCtl, typename TTimePoint, typename TKp, typename TKi, typename TKd>
     struct RelayAutotunePipeFactory {
+      using is_pipe_factory = void;
       source_fn<TP> setpoint_source;
       source_fn<TTimePoint> clock_source;
       RelayAutotuneConfig<TCtl, TP, TTimePoint> config;

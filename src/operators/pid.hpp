@@ -438,6 +438,7 @@ namespace rheoscape::operators {
   namespace detail {
     template <typename TCalc, typename TTimePoint, typename TIntervalConverter>
     struct PidPipeFactory {
+      using is_pipe_factory = void;
       source_fn<TCalc> setpoint_source;
       source_fn<TTimePoint> clock_source;
       source_fn<PidWeights<TCalc, TCalc, TCalc>> weights_source;
@@ -454,6 +455,7 @@ namespace rheoscape::operators {
 
     template <typename TCalc, typename TTimePoint>
     struct PidPipeFactoryNoConverter {
+      using is_pipe_factory = void;
       source_fn<TCalc> setpoint_source;
       source_fn<TTimePoint> clock_source;
       source_fn<PidWeights<TCalc, TCalc, TCalc>> weights_source;
@@ -469,6 +471,7 @@ namespace rheoscape::operators {
 
     template <typename TCalc, typename TTimePoint, typename TIntervalConverter>
     struct PidDetailedPipeFactory {
+      using is_pipe_factory = void;
       source_fn<TCalc> setpoint_source;
       source_fn<TTimePoint> clock_source;
       source_fn<PidWeights<TCalc, TCalc, TCalc>> weights_source;
@@ -485,6 +488,7 @@ namespace rheoscape::operators {
 
     template <typename TCalc, typename TTimePoint>
     struct PidDetailedPipeFactoryNoConverter {
+      using is_pipe_factory = void;
       source_fn<TCalc> setpoint_source;
       source_fn<TTimePoint> clock_source;
       source_fn<PidWeights<TCalc, TCalc, TCalc>> weights_source;

@@ -115,6 +115,7 @@ namespace rheoscape::operators {
   namespace detail {
     template <typename ClockSourceT, typename TimeConstantSourceT, typename TIntervalConverter>
     struct EmaPipeFactory {
+      using is_pipe_factory = void;
       ClockSourceT clock_source;
       TimeConstantSourceT time_constant_source;
       TIntervalConverter interval_converter;
@@ -133,6 +134,7 @@ namespace rheoscape::operators {
 
     template <typename TVal, typename ClockSourceT, typename TimeConstantSourceT>
     struct EmaPipeFactoryScalar {
+      using is_pipe_factory = void;
       ClockSourceT clock_source;
       TimeConstantSourceT time_constant_source;
 
