@@ -19,4 +19,8 @@ namespace rheoscape::util {
     return (std::function<decltype(le)>)le;
   }
 
+  // Helper to cast nullopt when its type can't be deduced from context.
+  template<typename T>
+  inline constexpr std::optional<T> no_option{std::nullopt};
+
 }
