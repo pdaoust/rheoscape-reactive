@@ -8,6 +8,9 @@
 #include <states/MemoryState.hpp>
 #include <util/pipes.hpp>
 
+using namespace rheoscape;
+using namespace rheoscape::util;
+
 namespace rheoscape::states {
 
   // EEPROM sources and sinks -- actually, they're state objects that provide source and sink functions
@@ -80,6 +83,10 @@ namespace rheoscape::states {
   // auto manual_save_pipe = sample_every(save_button_events);
   // ```
 
+  // Forward declaration
+  template <typename T, uint Offset>
+  class EepromState;
+
   namespace detail {
 
     template <typename T>
@@ -88,11 +95,13 @@ namespace rheoscape::states {
       std::array<char, sizeof(T)> _data;
 
       public:
-        SizedHashedWrapper() = default;
+        SizedHashedWrapper() {
+          static_assert(std::is_trivially_copyable_v<T>);
+        }
 
-        SizedHashedWrapper(T original) {
+        SizedHashedWrapper(T original) : SizedHashedWrapper() {
           memcpy(_data.data(), &original, sizeof(T));
-          _hash = CRCPP::CRC::Calculate(_data.data(), sizeof(T), CRCPP::CRC::CRC_16_MODBUS());
+          _hash = crcx::crc16(reinterpret_cast<const uint8_t*>(_data.data()), sizeof(T));
         }
 
         bool is_initialized() {
@@ -100,7 +109,7 @@ namespace rheoscape::states {
         }
 
         bool is_valid() {
-          return is_initialized() && CRCPP::CRC::Calculate(_data.data(), sizeof(T), CRCPP::CRC::CRC_16_MODBUS()) == _hash;
+          return is_initialized() && crcx::crc16(reinterpret_cast<const uint8_t*>(_data.data()), sizeof(T)) == _hash;
         }
 
         T get_value() {
@@ -112,15 +121,12 @@ namespace rheoscape::states {
             assert(false && "Value isn't valid; checksum doesn't check out");
           }
 
-          T value;
-          memcpy(&value, _data.data(), sizeof(T));
-          return value;
+          alignas(T) unsigned char buffer[sizeof(T)];
+          T* ptr = reinterpret_cast<T*>(buffer);
+          memcpy(buffer, _data.data(), sizeof(T));
+          return *ptr;
         }
     };
-
-    // Forward declaration
-    template <typename T, uint Offset>
-    class EepromState;
 
     // Named callable for EepromState's pull handler
     template <typename T, uint Offset, typename PushFn>
@@ -173,93 +179,107 @@ namespace rheoscape::states {
       }
     };
 
-    template <typename T, uint Offset>
-    class EepromState {
-      EepromState() = default;
-      EepromState(const EepromState<T, Offset>&) = delete;
-      EepromState<T, Offset>& operator=(const EepromState<T, Offset>&) = delete;
+  }
 
-      std::vector<push_fn<T>> _sinks;
+  template <typename T, uint Offset>
+  class EepromState {
+    EepromState(T initial) {
+      if (!has_value()) {
+        set(initial);
+      }
+    }
 
-      detail::SizedHashedWrapper<T> _get_raw() {
-          detail::SizedHashedWrapper<T> data;
-          EEPROM.get(Offset, data);
-          return data;
+    EepromState() = default;
+    EepromState(const EepromState<T, Offset>&) = delete;
+    EepromState<T, Offset>& operator=(const EepromState<T, Offset>&) = delete;
+
+    std::vector<push_fn<T>> _sinks;
+
+    detail::SizedHashedWrapper<T> _get_raw() {
+        detail::SizedHashedWrapper<T> data;
+        EEPROM.get(Offset, data);
+        return data;
+    }
+
+    public:
+      // Singleton 'constructor'.
+      static EepromState<T, Offset>& get_instance() {
+        static EepromState<T, Offset> instance;
+        return instance;
       }
 
-      public:
-        // Singleton 'constructor'.
-        static EepromState<T, Offset>& get_instance() {
-          static EepromState<T, Offset> instance;
-          return instance;
-        }
+      static EepromState<T, Offset>& get_instance(T initial) {
+        static EepromState<T, Offset> instance(initial);
+        return instance;
+      }
 
-        void set(T value, bool push = true) {
-          detail::SizedHashedWrapper<T> data(value);
-          EEPROM.put(Offset, data);
+      void set(T value, bool push = true) {
+        detail::SizedHashedWrapper<T> data(value);
+        EEPROM.put(Offset, data);
 
-          if (push) {
-            for (auto& sink : _sinks) {
-              sink(value);
-            }
+        if (push) {
+          for (auto& sink : _sinks) {
+            sink(value);
           }
         }
+      }
 
-        T get() {
+      T get() {
+        detail::SizedHashedWrapper<T> data = _get_raw();
+        if (!data.is_valid()) {
+          assert(false && "Data at EEPROM address isn't valid; checksum doesn't check out");
+        }
+        return data.get_value();
+      }
+
+      std::optional<T> try_get() {
+        detail::SizedHashedWrapper<T> data = _get_raw();
+        if (!data.is_valid()) {
+          return std::nullopt;
+        }
+        return data.get_value();
+      }
+
+      bool has_value() {
+        return _get_raw().is_valid();
+      }
+
+      // This can be used as-is as a source function.
+      // The PushFn is type-erased into push_fn<T> for storage
+      // in the internal sinks vector, but the returned pull handler
+      // retains the concrete PushFn type.
+      template <typename PushFn>
+        requires concepts::Visitor<PushFn, T>
+      auto add_sink(PushFn push, bool initial_push = true) {
+        _sinks.push_back(push_fn<T>(push));
+        if (initial_push) {
           detail::SizedHashedWrapper<T> data = _get_raw();
-          if (!data.is_valid()) {
-            assert(false && "Data at EEPROM address isn't valid; checksum doesn't check out");
+          if (data.is_valid()) {
+            // Push the initial value.
+            push(data.get_value());
           }
-          return data.get_value();
         }
 
-        std::optional<T> try_get() {
-          detail::SizedHashedWrapper<T> data = _get_raw();
-          if (!data.is_valid()) {
-            return std::nullopt;
-          }
-          return data.get_value();
-        }
+        // The pull function consumes errors
+        // and turns them into meaningful action
+        // (or meaningful inaction).
+        return detail::eeprom_state_pull_handler<T, Offset, PushFn>{this, std::move(push)};
+      }
 
-        bool has_value() {
-          return _get_raw().is_valid();
-        }
+      auto get_source_fn(bool initial_push = true) {
+        return detail::eeprom_state_source_binder<T, Offset>{this, initial_push};
+      }
 
-        // This can be used as-is as a source function.
-        // The PushFn is type-erased into push_fn<T> for storage
-        // in the internal sinks vector, but the returned pull handler
-        // retains the concrete PushFn type.
-        template <typename PushFn>
-          requires concepts::Visitor<PushFn, T>
-        auto add_sink(PushFn push, bool initial_push = true) {
-          _sinks.push_back(push_fn<T>(push));
-          if (initial_push) {
-            detail::SizedHashedWrapper<T> data = _get_raw();
-            if (data.is_valid()) {
-              // Push the initial value.
-              push(data.get_value());
-            }
-          }
+      auto get_setter_push_fn(bool push_on_set = true) {
+        return detail::eeprom_state_push_handler<T, Offset>{this, push_on_set};
+      }
 
-          // The pull function consumes errors
-          // and turns them into meaningful action
-          // (or meaningful inaction).
-          return eeprom_state_pull_handler<T, Offset, PushFn>{this, std::move(push)};
-        }
+      auto get_setter_sink_fn(bool push_on_set = true) {
+        return detail::eeprom_state_sink_binder<T, Offset>{this, push_on_set};
+      }
+  };
 
-        auto get_source_fn(bool initial_push = true) {
-          return eeprom_state_source_binder<T, Offset>{this, initial_push};
-        }
-
-        auto get_setter_push_fn(bool push_on_set = true) {
-          return eeprom_state_push_handler<T, Offset>{this, push_on_set};
-        }
-
-        auto get_setter_sink_fn(bool push_on_set = true) {
-          return eeprom_state_sink_binder<T, Offset>{this, push_on_set};
-        }
-    };
-
+  namespace detail {
     template<std::size_t Offset, typename... Ts>
     struct EepromStateTupleBuilder;
 
@@ -276,76 +296,51 @@ namespace rheoscape::states {
         std::declval<typename EepromStateTupleBuilder<Offset + sizeof(T) + 2, Rest...>::type>()
       ));
 
-      static type make() {
-        return std::tuple_cat(
-          std::forward_as_tuple(EepromState<T, Offset>::get_instance()),
-          EepromStateTupleBuilder<Offset + sizeof(T) + 2, Rest...>::make()
-        );
+      static type make(std::optional<T> initial, Rest... rest) {
       }
     };
 
-    // Helper to get the tail of a tuple (all elements except the first).
-    template <typename Tuple, std::size_t... Is>
-    auto tuple_tail_impl(Tuple&& t, std::index_sequence<Is...>) {
-      return std::make_tuple(std::get<Is + 1>(std::forward<Tuple>(t))...);
+    template <uint Offset, typename T, typename PipeFn>
+    auto make_memory_mirrored_eeprom_pipe(MemoryState<T>& memory_state, std::optional<T> initial, PipeFn pipe) {
+      auto& eeprom_state = initial.has_value()
+        ? EepromState<T, Offset>::get_instance(initial.value())
+        : EepromState<T, Offset>::get_instance();
+
+      // push_initial defaults to true,
+      // so the memory state gets populated on bind.
+      eeprom_state.get_source_fn()
+        // Push_on_set defaults to true,
+        // keeping the pipe alive w/o a pull function.
+        | memory_state.get_setter_sink_fn();
+      memory_state.get_source_fn()
+        | pipe
+        // Avoid infinite loops from eeprom to memory and back!
+        | eeprom_state.get_setter_sink_fn(false);
     }
-
-    template <typename Tuple>
-    auto tuple_tail(Tuple&& t) {
-      return tuple_tail_impl(
-        std::forward<Tuple>(t),
-        std::make_index_sequence<std::tuple_size_v<std::decay_t<Tuple>> - 1>{}
-      );
-    }
-
-    template<std::size_t Offset, typename... PipeFns>
-    struct MemoryMirroredEepromStateTupleBuilder;
-
-    template<std::size_t Offset>
-    struct MemoryMirroredEepromStateTupleBuilder<Offset> {
-      std::tuple<> pipes;
-
-      using type = std::tuple<>;
-      type make() { return {}; }
-    };
-
-    template<std::size_t Offset, typename PipeFn, typename... RestPipeFns>
-    struct MemoryMirroredEepromStateTupleBuilder<Offset, PipeFn, RestPipeFns...> {
-      std::tuple<PipeFn, RestPipeFns...> pipes;
-
-      using T = pipe_input_t<PipeFn>;
-
-      using type = decltype(std::tuple_cat(
-        std::declval<std::tuple<MemoryState<T>>>(),
-        std::declval<typename MemoryMirroredEepromStateTupleBuilder<Offset + sizeof(T) + 2, RestPipeFns...>::type>()
-      ));
-
-      type make() {
-        type result = std::tuple_cat(
-          std::make_tuple(MemoryState<T>()),
-          MemoryMirroredEepromStateTupleBuilder<Offset + sizeof(T) + 2, RestPipeFns...>{tuple_tail(pipes)}.make()
-        );
-
-        MemoryState<T>& memory_state = std::get<0>(result);
-        auto& eeprom_state = EepromState<T, Offset>::get_instance();
-        // Push_initial defaults to true,
-        // so the memory state gets populated on bind.
-        eeprom_state.get_source_fn()
-          // Push_on_set defaults to true,
-          // keeping the pipe alive w/o a pull function.
-          | memory_state.get_setter_sink_fn();
-        memory_state.get_source_fn()
-          | std::get<0>(pipes)
-          // Avoid infinite loops from eeprom to memory and back!
-          | eeprom_state.get_setter_sink_fn(false);
-        return result;
-      }
-    };
   }
 
-  template <uint Offset, typename... Ts>
+  template <uint Offset>
+  std::tuple<> make_eeprom_states() {
+    return std::tuple<>{};
+  }
+
+  template <uint Offset, typename T, typename... Rest>
   auto make_eeprom_states() {
-    return detail::EepromStateTupleBuilder<Offset, Ts...>::make();
+    return std::tuple_cat(
+      std::forward_as_tuple(EepromState<T, Offset>::get_instance()),
+      make_eeprom_states<Rest...>()
+    );
+  }
+
+  template <uint Offset, typename T, typename... Rest>
+  auto make_eeprom_states(std::optional<T> initial, Rest... rest) {
+    return std::tuple_cat(
+      std::forward_as_tuple(initial.has_value()
+        ? EepromState<T, Offset>::get_instance(initial.value())
+        : EepromState<T, Offset>::get_instance()
+      ),
+      make_eeprom_states<Offset + sizeof(T) + 2>(rest...)
+    );
   }
 
   // Creates a tuple of MemoryState objects, each mirrored to a corresponding EEPROM slot.
@@ -353,17 +348,50 @@ namespace rheoscape::states {
   //   1. EEPROM -> MemoryState (initial populate on bind)
   //   2. MemoryState -> pipe -> EEPROM (buffered write-back)
   //
-  // Each pipe must satisfy the Pipe concept
-  // and have matching input and output types
-  // (since the value goes from MemoryState<T> through the pipe back to EepromState<T>).
-  // Use typed_pipe<T>() to annotate an untyped pipe factory with its value type.
-  template <uint Offset, typename... PipeFns>
-    requires (concepts::Pipe<std::decay_t<PipeFns>> && ...)
-      && (std::same_as<pipe_input_t<PipeFns>, pipe_output_t<PipeFns>> && ...)
-  auto make_memory_mirrored_eeprom_pipes(PipeFns... pipes) {
-    return detail::MemoryMirroredEepromStateTupleBuilder<Offset, std::decay_t<PipeFns>...>{
-      std::make_tuple(std::move(pipes)...)
-    }.make();
+  // Each initial value must be a std::optional,
+  // and each corresponding pipe must be able to be bound to the initial value's type
+  // and produce the exact same output type as the initial value's type.
+  //
+  // Usage:
+  //
+  // ```c++
+  // auto [
+  //   threshold_state,
+  //   extra_config_state,
+  //   is_running_state
+  // ] = make_memory_mirrored_eeprom_pipes(
+  //   option(3.14f), manual_save_pipe,
+  //   option(MyStruct{ "hello", 16 }), manual_save_pipe,
+  //   option(false), buffer_writes_pipe
+  // );
+
+  // End case.
+  template <uint Offset>
+  std::tuple<> make_memory_mirrored_eeprom_pipes() {
+    return std::tuple<>{};
+  }
+
+  template <uint Offset, typename T, typename PipeFn, typename... Rest>
+  auto make_memory_mirrored_eeprom_pipes(std::optional<T> initial, PipeFn pipe, Rest... rest) {
+    auto result = std::tuple_cat(
+      std::forward_as_tuple(MemoryState<T>()),
+      make_memory_mirrored_eeprom_pipes<Offset + sizeof(detail::SizedHashedWrapper<T>)>(rest...)
+    );
+    detail::make_memory_mirrored_eeprom_pipe<Offset>(std::get<0>(result), initial, pipe);
+    return result;
+  }
+
+  template <uint Offset, typename PipeFn, typename... RestPipeFns>
+    requires (concepts::Pipe<PipeFn>)
+      && (std::same_as<pipe_input_t<PipeFn>, pipe_output_t<PipeFn>>)
+  auto make_memory_mirrored_eeprom_pipes(PipeFn pipe, RestPipeFns... rest) {
+    using T = pipe_input_t<PipeFn>;
+    auto result = std::tuple_cat(
+      std::forward_as_tuple(MemoryState<T>()),
+      make_memory_mirrored_eeprom_pipes<Offset + sizeof(detail::SizedHashedWrapper<T>)>(rest...)
+    );
+    detail::make_memory_mirrored_eeprom_pipe<Offset>(std::get<0>(result), no_option<T>, pipe);
+    return result;
   }
 
 }
