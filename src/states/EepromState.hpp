@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cassert>
-#include <memory>
 #include <typeinfo>
 #include <EEPROM.h>
 #include <CRCx.h>
@@ -366,51 +365,33 @@ namespace rheoscape::states {
   //   option(false), buffer_writes_pipe
   // );
 
-  // End case.
-  // Implementation uses shared_ptr<MemoryState<T>> internally
-  // to ensure MemoryState addresses remain stable after pipeline binding.
-  // The binders and handlers in MemoryState/EepromState capture `this` pointers,
-  // which would dangle if the MemoryState were moved after binding.
-  //
-  // The returned tuple contains MemoryState<T>& references
-  // (same as make_eeprom_states returns EepromState references),
-  // with ownership managed by a shared_ptr stored inside the pipeline closures.
-
   namespace detail {
-    template <uint Offset>
-    std::tuple<> make_memory_mirrored_eeprom_pipes_impl() {
-      return std::tuple<>{};
+    // Static singleton for the MemoryState that mirrors an EepromState slot.
+    // Keyed on (Offset, T) to match the corresponding EepromState singleton.
+    // This ensures the MemoryState has a stable address
+    // so that pipeline binders capturing `this` never dangle.
+    template <uint Offset, typename T>
+    MemoryState<T>& get_mirror_memory_state() {
+      static MemoryState<T> instance;
+      return instance;
     }
+  }
 
-    template <uint Offset, typename T, typename PipeFn, typename... Rest>
-    auto make_memory_mirrored_eeprom_pipes_impl(std::optional<T> initial, PipeFn pipe, Rest... rest) {
-      auto mem_ptr = std::make_shared<MemoryState<T>>();
-      make_memory_mirrored_eeprom_pipe<Offset>(*mem_ptr, initial, pipe);
-
-      // Prevent the MemoryState from being destroyed
-      // by capturing the shared_ptr in the EepromState's sink.
-      // The EepromState is a singleton so this effectively gives static lifetime.
-      auto& eeprom_state = initial.has_value()
-        ? EepromState<T, Offset>::get_instance(initial.value())
-        : EepromState<T, Offset>::get_instance();
-      eeprom_state.add_sink(
-        [mem_ptr](T) {
-          // No-op sink; exists solely to prevent the shared_ptr
-          // (and thus the MemoryState) from being destroyed.
-        },
-        false
-      );
-
-      return std::tuple_cat(
-        std::forward_as_tuple(*mem_ptr),
-        make_memory_mirrored_eeprom_pipes_impl<Offset + sizeof(SizedHashedWrapper<T>)>(rest...)
-      );
-    }
+  // End case.
+  template <uint Offset>
+  std::tuple<> make_memory_mirrored_eeprom_pipes() {
+    return std::tuple<>{};
   }
 
   template <uint Offset, typename T, typename PipeFn, typename... Rest>
   auto make_memory_mirrored_eeprom_pipes(std::optional<T> initial, PipeFn pipe, Rest... rest) {
-    return detail::make_memory_mirrored_eeprom_pipes_impl<Offset>(initial, pipe, rest...);
+    auto& memory_state = detail::get_mirror_memory_state<Offset, T>();
+    detail::make_memory_mirrored_eeprom_pipe<Offset>(memory_state, initial, pipe);
+
+    return std::tuple_cat(
+      std::forward_as_tuple(memory_state),
+      make_memory_mirrored_eeprom_pipes<Offset + sizeof(detail::SizedHashedWrapper<T>)>(rest...)
+    );
   }
 
 }
