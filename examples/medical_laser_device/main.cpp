@@ -333,11 +333,10 @@ void setup() {
 
   pull_heartbeat = sine_wave(
     system_clock_source,
-    constant(float_millis_clock::duration(2000)),
-    constant(float_millis_clock::duration(0))
+    constant(float_millis_clock::duration(2000))
   )
   // Zero-bias, then stretch to 10-bit PWM range.
-  | map([](float v) { return (v + 1.0f) / 2 * 1023; })
+  | map([](float v) -> int { return (v + 1.0f) / 2 * 1023; })
   | analog_pin_sink(25, 10);
 
   Serial.println("=== SETUP COMPLETE ==="); Serial.flush();

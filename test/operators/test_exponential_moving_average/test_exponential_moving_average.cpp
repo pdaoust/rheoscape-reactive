@@ -42,7 +42,7 @@ void test_exponential_moving_average_accommodates_discontinuous_time_jumps() {
   auto clock_source = from_clock<mock_clock_ulong_millis>()
     | map([](mock_clock_ulong_millis::time_point v) { return v.time_since_epoch().count(); });
   auto period_source = MemoryState(100UL, false);
-  auto value_source = sine_wave(clock_source, period_source.get_source_fn(), constant(0UL))
+  auto value_source = sine_wave(clock_source, period_source.get_source_fn())
     | map([](float v) { return v * 10; });
   auto time_constant_source = constant(400UL);
   auto avg = exponential_moving_average(value_source, clock_source, time_constant_source);
@@ -84,7 +84,7 @@ void test_exponential_moving_average_accommodates_discontinuous_time_jumps() {
 
 void test_exponential_moving_average_responds_to_time_constant_change() {
   auto clock_source = sequence_open(1, 1);
-  auto value_source = sine_wave(clock_source, constant(200), constant(0))
+  auto value_source = sine_wave(clock_source, constant(200))
     | map([](float v) { return v * 10; });
   auto time_constant_source = MemoryState(400, false);
   auto avg = exponential_moving_average(value_source, clock_source, time_constant_source.get_source_fn());
@@ -121,7 +121,7 @@ void test_exponential_moving_average_responds_to_time_constant_change() {
 void test_exponential_moving_average_works_as_high_cut_and_low_pass() {
   auto clock_source = sequence_open(1, 1);
   auto period_source = MemoryState(100, false);
-  auto value_source = sine_wave(clock_source, period_source.get_source_fn(false), constant(0))
+  auto value_source = sine_wave(clock_source, period_source.get_source_fn(false))
     | map([](float v) { return v * 10; });
   auto time_constant_source = constant(400);
   auto avg = exponential_moving_average(value_source, clock_source, time_constant_source);

@@ -3,7 +3,9 @@
 #include <operators/waves.hpp>
 #include <sources/constant.hpp>
 #include <sources/sequence.hpp>
+#include <sources/from_clock.hpp>
 #include <states/MemoryState.hpp>
+#include <types/mock_clock.hpp>
 #include <fmt/format.h>
 
 using namespace rheoscape;
@@ -15,7 +17,7 @@ void test_wave_waves() {
   auto input_source = sequence_open(0, 1);
   auto period_source = constant(100);
   auto phase_shift_source = constant(0);
-  auto wave_source = wave(input_source, period_source, phase_shift_source, [](float value) { return value; });
+  auto wave_source = wave(input_source, period_source, [](float value) { return value; }, phase_shift_source);
 
   float pushed_value = 0;
   auto pull = wave_source([&pushed_value](float v) { pushed_value = v; });
@@ -38,8 +40,8 @@ void test_wave_waves() {
 void test_wave_shifts_phase() {
   auto input_source = sequence_open(0, 1);
   auto period_source = constant(100);
-  auto phase_shift_source = constant(25);
-  auto wave_source = wave(input_source, period_source, phase_shift_source, [](float value) { return value; });
+  auto phase_shift_source = constant(75);
+  auto wave_source = wave(input_source, period_source, [](float value) { return value; }, phase_shift_source);
 
   float pushed_value = 0;
   auto pull = wave_source([&pushed_value](float v) { pushed_value = v; });
@@ -143,32 +145,60 @@ void test_pwm_wave_waves() {
   auto period_source = constant(100);
   auto phase_shift_source = constant(0);
   MemoryState<float> duty_state(0.0f, false);
-  auto pwm_source = pwm_wave(input_source, period_source, phase_shift_source, duty_state.get_source_fn(false));
+  auto pwm_source = pwm_wave(input_source, period_source, duty_state.get_source_fn(false), phase_shift_source);
 
-  float pushed_value;
+  bool pushed_value;
   auto pull = pwm_source([&pushed_value](auto v) { pushed_value = v; });
 
   for (int i = 0; i < 100; i ++) {
     pull();
-    TEST_ASSERT_EQUAL_FLOAT_MESSAGE(-1.0f, pushed_value, fmt::format("Should calculate PWM wave with 0 duty at {}", i).c_str());
+    TEST_ASSERT_FALSE_MESSAGE(pushed_value, fmt::format("Should calculate PWM wave with 0 duty at {}", i).c_str());
   }
 
   duty_state.set(0.25f, false);
   for (int i = 0; i < 100; i ++) {
     pull();
-    TEST_ASSERT_EQUAL_FLOAT_MESSAGE(i < 25 ? 1.0f : -1.0f, pushed_value, fmt::format("Should calculate PWM wave with 0.25 duty at {}", i).c_str());
+    TEST_ASSERT_EQUAL_MESSAGE(i < 25, pushed_value, fmt::format("Should calculate PWM wave with 0.25 duty at {}", i).c_str());
   }
 
   duty_state.set(0.75f, false);
   for (int i = 0; i < 100; i ++) {
     pull();
-    TEST_ASSERT_EQUAL_FLOAT_MESSAGE(i < 75 ? 1.0f : -1.0f, pushed_value, fmt::format("Should calculate PWM wave with 0.75 duty at {}", i).c_str());
+    TEST_ASSERT_EQUAL_MESSAGE(i < 75, pushed_value, fmt::format("Should calculate PWM wave with 0.75 duty at {}", i).c_str());
   }
 
   duty_state.set(1.0f, false);
   for (int i = 0; i < 100; i ++) {
     pull();
     TEST_ASSERT_EQUAL_FLOAT_MESSAGE(1.0, pushed_value, "Should calculate PWM wave with 1.0 duty");
+  }
+}
+
+void test_square_wave_with_chrono_clock() {
+  // Smoke test: verify wave operators compile and work
+  // when the input source emits chrono time_points
+  // and the period/phase sources emit chrono durations.
+  using clock = mock_clock_ulong_millis;
+  using duration = clock::duration;
+
+  clock::set_time(0);
+  auto input_source = from_clock<clock>();
+  auto period_source = constant(duration(100));
+  auto phase_shift_source = constant(duration(0));
+  auto square_source = square_wave(input_source, period_source, phase_shift_source);
+
+  float pushed_value = 0;
+  int pushed_count = 0;
+  auto pull = square_source([&pushed_value, &pushed_count](float v) { pushed_count++; pushed_value = v; });
+
+  for (int i = 0; i < 100; i++) {
+    pull();
+    TEST_ASSERT_EQUAL_MESSAGE(i + 1, pushed_count, "Should have pushed the right number of times");
+    TEST_ASSERT_EQUAL_FLOAT_MESSAGE(
+      i < 50 ? 1.0f : -1.0f, pushed_value,
+      fmt::format("Should calculate square wave correctly at tick {}", i).c_str()
+    );
+    clock::tick();
   }
 }
 
@@ -181,5 +211,6 @@ int main(int argc, char** argv) {
   RUN_TEST(test_sawtooth_wave_waves);
   RUN_TEST(test_triangle_wave_waves);
   RUN_TEST(test_pwm_wave_waves);
+  RUN_TEST(test_square_wave_with_chrono_clock);
   UNITY_END();
 }
