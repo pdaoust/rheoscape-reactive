@@ -452,7 +452,6 @@ The Rheoscape standard library comes with a lot of good structs, classes, source
     * `map`: Transform one value type into another.
     * `merge`: Blend multiple streams with a common value type into one.
     * `normalize`: Map a stream of values from one range to another.
-    * `pass_through`: Literally does nothing. Just passes a bound source right through it. This is useful for making a 'forward declaration' of the head of a side stream, such as you might use in `tee`. It lets you define a variable containing a pass-through pipe that you can attach downstream sinks to later.
     * `pid`: A proportional/integral/derivative for high-precision system control. Can be trained.
     * `quadrature_encode`: Takes two boolean inputs and applies 'quadrature' or 'Gray coding' to it. Used for rotary encoders. I'd recommend using `digital_pin_interrupt_source<pin_a, pin_b>()` rather than combining two single non-interrupt-driven digital pin sources; the interrupt version is more responsive.
     * `sample`: Like `combine`, but it only produces a combined value when values are pushed to the first stream.
