@@ -435,8 +435,6 @@ namespace rheoscape::operators {
   // Pipe versions (simplified scalar-only for ergonomics)
   // ==========================================================================
 
-  // TODO: Migrate pipe factories to generic SourceT to work with operator|.
-  // Currently they take source_fn<TCalc> explicitly.
   namespace detail {
     template <typename TCalc, typename TTimePoint, typename TIntervalConverter>
     struct PidPipeFactory {
@@ -446,9 +444,12 @@ namespace rheoscape::operators {
       std::optional<Range<TCalc>> clamp_range;
       TIntervalConverter interval_converter;
 
-      RHEOSCAPE_CALLABLE auto operator()(source_fn<TCalc> process_variable_source) const {
+      template <typename SourceT>
+        requires concepts::Source<SourceT>
+      RHEOSCAPE_CALLABLE auto operator()(SourceT process_variable_source) const {
         return pid<TCalc, TTimePoint>(
-          process_variable_source, setpoint_source, clock_source,
+          source_fn<TCalc>(std::move(process_variable_source)),
+          setpoint_source, clock_source,
           weights_source, clamp_range, interval_converter
         );
       }
@@ -461,9 +462,12 @@ namespace rheoscape::operators {
       source_fn<PidWeights<TCalc, TCalc, TCalc>> weights_source;
       std::optional<Range<TCalc>> clamp_range;
 
-      RHEOSCAPE_CALLABLE auto operator()(source_fn<TCalc> process_variable_source) const {
+      template <typename SourceT>
+        requires concepts::Source<SourceT>
+      RHEOSCAPE_CALLABLE auto operator()(SourceT process_variable_source) const {
         return pid<TCalc, TTimePoint>(
-          process_variable_source, setpoint_source, clock_source,
+          source_fn<TCalc>(std::move(process_variable_source)),
+          setpoint_source, clock_source,
           weights_source, clamp_range
         );
       }
@@ -477,9 +481,12 @@ namespace rheoscape::operators {
       std::optional<Range<TCalc>> clamp_range;
       TIntervalConverter interval_converter;
 
-      RHEOSCAPE_CALLABLE auto operator()(source_fn<TCalc> process_variable_source) const {
+      template <typename SourceT>
+        requires concepts::Source<SourceT>
+      RHEOSCAPE_CALLABLE auto operator()(SourceT process_variable_source) const {
         return pid_detailed<TCalc, TTimePoint>(
-          process_variable_source, setpoint_source, clock_source,
+          source_fn<TCalc>(std::move(process_variable_source)),
+          setpoint_source, clock_source,
           weights_source, clamp_range, interval_converter
         );
       }
@@ -492,9 +499,12 @@ namespace rheoscape::operators {
       source_fn<PidWeights<TCalc, TCalc, TCalc>> weights_source;
       std::optional<Range<TCalc>> clamp_range;
 
-      RHEOSCAPE_CALLABLE auto operator()(source_fn<TCalc> process_variable_source) const {
+      template <typename SourceT>
+        requires concepts::Source<SourceT>
+      RHEOSCAPE_CALLABLE auto operator()(SourceT process_variable_source) const {
         return pid_detailed<TCalc, TTimePoint>(
-          process_variable_source, setpoint_source, clock_source,
+          source_fn<TCalc>(std::move(process_variable_source)),
+          setpoint_source, clock_source,
           weights_source, clamp_range
         );
       }

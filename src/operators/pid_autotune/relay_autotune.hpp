@@ -311,17 +311,17 @@ namespace rheoscape::autotune {
   }
 
   namespace detail {
-    // TODO: Migrate to generic SourceT to work with operator|.
-    // Currently takes source_fn<TP> explicitly.
     template <typename TP, typename TCtl, typename TTimePoint, typename TKp, typename TKi, typename TKd>
     struct RelayAutotunePipeFactory {
       source_fn<TP> setpoint_source;
       source_fn<TTimePoint> clock_source;
       RelayAutotuneConfig<TCtl, TP, TTimePoint> config;
 
-      RHEOSCAPE_CALLABLE auto operator()(source_fn<TP> process_variable_source) const {
+      template <typename SourceT>
+        requires concepts::Source<SourceT>
+      RHEOSCAPE_CALLABLE auto operator()(SourceT process_variable_source) const {
         return relay_autotune<TP, TCtl, TTimePoint, TKp, TKi, TKd>(
-          process_variable_source,
+          source_fn<TP>(std::move(process_variable_source)),
           setpoint_source,
           clock_source,
           config

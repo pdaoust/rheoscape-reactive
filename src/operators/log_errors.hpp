@@ -9,6 +9,32 @@
 
 namespace rheoscape::operators {
 
+  namespace detail {
+    template <typename FallibleT, typename MapFn>
+    struct ErrorLoggerPushHandler {
+      std::optional<std::string> topic;
+      MapFn format_error;
+
+      RHEOSCAPE_CALLABLE void operator()(FallibleT value) const {
+        if (value.is_error()) {
+          logging::error(topic, format_error(value.error()));
+        }
+      }
+    };
+
+    template <typename FallibleT, typename MapFn>
+    struct ErrorLogger {
+      std::optional<std::string> topic;
+      MapFn format_error;
+
+      template <typename SourceT>
+        requires concepts::Source<SourceT>
+      RHEOSCAPE_CALLABLE void operator()(SourceT source) const {
+        source(ErrorLoggerPushHandler<FallibleT, MapFn>{topic, format_error});
+      }
+    };
+  }
+
   template <typename SourceT, typename MapFn>
     requires concepts::Source<SourceT>
   auto log_errors(
@@ -17,33 +43,12 @@ namespace rheoscape::operators {
     std::optional<std::string> topic = std::nullopt
   ) {
     using FallibleT = source_value_t<SourceT>;
-    using T = typename FallibleT::ok_type;
-    using TErr = typename FallibleT::error_type;
     using MapFnDecayed = std::decay_t<MapFn>;
 
-    // TODO: Migrate to generic SourceT to work with operator|.
-    // Currently takes source_fn<FallibleT> explicitly.
-    struct ErrorLogger {
-      std::optional<std::string> topic;
-      MapFnDecayed format_error;
-
-      RHEOSCAPE_CALLABLE void operator()(source_fn<FallibleT> source) const {
-        struct PushHandler {
-          std::optional<std::string> topic;
-          MapFnDecayed format_error;
-
-          RHEOSCAPE_CALLABLE void operator()(FallibleT value) const {
-            if (value.is_error()) {
-              logging::error(topic, format_error(value.error()));
-            }
-          }
-        };
-
-        source(PushHandler{topic, format_error});
-      }
-    };
-
-    return tee(std::move(source), ErrorLogger{topic, std::forward<MapFn>(format_error)});
+    return tee(
+      std::move(source),
+      detail::ErrorLogger<FallibleT, MapFnDecayed>{topic, std::forward<MapFn>(format_error)}
+    );
   }
 
   // Overload with default formatter

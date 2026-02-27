@@ -49,27 +49,20 @@ namespace rheoscape::operators {
   //   But it'd be weird.
   //   It's not what this function is made for.
 
-  template <typename TOut, typename TIn, typename LiftFn, typename LowerFn>
-  auto lift(
-    pipe_fn<TOut, TIn> inner_pipe_fn,
-    LiftFn lift_fn,
-    LowerFn lower_fn
-  )
-  -> pipe_fn<
-    return_of<LiftFn>,
-    arg_of<LowerFn>
-  > {
-    using TLiftedOut = return_of<LiftFn>;
-    using TLiftedIn = arg_of<LowerFn>;
+  namespace detail {
+    template <typename TOut, typename TIn, typename LiftFn, typename LowerFn>
+    struct LiftPipeFactory {
+      using TLiftedOut = return_of<LiftFn>;
+      using TLiftedIn = arg_of<LowerFn>;
 
-    // TODO: Migrate to generic SourceT to work with operator|.
-    // Currently takes source_fn<TLiftedIn> explicitly.
-    struct PipeFactory {
       pipe_fn<TOut, TIn> inner_pipe_fn;
       LiftFn lift_fn;
       LowerFn lower_fn;
 
-      RHEOSCAPE_CALLABLE source_fn<TLiftedOut> operator()(source_fn<TLiftedIn> outer_source_in) const {
+      template <typename SourceT>
+        requires concepts::Source<SourceT>
+      RHEOSCAPE_CALLABLE auto operator()(SourceT outer_source_in_generic) const {
+        source_fn<TLiftedIn> outer_source_in(std::move(outer_source_in_generic));
 
         struct SourceBinder {
           pipe_fn<TOut, TIn> inner_pipe_fn;
@@ -155,8 +148,15 @@ namespace rheoscape::operators {
         };
       }
     };
+  } // namespace detail
 
-    return PipeFactory{
+  template <typename TOut, typename TIn, typename LiftFn, typename LowerFn>
+  auto lift(
+    pipe_fn<TOut, TIn> inner_pipe_fn,
+    LiftFn lift_fn,
+    LowerFn lower_fn
+  ) {
+    return detail::LiftPipeFactory<TOut, TIn, LiftFn, LowerFn>{
       std::move(inner_pipe_fn),
       std::move(lift_fn),
       std::move(lower_fn)
@@ -164,8 +164,7 @@ namespace rheoscape::operators {
   }
 
   template <typename TOut, typename TIn>
-  auto lift_to_optional(pipe_fn<TOut, TIn> inner_pipe_fn)
-  -> pipe_fn<std::optional<TOut>, std::optional<TIn>> {
+  auto lift_to_optional(pipe_fn<TOut, TIn> inner_pipe_fn) {
     return lift(
       inner_pipe_fn,
       [](TOut value, std::optional<TIn> _) { return std::optional<TOut>(value); },
@@ -178,8 +177,7 @@ namespace rheoscape::operators {
   }
 
   template <typename TErr, typename TOut, typename TIn>
-  auto lift_to_fallible(pipe_fn<TOut, TIn> inner_pipe_fn)
-  -> pipe_fn<Fallible<TOut, TErr>, Fallible<TIn, TErr>> {
+  auto lift_to_fallible(pipe_fn<TOut, TIn> inner_pipe_fn) {
     return lift(
       inner_pipe_fn,
       [](TOut value, Fallible<TIn, TErr> fallible_in) { return Fallible<TOut, TErr>{ value, fallible_in.error() }; },
@@ -192,8 +190,7 @@ namespace rheoscape::operators {
   }
 
   template <typename TRight, typename TOut, typename TIn>
-  auto lift_to_tuple_left(pipe_fn<TOut, TIn> inner_pipe_fn)
-  -> pipe_fn<std::tuple<TOut, TRight>, std::tuple<TIn, TRight>> {
+  auto lift_to_tuple_left(pipe_fn<TOut, TIn> inner_pipe_fn) {
     return lift(
       inner_pipe_fn,
       [](TOut value, std::tuple<TIn, TRight> tuple_in) { return std::tuple<TOut, TRight>{ value, std::get<1>(tuple_in) }; },
@@ -202,8 +199,7 @@ namespace rheoscape::operators {
   }
 
   template <typename TLeft, typename TOut, typename TIn>
-  auto lift_to_tuple_right(pipe_fn<TOut, TIn> inner_pipe_fn)
-  -> pipe_fn<std::tuple<TLeft, TOut>, std::tuple<TLeft, TIn>> {
+  auto lift_to_tuple_right(pipe_fn<TOut, TIn> inner_pipe_fn) {
     return lift(
       inner_pipe_fn,
       [](TOut value, std::tuple<TLeft, TIn> tuple_in) { return std::tuple<TLeft, TOut>{ std::get<0>(tuple_in), value }; },

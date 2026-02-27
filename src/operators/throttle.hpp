@@ -19,6 +19,7 @@ namespace rheoscape::operators {
       TInterval interval;
 
       template <typename PushFn>
+        requires concepts::Visitor<PushFn, value_type>
       RHEOSCAPE_CALLABLE auto operator()(PushFn push) const {
 
         struct PushHandler {

@@ -104,7 +104,7 @@ namespace rheoscape::sources::arduino {
       using value_type = std::tuple<decltype(Pins, bool{})...>;
 
       template <typename PushFn>
-      // TODO: can I add a concept constraint here or is SFINAE good enough?
+        requires concepts::Visitor<PushFn, value_type>
       RHEOSCAPE_CALLABLE auto operator()(PushFn push) const {
         return digital_pin_interrupt_push_handler<PushFn, Pins...>{std::move(push)};
       }
