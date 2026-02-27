@@ -198,37 +198,46 @@ namespace rheoscape {
   template <typename TOut, typename TIn>
   using pipe_fn = sink_fn<source_fn<TOut>, TIn>;
 
-  // Helper trait to extract the input and output value types from a pipe.
+  // ============================================================================
+  // Inline Control Macro
+  // ============================================================================
   //
-  // Two paths:
-  // 1. Structs with `using input_type = TIn; using output_type = TOut;`
-  //    (pipe factory structs, once annotated)
-  // 2. pipe_fn<TOut, TIn> (backward compat, also covers std::function)
+  // RHEOSCAPE_CALLABLE controls inlining behavior for framework internals.
+  // Use this on operator() methods of named callable structs.
   //
-  // Pipe factory structs that currently use a deduced SourceT template parameter
-  // should add these aliases to opt into the Pipe concept.
-  template<typename T, typename = void>
-  struct pipe_types {};
+  // Configuration macros (define before including Rheoscape headers):
+  //
+  //   RHEOSCAPE_DEBUG_INTERNALS   - Prevent inlining so you can step through
+  //                            framework code in the debugger. Useful for
+  //                            Rheoscape developers or debugging operator issues.
+  //
+  //   RHEOSCAPE_AGGRESSIVE_INLINE - Force aggressive inlining for maximum performance
+  //                            and shallow stacks. May increase binary size.
+  //
+  // Priority: RHEOSCAPE_DEBUG_INTERNALS > RHEOSCAPE_AGGRESSIVE_INLINE > default (inline hint)
 
-  // Path 1: struct with explicit input_type and output_type members
-  template<typename T>
-  struct pipe_types<T, std::void_t<typename T::input_type, typename T::output_type>> {
-    using input_type = typename T::input_type;
-    using output_type = typename T::output_type;
-  };
-
-  // Path 2: pipe_fn<TOut, TIn> (backward compat)
-  template<typename TOut, typename TIn>
-  struct pipe_types<pipe_fn<TOut, TIn>, void> {
-    using input_type = TIn;
-    using output_type = TOut;
-  };
-
-  template<typename T>
-  using pipe_input_t = typename pipe_types<std::decay_t<T>>::input_type;
-
-  template<typename T>
-  using pipe_output_t = typename pipe_types<std::decay_t<T>>::output_type;
+#if defined(RHEOSCAPE_DEBUG_INTERNALS)
+  // Debug internals: prevent inlining so you can step through framework code
+  #if defined(__GNUC__) || defined(__clang__)
+    #define RHEOSCAPE_CALLABLE [[gnu::noinline]]
+  #elif defined(_MSC_VER)
+    #define RHEOSCAPE_CALLABLE __declspec(noinline)
+  #else
+    #define RHEOSCAPE_CALLABLE
+  #endif
+#elif defined(RHEOSCAPE_AGGRESSIVE_INLINE)
+  // Aggressive inlining: force inline for max performance and shallow stacks
+  #if defined(__GNUC__) || defined(__clang__)
+    #define RHEOSCAPE_CALLABLE [[gnu::always_inline]] inline
+  #elif defined(_MSC_VER)
+    #define RHEOSCAPE_CALLABLE __forceinline
+  #else
+    #define RHEOSCAPE_CALLABLE inline
+  #endif
+#else
+  // Default: hint to compiler, let it decide based on its heuristics
+  #define RHEOSCAPE_CALLABLE inline
+#endif
 
   // Forward-declare the Source concept so operator| can use it.
   // Full concept definitions are in the concepts namespace below.
@@ -243,65 +252,61 @@ namespace rheoscape {
   }
 
   namespace concepts {
-    // PipeFactory: A callable that transforms a source,
-    // identified by having a `using is_pipe_factory = void;` member.
-    // Parallel to how Source is detected via `value_type`.
-    template <typename T>
-    concept PipeFactory = requires { typename std::decay_t<T>::is_pipe_factory; };
+    // PipeLike: A callable that transforms a source into another source.
+    // Detected structurally — any callable that accepts a source_fn<char>
+    // (an arbitrary probe type) and is not itself a Source.
+    // No markers, base classes, or type aliases needed.
+    //
+    // The !Source guard is essential: Sources have unconstrained template
+    // operator() with auto return types, so probing them with source_fn<char>
+    // would trigger body instantiation and cause hard errors.
+    // Source and PipeLike are mutually exclusive by design
+    // (sources accept push functions, pipes accept sources).
+    template <typename F>
+    concept PipeLike = !Source<std::decay_t<F>>
+        && std::invocable<F, source_fn<char>>;
   }
 
   // Ergonomic chaining of source and sink using the `|` operator.
   // This lets you go:
   //
-  //   let stringified_squared_stream = constant(3)
+  //   auto stringified_squared_stream = constant(3)
   //     | map([](int v) { return v * v; })
-  //     | filter([](int v) { return v > 5; }); // always true for a stream of nines
+  //     | filter([](int v) { return v > 5; })
   //     | map([](int v) { return fmt::format("{}", v); })
   //     | foreach([](std::string v) { std::cout << v << std::endl; });
 
-  // Generic overload: works with any Source (concrete SourceBinders, source_fn, etc.)
-  // During migration, unconverted pipe factories accept source_fn<TIn> which can't be
-  // deduced from a concrete source type. The if-constexpr fallback converts to source_fn
-  // so unconverted operators keep working alongside converted ones.
+  // Source | anything (pipe factory or terminal sink).
+  // The right side is unconstrained; type errors surface
+  // when a source is finally connected.
   template <typename SourceT, typename SinkFn>
     requires concepts::Source<std::decay_t<SourceT>>
   decltype(auto) operator|(SourceT&& left, SinkFn&& right) {
-    if constexpr (std::is_invocable_v<SinkFn&&, SourceT&&>) {
-      return std::forward<SinkFn>(right)(std::forward<SourceT>(left));
-    } else {
-      using T = source_value_t<SourceT>;
-      return std::forward<SinkFn>(right)(source_fn<T>(std::forward<SourceT>(left)));
-    }
+    return std::forward<SinkFn>(right)(std::forward<SourceT>(left));
   }
 
-  // Compose two pipe factories with `|`.
-  // The result is a new pipe factory that applies left, then right.
+  // Compose two pipe-like callables with `|` (deferred composition without a source).
+  // The result is a new pipe-like callable that applies left, then right.
   // This lets you write `map(fn) | filter(pred) | dedupe()`.
-  //
-  // Implementation note: we can't call compose_pipes here
-  // (it's in util/pipes.hpp), so we define a lightweight
-  // ComposedPipeFactory that applies two pipe factories in sequence.
   namespace detail {
-    template <typename PipeA, typename PipeB>
-    struct ComposedPipeFactory {
-      using is_pipe_factory = void;
-      PipeA left;
-      PipeB right;
+    template <typename Left, typename Right>
+    struct ComposedPipe {
+      Left left;
+      Right right;
 
       template <typename SourceT>
         requires concepts::Source<SourceT>
-      inline auto operator()(SourceT source) const {
+      RHEOSCAPE_CALLABLE auto operator()(SourceT source) const {
         return right(left(std::move(source)));
       }
     };
   }
 
-  template <typename PipeA, typename PipeB>
-    requires concepts::PipeFactory<PipeA>
-  inline auto operator|(PipeA&& left, PipeB&& right) {
-    return detail::ComposedPipeFactory<std::decay_t<PipeA>, std::decay_t<PipeB>>{
-      std::forward<PipeA>(left),
-      std::forward<PipeB>(right)
+  template <typename Left, typename Right>
+    requires concepts::PipeLike<std::decay_t<Left>>
+  decltype(auto) operator|(Left&& left, Right&& right) {
+    return detail::ComposedPipe<std::decay_t<Left>, std::decay_t<Right>>{
+      std::forward<Left>(left), std::forward<Right>(right)
     };
   }
 
@@ -518,25 +523,7 @@ namespace rheoscape {
     template <typename S, typename T>
     concept SourceOf = Source<S> && std::same_as<source_value_t<S>, T>;
 
-    // Pipe: A callable that transforms a source of one type into a source of another.
-    // Requires the pipe factory struct to declare `input_type` and `output_type` aliases.
-    // Also checks that the pipe is actually callable with a source_fn<input_type>.
-    template <typename P>
-    concept Pipe = requires {
-      typename pipe_types<std::decay_t<P>>::input_type;
-      typename pipe_types<std::decay_t<P>>::output_type;
-    } && std::invocable<
-      std::decay_t<P>,
-      source_fn<typename pipe_types<std::decay_t<P>>::input_type>
-    >;
-
-    // PipeFrom: Constrains a pipe to accept a specific input type.
-    template <typename P, typename TIn>
-    concept PipeFrom = Pipe<P> && std::same_as<pipe_input_t<P>, TIn>;
-
-    // PipeOf: Constrains a pipe to specific input and output types.
-    template <typename P, typename TIn, typename TOut>
-    concept PipeOf = PipeFrom<P, TIn> && std::same_as<pipe_output_t<P>, TOut>;
+    // Note: PipeLike concept is defined earlier in the file (before operator|).
 
     // Base callable concept - anything invocable with given arguments
     template<typename F, typename... Args>
@@ -639,47 +626,6 @@ namespace rheoscape {
 
   template <typename TTimePoint>
   using time_point_duration_t = typename time_point_duration<TTimePoint>::type;
-
-  // ============================================================================
-  // Inline Control Macro
-  // ============================================================================
-  //
-  // RHEOSCAPE_CALLABLE controls inlining behavior for framework internals.
-  // Use this on operator() methods of named callable structs.
-  //
-  // Configuration macros (define before including Rheoscape headers):
-  //
-  //   RHEOSCAPE_DEBUG_INTERNALS   - Prevent inlining so you can step through
-  //                            framework code in the debugger. Useful for
-  //                            Rheoscape developers or debugging operator issues.
-  //
-  //   RHEOSCAPE_AGGRESSIVE_INLINE - Force aggressive inlining for maximum performance
-  //                            and shallow stacks. May increase binary size.
-  //
-  // Priority: RHEOSCAPE_DEBUG_INTERNALS > RHEOSCAPE_AGGRESSIVE_INLINE > default (inline hint)
-
-#if defined(RHEOSCAPE_DEBUG_INTERNALS)
-  // Debug internals: prevent inlining so you can step through framework code
-  #if defined(__GNUC__) || defined(__clang__)
-    #define RHEOSCAPE_CALLABLE [[gnu::noinline]]
-  #elif defined(_MSC_VER)
-    #define RHEOSCAPE_CALLABLE __declspec(noinline)
-  #else
-    #define RHEOSCAPE_CALLABLE
-  #endif
-#elif defined(RHEOSCAPE_AGGRESSIVE_INLINE)
-  // Aggressive inlining: force inline for max performance and shallow stacks
-  #if defined(__GNUC__) || defined(__clang__)
-    #define RHEOSCAPE_CALLABLE [[gnu::always_inline]] inline
-  #elif defined(_MSC_VER)
-    #define RHEOSCAPE_CALLABLE __forceinline
-  #else
-    #define RHEOSCAPE_CALLABLE inline
-  #endif
-#else
-  // Default: hint to compiler, let it decide based on its heuristics
-  #define RHEOSCAPE_CALLABLE inline
-#endif
 
   // ============================================================================
   // Callable Type Traits

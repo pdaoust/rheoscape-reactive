@@ -45,7 +45,6 @@ namespace rheoscape::operators {
   namespace detail {
     template <typename FilterFn>
     struct FilterPipeFactory {
-      using is_pipe_factory = void;
       FilterFn filterer;
 
       template <typename SourceT>

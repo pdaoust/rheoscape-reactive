@@ -311,9 +311,10 @@ namespace rheoscape::autotune {
   }
 
   namespace detail {
+    // TODO: Migrate to generic SourceT to work with operator|.
+    // Currently takes source_fn<TP> explicitly.
     template <typename TP, typename TCtl, typename TTimePoint, typename TKp, typename TKi, typename TKd>
     struct RelayAutotunePipeFactory {
-      using is_pipe_factory = void;
       source_fn<TP> setpoint_source;
       source_fn<TTimePoint> clock_source;
       RelayAutotuneConfig<TCtl, TP, TTimePoint> config;

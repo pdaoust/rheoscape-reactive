@@ -72,7 +72,6 @@ namespace rheoscape::operators {
   namespace detail {
     template <typename FilterFn>
     struct TakeWhilePipeFactory {
-      using is_pipe_factory = void;
       FilterFn condition;
 
       template <typename SourceT>
@@ -84,7 +83,6 @@ namespace rheoscape::operators {
 
     template <typename FilterFn>
     struct TakeUntilPipeFactory {
-      using is_pipe_factory = void;
       FilterFn condition;
 
       template <typename SourceT>

@@ -42,7 +42,6 @@ namespace rheoscape::operators {
   namespace detail {
     template <typename MapFn>
     struct MapPipeFactory {
-      using is_pipe_factory = void;
       MapFn mapper;
 
       template <typename SourceT>

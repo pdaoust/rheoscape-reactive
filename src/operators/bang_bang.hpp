@@ -53,7 +53,6 @@ namespace rheoscape::operators {
   namespace detail {
     template <typename BoundsSourceT>
     struct BangBangPipeFactory {
-      using is_pipe_factory = void;
       BoundsSourceT bounds_source;
 
       template <typename PVSourceT>

@@ -62,6 +62,8 @@ namespace rheoscape::operators {
     using TLiftedOut = return_of<LiftFn>;
     using TLiftedIn = arg_of<LowerFn>;
 
+    // TODO: Migrate to generic SourceT to work with operator|.
+    // Currently takes source_fn<TLiftedIn> explicitly.
     struct PipeFactory {
       pipe_fn<TOut, TIn> inner_pipe_fn;
       LiftFn lift_fn;

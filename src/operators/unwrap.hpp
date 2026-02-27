@@ -64,7 +64,6 @@ namespace rheoscape::operators {
 
   namespace detail {
     struct UnwrapOptionalPipeFactory {
-      using is_pipe_factory = void;
       template <typename SourceT>
         requires concepts::Source<SourceT> && is_optional_v<source_value_t<SourceT>>
       RHEOSCAPE_CALLABLE auto operator()(SourceT source) const {
@@ -114,7 +113,6 @@ namespace rheoscape::operators {
 
   namespace detail {
     struct UnwrapFalliblePipeFactory {
-      using is_pipe_factory = void;
       template <typename SourceT>
         requires concepts::Source<SourceT> && is_fallible_v<source_value_t<SourceT>>
       RHEOSCAPE_CALLABLE auto operator()(SourceT source) const {
@@ -164,7 +162,6 @@ namespace rheoscape::operators {
 
   namespace detail {
     struct UnwrapEndablePipeFactory {
-      using is_pipe_factory = void;
       template <typename SourceT>
         requires concepts::Source<SourceT> && is_endable_v<source_value_t<SourceT>>
       RHEOSCAPE_CALLABLE auto operator()(SourceT source) const {

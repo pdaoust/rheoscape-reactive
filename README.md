@@ -4,9 +4,42 @@
 
 Rheoscape was written to fill a gap in embedded programming -- a way to easily compose streams of data in the functional reactive style while keeping control over how the streams are executed. In embedded environments this is important: you want to be able to reason about what's happening, when, and how often, so that you can tune your program to squeeze nicely into the constrained hardware you're building for.
 
-Rheoscape comes with a few conveniences for constructing elegant, readable streams using the `|` operator:
+Rheoscape comes with a few conveniences for constructing elegant, readable streams using the `|` operator. Here's the classic 'blink without delay' sketch, rewritten with Rheoscape:
 
 ```c++
+#include <Arduino.h>
+#include <rheoscape.h>
+
+using namespace rheoscape;
+using namespace operators;
+using namespace sources;
+using namespace sinks::arduino;
+
+static pull_fn blink_led;
+
+void setup() {
+    blink_led = from_clock<arduino_millis_clock>()
+        | square_wave(constant(arduino_millis_clock::duration(2000)))
+        | digital_pin_sink(3);
+}
+
+void loop() {
+    blink_led();
+}
+```
+
+This more complex example reads a moisture sensor, shows moisture with a needle gauge, and turns a water valve on when the sensor reaches a user-set dryness threshold:
+
+```c++
+#include <Arduino.h>
+#include <rheoscape.h>
+
+using namespace rheoscape;
+using namespace operators;
+using namespace sources;
+using namespace sources::arduino;
+using namespace sinks::arduino;
+
 pull_fn set_servo_to_soil_moisture_reading;
 pull_fn handle_watering_threshold_input;
 
@@ -14,7 +47,7 @@ void setup() {
     // Soil moisture sensor on GPIO 3.
     static auto soil_moisture_sensor = analog_pin_source(3)
         // We've calibrated the sensor and it's fully wet at 350 and fully dry at 800.
-        // Change that range to 0-100%.
+        // Change that range to 0-100%, flipping the range around.
         | normalize(constant(Range(800, 350)), constant(Range(0, 100)));
 
     // Show the moisture reading on a servo-controlled gauge.
@@ -24,8 +57,10 @@ void setup() {
         // We have a cheap micro servo on GPIO 4.
         | servo_sink(4);
 
-    // Allow the user to calibrate the point where the water pump turns on to water the plants.
-    static MemoryState watering_threshold(50);
+    // Allow the user to calibrate the point where the water pump turns on to water the plants,
+    // and save that threshold to EEPROM.
+    static auto [watering_threshold] = make_memory_mirrored_eeprom_pipes(
+        50, ;
     // Rotary encoder on pins 4 and 5.
     static auto rotary_encoder = digital_pin_interrupt_source<4, 5>(INPUT_PULLUP)
         | quadrature_encode();
@@ -417,6 +452,7 @@ The Rheoscape standard library comes with a lot of good structs, classes, source
     * `map`: Transform one value type into another.
     * `merge`: Blend multiple streams with a common value type into one.
     * `normalize`: Map a stream of values from one range to another.
+    * `pass_through`: Literally does nothing. Just passes a bound source right through it. This is useful for making a 'forward declaration' of the head of a side stream, such as you might use in `tee`. It lets you define a variable containing a pass-through pipe that you can attach downstream sinks to later.
     * `pid`: A proportional/integral/derivative for high-precision system control. Can be trained.
     * `quadrature_encode`: Takes two boolean inputs and applies 'quadrature' or 'Gray coding' to it. Used for rotary encoders. I'd recommend using `digital_pin_interrupt_source<pin_a, pin_b>()` rather than combining two single non-interrupt-driven digital pin sources; the interrupt version is more responsive.
     * `sample`: Like `combine`, but it only produces a combined value when values are pushed to the first stream.
@@ -440,9 +476,8 @@ The Rheoscape standard library comes with a lot of good structs, classes, source
     * `chrono_helpers`: Helper functions for working with `std::chrono` measurement values.
     * `make_state_editor`: Construct a pipeline that changes a `state` using an input stream and a mapper function.
 * **Utilities**
-    * `compose_pipes`: Compose multiple pipe factories into a single callable that applies them left-to-right when given a source. All type deduction is deferred until the composed pipe is called, so unconstrained pipe factories (whose types aren't known until a source is provided) can be chained without needing the `|` operator. Can be combined with `typed_pipe` to produce a `Pipe`-concept-satisfying wrapper.
+    * `as_source<T>`: Wrap any callable into a Source without type erasure, preserving the concrete callable type for inlining and optimization.
     * `logging`: A logging implementation that you can configure in a centralised way. Different log levels or topics can have different loggers bound to them.
-    * `typed_pipe`: Annotate an arbitrary pipe callable with explicit input and output type aliases, making it satisfy the `Pipe` concept. Useful for wrapping pipe factories whose types are fully generic until called.
 
 ## Performance considerations
 
@@ -478,6 +513,12 @@ Rheoscape is designed to do as much of its hard work at compile time as possible
     </tr>
     </tbody>
     </table>
+
+## Known limitations
+
+**Type checking in pre-composed pipelines:** When you pre-compose a pipeline fragment (e.g., `auto pipe = map(fn) | filter(pred)`) without connecting it to a source, the compiler cannot verify type compatibility at the composition site. There is no way to tell if a headless pipe is correct when you compose it; type errors will surface at the site where you attach a source to the head of the pipe. If you need early type checking, connect your pipeline to a source before attaching further stages.
+
+**Terminal sinks in pre-composed pipelines:** The `|` operator treats any non-source callable that accepts a source as a composable pipe stage. This includes terminal sinks like `foreach`. Writing `auto pipe = map(fn) | foreach(exec)` will compile, but the resulting composed callable returns `void` when given a source — it's not a source function and can't have further stages piped after it. This is harmless when used at the end of a chain (e.g., `source | map(fn) | foreach(exec)` works correctly), but if you accidentally compose a sink in the middle of a pre-composed pipeline (e.g., `auto broken = map(fn) | foreach(exec) | filter(pred)`), the error will surface at the site where you attach a source.
 
 ## Gratitude and evolution
 

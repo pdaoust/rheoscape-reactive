@@ -87,7 +87,6 @@ namespace rheoscape::operators {
   namespace detail {
     template <typename TAcc, typename ScanFn>
     struct ScanWithInitialPipeFactory {
-      using is_pipe_factory = void;
       ScanFn scanner;
       TAcc initial;
 
@@ -100,7 +99,6 @@ namespace rheoscape::operators {
 
     template <typename ScanFn>
     struct ScanPipeFactory {
-      using is_pipe_factory = void;
       ScanFn scanner;
 
       template <typename SourceT>

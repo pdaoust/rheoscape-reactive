@@ -21,6 +21,8 @@ namespace rheoscape::operators {
     using TErr = typename FallibleT::error_type;
     using MapFnDecayed = std::decay_t<MapFn>;
 
+    // TODO: Migrate to generic SourceT to work with operator|.
+    // Currently takes source_fn<FallibleT> explicitly.
     struct ErrorLogger {
       std::optional<std::string> topic;
       MapFnDecayed format_error;
@@ -66,7 +68,6 @@ namespace rheoscape::operators {
   namespace detail {
     template <typename T, typename TErr, typename MapFn>
     struct LogErrorsPipeFactory {
-      using is_pipe_factory = void;
       MapFn format_error;
       std::optional<std::string> topic;
 

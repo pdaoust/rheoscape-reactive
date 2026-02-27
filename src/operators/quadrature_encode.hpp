@@ -65,7 +65,6 @@ namespace rheoscape::operators {
 
   namespace detail {
     struct QuadratureEncodePipeFactory {
-      using is_pipe_factory = void;
       template <typename SourceT>
         requires concepts::Source<SourceT>
           && std::is_same_v<std::tuple<bool, bool>, source_value_t<SourceT>>

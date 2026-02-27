@@ -48,7 +48,6 @@ namespace rheoscape::operators {
   namespace detail {
     template <typename FlatMapFnT>
     struct FlatMapPipeFactory {
-      using is_pipe_factory = void;
       FlatMapFnT mapper;
 
       template <typename SourceT>

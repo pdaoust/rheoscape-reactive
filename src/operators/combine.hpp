@@ -203,7 +203,6 @@ namespace rheoscape::operators {
     // Pipe factory for combine_with: combines the piped source with additional sources.
     template <typename... RestSourceTs>
     struct CombineWithPipeFactory {
-      using is_pipe_factory = void;
       std::tuple<RestSourceTs...> sources;
 
       template <typename Source1T>

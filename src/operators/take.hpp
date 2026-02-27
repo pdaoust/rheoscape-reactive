@@ -48,7 +48,6 @@ namespace rheoscape::operators {
 
   namespace detail {
     struct TakePipeFactory {
-      using is_pipe_factory = void;
       size_t count;
 
       template <typename SourceT>

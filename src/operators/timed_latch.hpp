@@ -117,7 +117,6 @@ namespace rheoscape::operators {
   namespace detail {
     template <typename T, typename ClockSourceT, typename TInterval>
     struct TimedLatchPipeFactory {
-      using is_pipe_factory = void;
       ClockSourceT clock_source;
       TInterval duration;
       T default_value;

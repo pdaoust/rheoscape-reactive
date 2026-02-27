@@ -57,7 +57,6 @@ namespace rheoscape::operators {
 
   namespace detail {
     struct LatchPipeFactory {
-      using is_pipe_factory = void;
       template <typename SourceT>
         requires concepts::Source<SourceT> && is_optional_v<source_value_t<SourceT>>
       RHEOSCAPE_CALLABLE auto operator()(SourceT source) const {

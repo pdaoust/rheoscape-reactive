@@ -65,7 +65,6 @@ namespace rheoscape::operators {
   namespace detail {
     template <typename FromSourceT, typename ToSourceT>
     struct NormalizePipeFactory {
-      using is_pipe_factory = void;
       using TOut = typename source_value_t<ToSourceT>::value_type;
       FromSourceT from_source;
       ToSourceT to_source;

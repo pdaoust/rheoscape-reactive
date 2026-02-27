@@ -26,7 +26,6 @@ namespace rheoscape::operators {
   namespace detail {
     template <typename ClockSourceT>
     struct TimestampPipeFactory {
-      using is_pipe_factory = void;
       ClockSourceT clock_source;
 
       template <typename SourceT>

@@ -168,7 +168,6 @@ namespace rheoscape::operators {
   namespace detail {
     template <typename Source2T>
     struct ConcatPipeFactory {
-      using is_pipe_factory = void;
       Source2T source2;
 
       template <typename Source1T>
