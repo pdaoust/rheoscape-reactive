@@ -28,7 +28,6 @@ namespace rheoscape::sources::arduino::sht2x {
   struct sht2x_state {
     unsigned long last_command_timestamp;
     int last_read_type = 0;
-    bool pushed_sensor_start_error = false;
     std::optional<float> last_temp = std::nullopt;
     std::optional<float> last_hum = std::nullopt;
   };
@@ -39,23 +38,27 @@ namespace rheoscape::sources::arduino::sht2x {
     struct sht2x_pull_handler {
       uint8_t resolution;
       std::shared_ptr<SHT2x> sensor;
-      int sensor_start_error;
+      mutable int sensor_start_error;
       PushFn push;
       std::shared_ptr<sht2x_state> state;
 
       RHEOSCAPE_CALLABLE void operator()() const {
-        if (state->pushed_sensor_start_error) {
-          logging::trace("sht2x", "Already pushed sensor start error; not pushing again.");
-          return;
-        }
         if (sensor_start_error) {
-          logging::trace("sht2x", "There was a startup error; pushing it now.");
-          push(ReadingFallible(Error(sensor->getError())));
-          push(ReadingFallible(Error()));
-          state->pushed_sensor_start_error = true;
-          return;
-          // TODO: make startup errors recoverable?
-          // If not, return a pull function that does nothing.
+          // Retry sensor initialization on each pull.
+          logging::trace("sht2x", "Startup error present; retrying sensor->begin()...");
+          if (sensor->begin()) {
+            logging::info("sht2x", "Sensor recovered from startup error.");
+            sensor_start_error = 0;
+            delay(15);
+            sensor->setResolution(resolution);
+            state->last_command_timestamp = millis();
+            // Fall through to normal reading logic.
+          } else {
+            sensor_start_error = sensor->getError();
+            logging::error("sht2x", fmt::format("Sensor retry failed; error 0x{:02X}", sensor_start_error).c_str());
+            push(ReadingFallible(Error(sensor_start_error)));
+            return;
+          }
         }
 
         // Check if we've got a temp reading waiting for us.
