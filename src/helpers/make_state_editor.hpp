@@ -7,6 +7,7 @@
 
 using namespace rheoscape;
 using namespace rheoscape::operators;
+using namespace rheoscape::states;
 
 namespace rheoscape::helpers {
 
