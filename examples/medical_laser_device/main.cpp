@@ -1,5 +1,6 @@
 #include <atomic>
 #include <cstdarg>
+#include <variant>
 #include <fmt/format.h>
 #include <rheoscape.hpp>
 #include <types/au_all_units_noio.hpp>
@@ -9,6 +10,7 @@
 #endif
 #include <Wire.h>
 #include <Adafruit_SSD1306.h>
+#include "countup_symbols.hpp"
 
 using namespace rheoscape;
 using namespace rheoscape::helpers;
@@ -56,6 +58,7 @@ enum UiState {
   _count
 };
 
+Adafruit_SSD1306 display(128, 64, &Wire, -1);
 
 extern "C" void __attribute__((weak)) panic(const char *fmt, ...) {
   char buf[256];
@@ -74,6 +77,30 @@ extern "C" void __attribute__((weak)) panic(const char *fmt, ...) {
     delay(50);
   }
 }
+
+// A helper function to compose some rather complex pipes
+// that are used to mirror EEPROM states in memory,
+// but buffer updates from the memory state to avoid wearing the NVRAM.
+// It runs the MemoryState's output through a stopwatch,
+// filters out changes that are too young (thus mimicking the `settle` operator),
+// turns them into change events, and finally writes them to EEPROM.
+// This function returns both the constructed memory state and the stopwatched changes feed,
+// so the UI can use the stopwatch to show how long until the new value will be saved.
+template <typename T, uint Offset, typename TClockSource>
+  requires concepts::Source<TClockSource>
+    && std::same_as<float_millis_clock::duration, source_value_type_t<TClockSource>>
+auto make_save_pipe(EepromState<T, Offset>& eeprom_state, TClockSource clock_source, float_millis_clock::duration save_delay) {
+  MemoryState<T> memory_state;
+  eeprom_state.get_source_fn() | memory_state.get_setter_sink_fn();
+  auto timed_changes = memory_state.get_source_fn(false) // Don't push initial value; that'll make it try to save the existing value.
+    | stopwatch_changes(clock_source);
+  timed_changes
+    | filter([save_delay](T _, float_millis_clock::duration ts) { return ts >= save_delay; })
+    | map([](T v, float_millis_clock::duration _) { return v; })
+    | dedupe()
+    | eeprom_state.get_setter_sink_fn(false); // Don't push changes downstream; that'll create a loop!
+  return std::tuple(memory_state, timed_changes);
+};
 
 void setup() {
   pinMode(25, OUTPUT);
@@ -110,26 +137,33 @@ void setup() {
     | map(to_duration<arduino_millis_clock>)
     | map(duration_to_clock<float_millis_clock, arduino_millis_clock>);
 
-  // Annoyingly the au::degrees quantity maker clashes with the Arduino library's converter.
-  // I thought that's what namespaces were supposed to prevent...
-  // Use unsigned char since that's what servo_sink expects; normalize handles the conversion.
-  static MemoryState servo_angle_range(Range(au::make_quantity_point<au::Degrees, unsigned char>(35), au::make_quantity_point<au::Degrees, unsigned char>(100)));
-  static MemoryState red_pwm_duty_cycle(au::percent(100));
-  static MemoryState blue_pwm_duty_cycle(au::percent(100));
-  static MemoryState servo_sweep_duration(float_millis_clock::duration(5000.0f));
+  // A factory to compose a pipe that buffers new values for 60 seconds before saving to EEPROM,
+  // but also gives us a countup that we can use to give feedback to the user about whether it's saved or not.
+  float_millis_clock::duration save_delay(60000);
+  auto [
+    servo_angle_range_eeprom,
+    red_pwm_duty_cycle_eeprom,
+    blue_pwm_duty_cycle_eeprom,
+    servo_sweep_duration_eeprom
+  ] = make_eeprom_states<0>(
+    std::optional(Range(au::make_quantity_point<au::Degrees, unsigned char>(35), au::make_quantity_point<au::Degrees, unsigned char>(100))),
+    std::optional(au::percent(100)),
+    std::optional(au::percent(100)),
+    std::optional(float_millis_clock::duration(5000.0f))
+  );
+
+  auto [servo_angle_range, servo_angle_range_save_clock] = make_save_pipe(servo_angle_range_eeprom, system_clock_source, save_delay);
+  auto [red_pwm_duty_cycle, red_pwm_duty_cycle_save_clock] = make_save_pipe(red_pwm_duty_cycle_eeprom, system_clock_source, save_delay);
+  auto [blue_pwm_duty_cycle, blue_pwm_duty_cycle_save_clock] = make_save_pipe(blue_pwm_duty_cycle_eeprom, system_clock_source, save_delay);
+  auto [servo_sweep_duration, servo_sweep_duration_save_clock] = make_save_pipe(servo_sweep_duration_eeprom, system_clock_source, save_delay);
+
   static MemoryState programme_index(1);
-
-  // Load settings from flash.
-  using programme_t = std::tuple<Range<au::QuantityPoint<au::Degrees, unsigned char>>, au::Quantity<au::Percent, int>, au::Quantity<au::Percent, int>, float_millis_clock::duration>;
-  using settings_t = std::tuple<programme_t, programme_t>;
-
-  auto load_settings = eeprom_source<settings_t>(settings_address);
 
   // Connect the servo sweep duration and angle range to the servo.
   auto servo_position = triangle_wave(
     system_clock_source,
     servo_sweep_duration.get_source_fn(),
-    constant(float_millis_clock::duration(0.0f))
+    constant(float_millis_clock::duration(0))
   )
     | normalize(constant(Range(-1.0f, 1.0f)), servo_angle_range.get_source_fn());
   pull_servo = servo_position | servo_sink(servo_pin);
@@ -157,7 +191,7 @@ void setup() {
     | filter([](bool v) { return v == HIGH; });
 
   // Change to edit next UI state on encoder button release.
-  pull_ui_state = make_state_editor(encoder_button_source, ui_state, [](bool _, UiState value) {
+  make_state_editor(encoder_button_source, ui_state, [](bool _, UiState value) {
     return (UiState)((value + 1) % UiState::_count);
   });
 
@@ -166,7 +200,7 @@ void setup() {
     | combine_with(ui_state.get_source_fn());
 
   // Servo range.
-  pull_edit_servo_range = make_state_editor(
+  make_state_editor(
     ui_editing
       | filter([](QuadratureEncodeDirection dir, UiState ui_state) {
         return ui_state == EDIT_SERVO_MIN_ANGLE || ui_state == EDIT_SERVO_MAX_ANGLE;
@@ -197,13 +231,13 @@ void setup() {
       // Should be unreachable.
       return range;
     }
-  )
+  );
 
   // Red PWM duty cycle.
-  pull_edit_red_duty = make_state_editor(
+  make_state_editor(
     ui_editing | filter_map([](QuadratureEncodeDirection dir, UiState ui) {
       return ui == EDIT_RED_PWM_DUTY_CYCLE
-        ? dir
+        ? std::optional(dir)
         : std::nullopt;
     }),
     red_pwm_duty_cycle,
@@ -217,10 +251,10 @@ void setup() {
     });
 
   // Blue PWM duty cycle.
-  pull_edit_blue_duty = make_state_editor(
+  make_state_editor(
     ui_editing | filter_map([](QuadratureEncodeDirection dir, UiState ui) {
       return ui == EDIT_BLUE_PWM_DUTY_CYCLE
-        ? dir
+        ? std::optional(dir)
         : std::nullopt;
     }),
     blue_pwm_duty_cycle,
@@ -235,10 +269,10 @@ void setup() {
   );
 
   // Servo sweep duration.
-  pull_edit_servo_sweep = make_state_editor(
+  make_state_editor(
     ui_editing | filter_map([](QuadratureEncodeDirection dir, UiState ui) {
       return ui == EDIT_SERVO_SWEEP_DURATION
-        ? dir
+        ? std::optional(dir)
         : std::nullopt;
     }),
     servo_sweep_duration,
@@ -252,13 +286,49 @@ void setup() {
   );
 
   // Connect the display to the UI state and the settings.
+  struct saved {};
+  // A struct to hold "this much time left", "it's been saved", or "don't show anything".
+  using countup_display = std::variant<uint8_t, saved, std::monostate>;
+  // Each save clock emits std::tuple<T, duration>; extract just the duration for the UI.
+  auto duration_only = [](auto, float_millis_clock::duration d) { return d; };
+  auto freshest_countup_pipe = combine(
+    servo_angle_range_save_clock | map(duration_only),
+    red_pwm_duty_cycle_save_clock | map(duration_only),
+    blue_pwm_duty_cycle_save_clock | map(duration_only),
+    servo_sweep_duration_save_clock | map(duration_only)
+  ) | map([save_delay](
+    float_millis_clock::duration servo_angle_range_save_countup,
+    float_millis_clock::duration red_pwm_duty_cycle_save_countup,
+    float_millis_clock::duration blue_pwm_duty_cycle_save_countup,
+    float_millis_clock::duration servo_sweep_duration_save_countup
+  ) -> countup_display {
+    auto freshest_value = std::min({
+      servo_angle_range_save_countup,
+      red_pwm_duty_cycle_save_countup,
+      blue_pwm_duty_cycle_save_countup,
+      servo_sweep_duration_save_countup
+    });
+    // Counting up to the save point.
+    if (freshest_value <= save_delay) {
+      // The countup widget is a 64px box that fills up.
+      return (uint8_t)(freshest_value / save_delay * 63);
+    }
+    if (freshest_value <= save_delay + float_millis_clock::duration(5000.0f)) {
+      // Here we extend the save point by 5 seconds,
+      // and indicate that we want to show a 'saved' icon.
+      return saved{};
+    }
+    // Nothing active to show.
+    return std::monostate{};
+  });
   pull_display = combine(
     ui_state.get_source_fn(),
     servo_angle_range.get_source_fn(),
     red_pwm_duty_cycle.get_source_fn(),
     blue_pwm_duty_cycle.get_source_fn(),
     servo_sweep_duration.get_source_fn(),
-    servo_position
+    servo_position,
+    freshest_countup_pipe
   )
   | map([](
       UiState state,
@@ -266,11 +336,12 @@ void setup() {
       au::Quantity<au::Percent, int> red_duty,
       au::Quantity<au::Percent, int> blue_duty,
       float_millis_clock::duration sweep_duration,
-      au::QuantityPoint<au::Degrees, uint8_t> current_sweep_position
+      au::QuantityPoint<au::Degrees, uint8_t> current_sweep_position,
+      countup_display save_countup
     ) {
       // Explicitly construct GfxCommand to work around GCC 14 consteval escalation bug
       // with capturing lambdas in std::function.
-      GfxCommand<Adafruit_GFX> cmd = [state, sweep_duration, angle_range, red_duty, blue_duty, current_sweep_position](Adafruit_GFX& canvas) {
+      GfxCommand<Adafruit_GFX> cmd = [state, sweep_duration, angle_range, red_duty, blue_duty, current_sweep_position, save_countup](Adafruit_GFX& canvas) {
         canvas.setTextColor(SSD1306_WHITE);
         canvas.setCursor(0, 0);
 
@@ -326,6 +397,14 @@ void setup() {
         canvas.print("Current pos: ");
         canvas.print(current_sweep_position.in(au::Degrees{}));
         canvas.println("\367");
+
+        if (std::holds_alternative<uint8_t>(save_countup)) {
+          canvas.drawBitmap(59, 55, countup_bitmaps[std::get<uint8_t>(save_countup)], 8, 8, SSD1306_WHITE);
+        } else if (std::holds_alternative<saved>(save_countup)) {
+          canvas.drawBitmap(59, 55, countup_complete, 8, 8, SSD1306_WHITE);
+        } else {
+          canvas.drawRect(59, 55, 8, 8, SSD1306_BLACK);
+        }
       };
       return std::vector<GfxCommand<Adafruit_GFX>>{std::move(cmd)};
     })
@@ -333,7 +412,8 @@ void setup() {
 
   pull_heartbeat = sine_wave(
     system_clock_source,
-    constant(float_millis_clock::duration(2000))
+    constant(float_millis_clock::duration(2000)),
+    constant(float_millis_clock::duration(0))
   )
   // Zero-bias, then stretch to 10-bit PWM range.
   | map([](float v) -> int { return (v + 1.0f) / 2 * 1023; })
