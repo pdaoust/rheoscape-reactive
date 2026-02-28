@@ -36,7 +36,7 @@ namespace rheoscape::operators {
       && concepts::Transformer<MapFn, TCalc>
       && std::is_same_v<source_value_t<PeriodSourceT>, source_value_t<PhaseSourceT>>
       && concepts::TimePointAndDurationCompatible<source_value_t<InputSourceT>, source_value_t<PeriodSourceT>>
-  auto wave(InputSourceT input_source, PeriodSourceT period_source, MapFn&& wave_function, PhaseSourceT phase_shift_source = rheoscape::sources::constant(source_value_t<PeriodSourceT>{})) {
+  auto wave(InputSourceT input_source, PeriodSourceT period_source, MapFn&& wave_function, PhaseSourceT phase_shift_source) {
     using TInput = source_value_t<InputSourceT>;
     using TDuration = source_value_t<PeriodSourceT>;
     using MapFnDecayed = std::decay_t<MapFn>;
@@ -70,45 +70,171 @@ namespace rheoscape::operators {
     );
   }
 
+  // No-phase-shift overload; defaults phase shift to zero.
+  template <typename TCalc = float, typename InputSourceT, typename PeriodSourceT, typename MapFn>
+    requires concepts::Source<InputSourceT>
+      && concepts::Source<PeriodSourceT>
+      && concepts::Transformer<MapFn, TCalc>
+      && concepts::TimePointAndDurationCompatible<source_value_t<InputSourceT>, source_value_t<PeriodSourceT>>
+  auto wave(InputSourceT input_source, PeriodSourceT period_source, MapFn&& wave_function) {
+    return wave<TCalc>(
+      std::move(input_source),
+      std::move(period_source),
+      std::forward<MapFn>(wave_function),
+      sources::constant(source_value_t<PeriodSourceT>{})
+    );
+  }
+
+  namespace detail {
+    template <typename TCalc, typename PeriodSourceT, typename MapFn>
+    struct WavePipeFactory {
+      PeriodSourceT period_source;
+      MapFn wave_function;
+
+      template <typename InputSourceT>
+        requires concepts::Source<InputSourceT>
+          && concepts::TimePointAndDurationCompatible<source_value_t<InputSourceT>, source_value_t<PeriodSourceT>>
+      RHEOSCAPE_CALLABLE auto operator()(InputSourceT input_source) const {
+        return wave<TCalc>(
+          std::move(input_source),
+          PeriodSourceT(period_source),
+          MapFn(wave_function)
+        );
+      }
+    };
+  }
+
+  // Pipe factory overload for wave.
+  template <typename TCalc = float, typename PeriodSourceT, typename MapFn>
+    requires concepts::Source<PeriodSourceT>
+      && concepts::Transformer<MapFn, TCalc>
+  auto wave(PeriodSourceT period_source, MapFn&& wave_function) {
+    return detail::WavePipeFactory<TCalc, PeriodSourceT, std::decay_t<MapFn>>{
+      std::move(period_source),
+      std::forward<MapFn>(wave_function)
+    };
+  }
+
+  // With-phase source factory.
   template <typename TCalc = float, typename InputSourceT, typename PeriodSourceT, typename PhaseSourceT>
     requires concepts::Source<InputSourceT>
       && concepts::Source<PeriodSourceT>
       && concepts::Source<PhaseSourceT>
       && std::is_same_v<source_value_t<PeriodSourceT>, source_value_t<PhaseSourceT>>
       && concepts::TimePointAndDurationCompatible<source_value_t<InputSourceT>, source_value_t<PeriodSourceT>>
-  auto sine_wave(InputSourceT input_source, PeriodSourceT period_source, PhaseSourceT phase_shift_source = rheoscape::sources::constant(source_value_t<PeriodSourceT>{})) {
+  auto sine_wave(InputSourceT input_source, PeriodSourceT period_source, PhaseSourceT phase_shift_source) {
     struct SineFunction {
       RHEOSCAPE_CALLABLE TCalc operator()(TCalc theta) const {
         return sin(theta * M_PI * 2);
       }
     };
 
-    return wave(std::move(input_source), std::move(period_source), SineFunction{}, std::move(phase_shift_source));
+    return wave<TCalc>(std::move(input_source), std::move(period_source), SineFunction{}, std::move(phase_shift_source));
   }
 
+  // No-phase-shift overload.
+  template <typename TCalc = float, typename InputSourceT, typename PeriodSourceT>
+    requires concepts::Source<InputSourceT>
+      && concepts::Source<PeriodSourceT>
+      && concepts::TimePointAndDurationCompatible<source_value_t<InputSourceT>, source_value_t<PeriodSourceT>>
+  auto sine_wave(InputSourceT input_source, PeriodSourceT period_source) {
+    return sine_wave<TCalc>(
+      std::move(input_source),
+      std::move(period_source),
+      sources::constant(source_value_t<PeriodSourceT>{})
+    );
+  }
+
+  namespace detail {
+    template <typename TCalc, typename PeriodSourceT>
+    struct SineWavePipeFactory {
+      PeriodSourceT period_source;
+
+      template <typename InputSourceT>
+        requires concepts::Source<InputSourceT>
+          && concepts::TimePointAndDurationCompatible<source_value_t<InputSourceT>, source_value_t<PeriodSourceT>>
+      RHEOSCAPE_CALLABLE auto operator()(InputSourceT input_source) const {
+        return sine_wave<TCalc>(
+          std::move(input_source),
+          PeriodSourceT(period_source)
+        );
+      }
+    };
+  }
+
+  // Pipe factory overload.
+  template <typename TCalc = float, typename PeriodSourceT>
+    requires concepts::Source<PeriodSourceT>
+  auto sine_wave(PeriodSourceT period_source) {
+    return detail::SineWavePipeFactory<TCalc, PeriodSourceT>{
+      std::move(period_source)
+    };
+  }
+
+  // With-phase source factory.
   template <typename TCalc = float, typename InputSourceT, typename PeriodSourceT, typename PhaseSourceT>
     requires concepts::Source<InputSourceT>
       && concepts::Source<PeriodSourceT>
       && concepts::Source<PhaseSourceT>
       && std::is_same_v<source_value_t<PeriodSourceT>, source_value_t<PhaseSourceT>>
       && concepts::TimePointAndDurationCompatible<source_value_t<InputSourceT>, source_value_t<PeriodSourceT>>
-  auto sawtooth_wave(InputSourceT input_source, PeriodSourceT period_source, PhaseSourceT phase_shift_source = rheoscape::sources::constant(source_value_t<PeriodSourceT>{})) {
+  auto sawtooth_wave(InputSourceT input_source, PeriodSourceT period_source, PhaseSourceT phase_shift_source) {
     struct SawtoothFunction {
       RHEOSCAPE_CALLABLE TCalc operator()(TCalc theta) const {
         return theta * 2 - 1;
       }
     };
 
-    return wave(std::move(input_source), std::move(period_source), SawtoothFunction{}, std::move(phase_shift_source));
+    return wave<TCalc>(std::move(input_source), std::move(period_source), SawtoothFunction{}, std::move(phase_shift_source));
   }
 
+  // No-phase-shift overload.
+  template <typename TCalc = float, typename InputSourceT, typename PeriodSourceT>
+    requires concepts::Source<InputSourceT>
+      && concepts::Source<PeriodSourceT>
+      && concepts::TimePointAndDurationCompatible<source_value_t<InputSourceT>, source_value_t<PeriodSourceT>>
+  auto sawtooth_wave(InputSourceT input_source, PeriodSourceT period_source) {
+    return sawtooth_wave<TCalc>(
+      std::move(input_source),
+      std::move(period_source),
+      sources::constant(source_value_t<PeriodSourceT>{})
+    );
+  }
+
+  namespace detail {
+    template <typename TCalc, typename PeriodSourceT>
+    struct SawtoothWavePipeFactory {
+      PeriodSourceT period_source;
+
+      template <typename InputSourceT>
+        requires concepts::Source<InputSourceT>
+          && concepts::TimePointAndDurationCompatible<source_value_t<InputSourceT>, source_value_t<PeriodSourceT>>
+      RHEOSCAPE_CALLABLE auto operator()(InputSourceT input_source) const {
+        return sawtooth_wave<TCalc>(
+          std::move(input_source),
+          PeriodSourceT(period_source)
+        );
+      }
+    };
+  }
+
+  // Pipe factory overload.
+  template <typename TCalc = float, typename PeriodSourceT>
+    requires concepts::Source<PeriodSourceT>
+  auto sawtooth_wave(PeriodSourceT period_source) {
+    return detail::SawtoothWavePipeFactory<TCalc, PeriodSourceT>{
+      std::move(period_source)
+    };
+  }
+
+  // With-phase source factory.
   template <typename TCalc = float, typename InputSourceT, typename PeriodSourceT, typename PhaseSourceT>
     requires concepts::Source<InputSourceT>
       && concepts::Source<PeriodSourceT>
       && concepts::Source<PhaseSourceT>
       && std::is_same_v<source_value_t<PeriodSourceT>, source_value_t<PhaseSourceT>>
       && concepts::TimePointAndDurationCompatible<source_value_t<InputSourceT>, source_value_t<PeriodSourceT>>
-  auto triangle_wave(InputSourceT input_source, PeriodSourceT period_source, PhaseSourceT phase_shift_source = rheoscape::sources::constant(source_value_t<PeriodSourceT>{})) {
+  auto triangle_wave(InputSourceT input_source, PeriodSourceT period_source, PhaseSourceT phase_shift_source) {
     struct TriangleFunction {
       RHEOSCAPE_CALLABLE TCalc operator()(TCalc theta) const {
         theta = theta * 4;
@@ -122,16 +248,56 @@ namespace rheoscape::operators {
       }
     };
 
-    return wave(std::move(input_source), std::move(period_source), TriangleFunction{}, std::move(phase_shift_source));
+    return wave<TCalc>(std::move(input_source), std::move(period_source), TriangleFunction{}, std::move(phase_shift_source));
   }
 
+  // No-phase-shift overload.
+  template <typename TCalc = float, typename InputSourceT, typename PeriodSourceT>
+    requires concepts::Source<InputSourceT>
+      && concepts::Source<PeriodSourceT>
+      && concepts::TimePointAndDurationCompatible<source_value_t<InputSourceT>, source_value_t<PeriodSourceT>>
+  auto triangle_wave(InputSourceT input_source, PeriodSourceT period_source) {
+    return triangle_wave<TCalc>(
+      std::move(input_source),
+      std::move(period_source),
+      sources::constant(source_value_t<PeriodSourceT>{})
+    );
+  }
+
+  namespace detail {
+    template <typename TCalc, typename PeriodSourceT>
+    struct TriangleWavePipeFactory {
+      PeriodSourceT period_source;
+
+      template <typename InputSourceT>
+        requires concepts::Source<InputSourceT>
+          && concepts::TimePointAndDurationCompatible<source_value_t<InputSourceT>, source_value_t<PeriodSourceT>>
+      RHEOSCAPE_CALLABLE auto operator()(InputSourceT input_source) const {
+        return triangle_wave<TCalc>(
+          std::move(input_source),
+          PeriodSourceT(period_source)
+        );
+      }
+    };
+  }
+
+  // Pipe factory overload.
+  template <typename TCalc = float, typename PeriodSourceT>
+    requires concepts::Source<PeriodSourceT>
+  auto triangle_wave(PeriodSourceT period_source) {
+    return detail::TriangleWavePipeFactory<TCalc, PeriodSourceT>{
+      std::move(period_source)
+    };
+  }
+
+  // With-phase source factory.
   template <typename TCalc = float, typename InputSourceT, typename PeriodSourceT, typename PhaseSourceT>
     requires concepts::Source<InputSourceT>
       && concepts::Source<PeriodSourceT>
       && concepts::Source<PhaseSourceT>
       && std::is_same_v<source_value_t<PeriodSourceT>, source_value_t<PhaseSourceT>>
       && concepts::TimePointAndDurationCompatible<source_value_t<InputSourceT>, source_value_t<PeriodSourceT>>
-  auto square_wave(InputSourceT input_source, PeriodSourceT period_source, PhaseSourceT phase_shift_source = rheoscape::sources::constant(source_value_t<PeriodSourceT>{})) {
+  auto square_wave(InputSourceT input_source, PeriodSourceT period_source, PhaseSourceT phase_shift_source) {
     struct SquareFunction {
       RHEOSCAPE_CALLABLE TCalc operator()(TCalc theta) const {
         return theta < 0.5
@@ -140,9 +306,49 @@ namespace rheoscape::operators {
       }
     };
 
-    return wave(std::move(input_source), std::move(period_source), SquareFunction{}, std::move(phase_shift_source));
+    return wave<TCalc>(std::move(input_source), std::move(period_source), SquareFunction{}, std::move(phase_shift_source));
   }
 
+  // No-phase-shift overload.
+  template <typename TCalc = float, typename InputSourceT, typename PeriodSourceT>
+    requires concepts::Source<InputSourceT>
+      && concepts::Source<PeriodSourceT>
+      && concepts::TimePointAndDurationCompatible<source_value_t<InputSourceT>, source_value_t<PeriodSourceT>>
+  auto square_wave(InputSourceT input_source, PeriodSourceT period_source) {
+    return square_wave<TCalc>(
+      std::move(input_source),
+      std::move(period_source),
+      sources::constant(source_value_t<PeriodSourceT>{})
+    );
+  }
+
+  namespace detail {
+    template <typename TCalc, typename PeriodSourceT>
+    struct SquareWavePipeFactory {
+      PeriodSourceT period_source;
+
+      template <typename InputSourceT>
+        requires concepts::Source<InputSourceT>
+          && concepts::TimePointAndDurationCompatible<source_value_t<InputSourceT>, source_value_t<PeriodSourceT>>
+      RHEOSCAPE_CALLABLE auto operator()(InputSourceT input_source) const {
+        return square_wave<TCalc>(
+          std::move(input_source),
+          PeriodSourceT(period_source)
+        );
+      }
+    };
+  }
+
+  // Pipe factory overload.
+  template <typename TCalc = float, typename PeriodSourceT>
+    requires concepts::Source<PeriodSourceT>
+  auto square_wave(PeriodSourceT period_source) {
+    return detail::SquareWavePipeFactory<TCalc, PeriodSourceT>{
+      std::move(period_source)
+    };
+  }
+
+  // With-phase source factory.
   template <typename TCalc = float, typename InputSourceT, typename PeriodSourceT, typename PhaseSourceT, typename DutySourceT>
     requires concepts::Source<InputSourceT>
       && concepts::Source<PeriodSourceT>
@@ -151,7 +357,7 @@ namespace rheoscape::operators {
       && std::is_same_v<source_value_t<PeriodSourceT>, source_value_t<PhaseSourceT>>
       && concepts::TimePointAndDurationCompatible<source_value_t<InputSourceT>, source_value_t<PeriodSourceT>>
       && std::is_same_v<TCalc, source_value_t<DutySourceT>>
-  auto pwm_wave(InputSourceT input_source, PeriodSourceT period_source, DutySourceT duty_source, PhaseSourceT phase_shift_source = rheoscape::sources::constant(source_value_t<PeriodSourceT>{})) {
+  auto pwm_wave(InputSourceT input_source, PeriodSourceT period_source, DutySourceT duty_source, PhaseSourceT phase_shift_source) {
     struct IdentityFunction {
       RHEOSCAPE_CALLABLE TCalc operator()(TCalc theta) const {
         return theta;
@@ -170,11 +376,58 @@ namespace rheoscape::operators {
 
     return map(
       combine(
-        wave(std::move(input_source), std::move(period_source), IdentityFunction{}, std::move(phase_shift_source)),
+        wave<TCalc>(std::move(input_source), std::move(period_source), IdentityFunction{}, std::move(phase_shift_source)),
         std::move(duty_source)
       ),
       DutyComparator{}
     );
+  }
+
+  // No-phase-shift overload.
+  template <typename TCalc = float, typename InputSourceT, typename PeriodSourceT, typename DutySourceT>
+    requires concepts::Source<InputSourceT>
+      && concepts::Source<PeriodSourceT>
+      && concepts::Source<DutySourceT>
+      && concepts::TimePointAndDurationCompatible<source_value_t<InputSourceT>, source_value_t<PeriodSourceT>>
+      && std::is_same_v<TCalc, source_value_t<DutySourceT>>
+  auto pwm_wave(InputSourceT input_source, PeriodSourceT period_source, DutySourceT duty_source) {
+    return pwm_wave<TCalc>(
+      std::move(input_source),
+      std::move(period_source),
+      std::move(duty_source),
+      sources::constant(source_value_t<PeriodSourceT>{})
+    );
+  }
+
+  namespace detail {
+    template <typename TCalc, typename PeriodSourceT, typename DutySourceT>
+    struct PwmWavePipeFactory {
+      PeriodSourceT period_source;
+      DutySourceT duty_source;
+
+      template <typename InputSourceT>
+        requires concepts::Source<InputSourceT>
+          && concepts::TimePointAndDurationCompatible<source_value_t<InputSourceT>, source_value_t<PeriodSourceT>>
+      RHEOSCAPE_CALLABLE auto operator()(InputSourceT input_source) const {
+        return pwm_wave<TCalc>(
+          std::move(input_source),
+          PeriodSourceT(period_source),
+          DutySourceT(duty_source)
+        );
+      }
+    };
+  }
+
+  // Pipe factory overload.
+  template <typename TCalc = float, typename PeriodSourceT, typename DutySourceT>
+    requires concepts::Source<PeriodSourceT>
+      && concepts::Source<DutySourceT>
+      && std::is_same_v<TCalc, source_value_t<DutySourceT>>
+  auto pwm_wave(PeriodSourceT period_source, DutySourceT duty_source) {
+    return detail::PwmWavePipeFactory<TCalc, PeriodSourceT, DutySourceT>{
+      std::move(period_source),
+      std::move(duty_source)
+    };
   }
 
 }

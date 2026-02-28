@@ -162,8 +162,7 @@ void setup() {
   // Connect the servo sweep duration and angle range to the servo.
   auto servo_position = triangle_wave(
     system_clock_source,
-    servo_sweep_duration.get_source_fn(),
-    constant(float_millis_clock::duration(0))
+    servo_sweep_duration.get_source_fn()
   )
     | normalize(constant(Range(-1.0f, 1.0f)), servo_angle_range.get_source_fn());
   pull_servo = servo_position | servo_sink(servo_pin);
@@ -412,8 +411,7 @@ void setup() {
 
   pull_heartbeat = sine_wave(
     system_clock_source,
-    constant(float_millis_clock::duration(2000)),
-    constant(float_millis_clock::duration(0))
+    constant(float_millis_clock::duration(2000))
   )
   // Zero-bias, then stretch to 10-bit PWM range.
   | map([](float v) -> int { return (v + 1.0f) / 2 * 1023; })

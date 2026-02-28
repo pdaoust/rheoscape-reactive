@@ -174,6 +174,166 @@ void test_pwm_wave_waves() {
   }
 }
 
+// No-phase-shift overload tests.
+
+void test_wave_no_phase() {
+  auto input_source = sequence_open(0, 1);
+  auto period_source = constant(100);
+  auto wave_source = wave(input_source, period_source, [](float value) { return value; });
+
+  float pushed_value = 0;
+  auto pull = wave_source([&pushed_value](float v) { pushed_value = v; });
+
+  for (int i = 0; i < 100; i ++) {
+    pull();
+    TEST_ASSERT_EQUAL_FLOAT_MESSAGE((float)(i % 100) / 100, pushed_value, "Should calculate normalised phase");
+  }
+}
+
+void test_sine_wave_no_phase() {
+  auto input_source = sequence_open(0, 1);
+  auto period_source = constant(100);
+  auto sine_source = sine_wave(input_source, period_source);
+
+  float pushed_value = 0;
+  auto pull = sine_source([&pushed_value](float v) { pushed_value = v; });
+
+  pull();
+  TEST_ASSERT_TRUE_MESSAGE(pushed_value < 0.000000001f, "Should start at zero");
+  for (int i = 1; i < 25; i++) pull();
+  pull();
+  // i == 25
+  TEST_ASSERT_EQUAL_FLOAT_MESSAGE(1.0f, pushed_value, "Should peak at 1");
+}
+
+void test_sawtooth_wave_no_phase() {
+  auto input_source = sequence_open(0, 1);
+  auto period_source = constant(100);
+  auto sawtooth_source = sawtooth_wave(input_source, period_source);
+
+  float pushed_value = 0;
+  auto pull = sawtooth_source([&pushed_value](float v) { pushed_value = v; });
+
+  pull();
+  TEST_ASSERT_EQUAL_FLOAT_MESSAGE(-1.0f, pushed_value, "Should start at -1");
+}
+
+void test_triangle_wave_no_phase() {
+  auto input_source = sequence_open(0, 1);
+  auto period_source = constant(100);
+  auto triangle_source = triangle_wave(input_source, period_source);
+
+  float pushed_value = 0;
+  auto pull = triangle_source([&pushed_value](float v) { pushed_value = v; });
+
+  pull();
+  TEST_ASSERT_EQUAL_FLOAT_MESSAGE(0.0f, pushed_value, "Should start at zero");
+}
+
+void test_square_wave_no_phase() {
+  auto input_source = sequence_open(0, 1);
+  auto period_source = constant(100);
+  auto square_source = square_wave(input_source, period_source);
+
+  float pushed_value = 0;
+  auto pull = square_source([&pushed_value](float v) { pushed_value = v; });
+
+  pull();
+  TEST_ASSERT_EQUAL_FLOAT_MESSAGE(1.0f, pushed_value, "Should start high");
+}
+
+void test_pwm_wave_no_phase() {
+  auto input_source = sequence_open(0, 1);
+  auto period_source = constant(100);
+  auto pwm_source = pwm_wave(input_source, period_source, constant(0.5f));
+
+  bool pushed_value;
+  auto pull = pwm_source([&pushed_value](auto v) { pushed_value = v; });
+
+  for (int i = 0; i < 100; i ++) {
+    pull();
+    TEST_ASSERT_EQUAL_MESSAGE(i < 50, pushed_value, fmt::format("Should calculate PWM wave with 0.5 duty at {}", i).c_str());
+  }
+}
+
+// Pipe factory tests.
+
+void test_wave_pipe() {
+  auto input_source = sequence_open(0, 1);
+  auto period_source = constant(100);
+  auto wave_source = input_source | wave(period_source, [](float value) { return value; });
+
+  float pushed_value = 0;
+  auto pull = wave_source([&pushed_value](float v) { pushed_value = v; });
+
+  for (int i = 0; i < 100; i ++) {
+    pull();
+    TEST_ASSERT_EQUAL_FLOAT_MESSAGE((float)(i % 100) / 100, pushed_value, "Should calculate normalised phase");
+  }
+}
+
+void test_sine_wave_pipe() {
+  auto input_source = sequence_open(0, 1);
+  auto period_source = constant(100);
+  auto sine_source = input_source | sine_wave(period_source);
+
+  float pushed_value = 0;
+  auto pull = sine_source([&pushed_value](float v) { pushed_value = v; });
+
+  pull();
+  TEST_ASSERT_TRUE_MESSAGE(pushed_value < 0.000000001f, "Should start at zero");
+}
+
+void test_sawtooth_wave_pipe() {
+  auto input_source = sequence_open(0, 1);
+  auto period_source = constant(100);
+  auto sawtooth_source = input_source | sawtooth_wave(period_source);
+
+  float pushed_value = 0;
+  auto pull = sawtooth_source([&pushed_value](float v) { pushed_value = v; });
+
+  pull();
+  TEST_ASSERT_EQUAL_FLOAT_MESSAGE(-1.0f, pushed_value, "Should start at -1");
+}
+
+void test_triangle_wave_pipe() {
+  auto input_source = sequence_open(0, 1);
+  auto period_source = constant(100);
+  auto triangle_source = input_source | triangle_wave(period_source);
+
+  float pushed_value = 0;
+  auto pull = triangle_source([&pushed_value](float v) { pushed_value = v; });
+
+  pull();
+  TEST_ASSERT_EQUAL_FLOAT_MESSAGE(0.0f, pushed_value, "Should start at zero");
+}
+
+void test_square_wave_pipe() {
+  auto input_source = sequence_open(0, 1);
+  auto period_source = constant(100);
+  auto square_source = input_source | square_wave(period_source);
+
+  float pushed_value = 0;
+  auto pull = square_source([&pushed_value](float v) { pushed_value = v; });
+
+  pull();
+  TEST_ASSERT_EQUAL_FLOAT_MESSAGE(1.0f, pushed_value, "Should start high");
+}
+
+void test_pwm_wave_pipe() {
+  auto input_source = sequence_open(0, 1);
+  auto period_source = constant(100);
+  auto pwm_source = input_source | pwm_wave(period_source, constant(0.5f));
+
+  bool pushed_value;
+  auto pull = pwm_source([&pushed_value](auto v) { pushed_value = v; });
+
+  for (int i = 0; i < 100; i ++) {
+    pull();
+    TEST_ASSERT_EQUAL_MESSAGE(i < 50, pushed_value, fmt::format("Should calculate PWM pipe with 0.5 duty at {}", i).c_str());
+  }
+}
+
 void test_square_wave_with_chrono_clock() {
   // Smoke test: verify wave operators compile and work
   // when the input source emits chrono time_points
@@ -211,6 +371,18 @@ int main(int argc, char** argv) {
   RUN_TEST(test_sawtooth_wave_waves);
   RUN_TEST(test_triangle_wave_waves);
   RUN_TEST(test_pwm_wave_waves);
+  RUN_TEST(test_wave_no_phase);
+  RUN_TEST(test_sine_wave_no_phase);
+  RUN_TEST(test_sawtooth_wave_no_phase);
+  RUN_TEST(test_triangle_wave_no_phase);
+  RUN_TEST(test_square_wave_no_phase);
+  RUN_TEST(test_pwm_wave_no_phase);
+  RUN_TEST(test_wave_pipe);
+  RUN_TEST(test_sine_wave_pipe);
+  RUN_TEST(test_sawtooth_wave_pipe);
+  RUN_TEST(test_triangle_wave_pipe);
+  RUN_TEST(test_square_wave_pipe);
+  RUN_TEST(test_pwm_wave_pipe);
   RUN_TEST(test_square_wave_with_chrono_clock);
   UNITY_END();
 }
