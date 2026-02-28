@@ -349,15 +349,16 @@ namespace rheoscape::operators {
   }
 
   // With-phase source factory.
-  template <typename TCalc = float, typename InputSourceT, typename PeriodSourceT, typename PhaseSourceT, typename DutySourceT>
+  template <typename InputSourceT, typename PeriodSourceT, typename PhaseSourceT, typename DutySourceT>
     requires concepts::Source<InputSourceT>
       && concepts::Source<PeriodSourceT>
       && concepts::Source<PhaseSourceT>
       && concepts::Source<DutySourceT>
       && std::is_same_v<source_value_t<PeriodSourceT>, source_value_t<PhaseSourceT>>
       && concepts::TimePointAndDurationCompatible<source_value_t<InputSourceT>, source_value_t<PeriodSourceT>>
-      && std::is_same_v<TCalc, source_value_t<DutySourceT>>
   auto pwm_wave(InputSourceT input_source, PeriodSourceT period_source, DutySourceT duty_source, PhaseSourceT phase_shift_source) {
+    using TCalc = source_value_type_t<DutySourceT>;
+
     struct IdentityFunction {
       RHEOSCAPE_CALLABLE TCalc operator()(TCalc theta) const {
         return theta;
@@ -365,10 +366,10 @@ namespace rheoscape::operators {
     };
 
     struct DutyComparator {
-      RHEOSCAPE_CALLABLE bool operator()(std::tuple<TCalc, TCalc> theta) const {
+      RHEOSCAPE_CALLABLE bool operator()(std::tuple<TCalc, TCalc> theta_and_duty) const {
         // While a sine wave goes from -1 to 1, that's never useful for PWM and square waves.
         // Instead, go from 0 to 1.
-        return std::get<0>(theta) < std::get<1>(theta)
+        return std::get<0>(theta_and_duty) < std::get<1>(theta_and_duty)
             ? true
             : false;
       }
@@ -391,7 +392,7 @@ namespace rheoscape::operators {
       && concepts::TimePointAndDurationCompatible<source_value_t<InputSourceT>, source_value_t<PeriodSourceT>>
       && std::is_same_v<TCalc, source_value_t<DutySourceT>>
   auto pwm_wave(InputSourceT input_source, PeriodSourceT period_source, DutySourceT duty_source) {
-    return pwm_wave<TCalc>(
+    return pwm_wave(
       std::move(input_source),
       std::move(period_source),
       std::move(duty_source),
