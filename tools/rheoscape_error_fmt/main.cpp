@@ -15,6 +15,7 @@
 struct TypeNode {
   std::string name;
   std::vector<TypeNode> args;
+  std::string suffix;  // Text after closing '>' (e.g., "::LapScanner").
 };
 
 // Trim whitespace from both ends.
@@ -82,6 +83,25 @@ static TypeNode parse_type(const std::string& raw_input) {
   }
 
   std::string args_str = input.substr(template_start + 1, template_end - template_start - 1);
+
+  // Parse suffix: skip balanced (...) after '>', then capture remaining text.
+  size_t suffix_pos = template_end + 1;
+  if (suffix_pos < input.size() && input[suffix_pos] == '(') {
+    int pdepth = 0;
+    for (size_t i = suffix_pos; i < input.size(); ++i) {
+      if (input[i] == '(') pdepth++;
+      else if (input[i] == ')') {
+        pdepth--;
+        if (pdepth == 0) {
+          suffix_pos = i + 1;
+          break;
+        }
+      }
+    }
+  }
+  if (suffix_pos < input.size()) {
+    node.suffix = trim(input.substr(suffix_pos));
+  }
 
   // Split on ',' at depth 0.
   depth_angle = 0;
@@ -292,15 +312,34 @@ static const std::unordered_map<std::string, OperatorInfo>& get_operator_map() {
 // ============================================================================
 
 // Shorten lambda names like "main()::<lambda(int, float)>" to "lambda(int, float)".
+// Also handles standalone "<lambda(...)>" (after namespace stripping).
+// Handles nested parens in lambda args (e.g., "<lambda(std::tuple<A, B>)>").
 static std::string simplify_lambda(const std::string& name) {
-  static const std::regex lambda_re(R"(.*::<lambda\(([^)]*)\)>)");
-  std::smatch m;
-  if (std::regex_match(name, m, lambda_re)) {
-    return "lambda(" + m[1].str() + ")";
+  // Try "::<lambda(" first (qualified lambda).
+  std::string marker = "::<lambda(";
+  auto mpos = name.find(marker);
+  if (mpos == std::string::npos) {
+    // Try standalone "<lambda(" (e.g., the whole name is "<lambda(...)>").
+    marker = "<lambda(";
+    if (name.substr(0, marker.size()) == marker) {
+      mpos = 0;
+    } else {
+      return name;
+    }
   }
-  static const std::regex lambda_re2(R"(.*::<lambda\(\)>)");
-  if (std::regex_match(name, m, lambda_re2)) {
-    return "lambda()";
+
+  size_t args_start = mpos + marker.size();
+  // Find matching ')>' by tracking paren depth.
+  int depth = 1;
+  size_t i = args_start;
+  for (; i < name.size() && depth > 0; ++i) {
+    if (name[i] == '(') depth++;
+    else if (name[i] == ')') depth--;
+  }
+  // i is now one past the matching ')'.
+  if (i <= name.size() && depth == 0) {
+    std::string args = name.substr(args_start, i - 1 - args_start);
+    return "lambda(" + args + ")";
   }
   return name;
 }
@@ -309,10 +348,12 @@ static std::string simplify_lambda(const std::string& name) {
 // Pipeline Types and Rendering
 // ============================================================================
 
+struct Pipeline;
+
 struct PipelineStep {
   std::string operator_name;
-  std::vector<std::string> args;
-  std::vector<std::string> source_labels;
+  std::vector<std::string> args;          // Non-source args.
+  std::vector<Pipeline> sub_pipelines;    // For multi-source ops (combine, merge).
   bool is_source = false;
 };
 
@@ -328,16 +369,43 @@ static bool build_pipeline(const TypeNode& node, Pipeline& pipeline);
 // If simplify is true, recursively simplifies known operator types.
 static std::string render_type_compact(const TypeNode& node, bool simplify = false);
 
+// Check if a name is a known operator (by struct name or display name).
+// Returns the display name if found, empty string otherwise.
+static std::string find_operator_display_name(const std::string& name) {
+  const auto& op_map = get_operator_map();
+  // Check struct name first.
+  auto it = op_map.find(name);
+  if (it != op_map.end()) return it->second.display_name;
+  // Check if the name itself is a known display name.
+  for (const auto& [key, info] : op_map) {
+    if (info.display_name == name) return name;
+  }
+  return "";
+}
+
 static std::string render_type_compact(const TypeNode& node, bool simplify) {
+  std::string name = node.name;
+  bool drop_args = false;
+
   if (simplify) {
-    Pipeline pipeline;
-    if (build_pipeline(node, pipeline) && !pipeline.steps.empty()) {
-      return render_pipeline(pipeline);
+    // Check the full name (possibly with ::suffix in the name field).
+    std::string base_name = name;
+    std::string name_suffix;
+    auto colpos = name.find("::");
+    if (colpos != std::string::npos) {
+      base_name = name.substr(0, colpos);
+      name_suffix = name.substr(colpos);
+    }
+
+    std::string display = find_operator_display_name(base_name);
+    if (!display.empty()) {
+      name = display + name_suffix;
+      drop_args = true;
     }
   }
 
-  std::string result = node.name;
-  if (!node.args.empty()) {
+  std::string result = name;
+  if (!node.args.empty() && !drop_args) {
     result += "<";
     for (size_t i = 0; i < node.args.size(); ++i) {
       if (i > 0) result += ", ";
@@ -345,7 +413,8 @@ static std::string render_type_compact(const TypeNode& node, bool simplify) {
     }
     result += ">";
   }
-  return result;
+  result += node.suffix;
+  return simplify_lambda(result);
 }
 
 // Recursively build a pipeline from a TypeNode.
@@ -364,7 +433,7 @@ static bool build_pipeline(const TypeNode& node, Pipeline& pipeline) {
       if (!node.args.empty()) {
         build_pipeline(node.args[0], pipeline);
         for (size_t i = 1; i < node.args.size(); ++i) {
-          step.args.push_back(simplify_lambda(render_type_compact(node.args[i], true)));
+          step.args.push_back(render_type_compact(node.args[i], true));
         }
       }
       break;
@@ -377,7 +446,7 @@ static bool build_pipeline(const TypeNode& node, Pipeline& pipeline) {
         step.operator_name += "<" + render_type_compact(node.args[1], true) + ">";
       }
       for (size_t i = 2; i < node.args.size(); ++i) {
-        step.args.push_back(simplify_lambda(render_type_compact(node.args[i], true)));
+        step.args.push_back(render_type_compact(node.args[i], true));
       }
       break;
     }
@@ -386,9 +455,15 @@ static bool build_pipeline(const TypeNode& node, Pipeline& pipeline) {
       for (const auto& arg : node.args) {
         Pipeline sub;
         if (build_pipeline(arg, sub)) {
-          step.source_labels.push_back(render_pipeline(sub));
+          step.sub_pipelines.push_back(std::move(sub));
         } else {
-          step.source_labels.push_back(render_type_compact(arg, true));
+          // Wrap as a single-step pipeline.
+          Pipeline fallback;
+          PipelineStep fallback_step;
+          fallback_step.operator_name = render_type_compact(arg, true);
+          fallback_step.is_source = true;
+          fallback.steps.push_back(std::move(fallback_step));
+          step.sub_pipelines.push_back(std::move(fallback));
         }
       }
       break;
@@ -398,13 +473,18 @@ static bool build_pipeline(const TypeNode& node, Pipeline& pipeline) {
       for (size_t i = 0; i < std::min(node.args.size(), size_t(2)); ++i) {
         Pipeline sub;
         if (build_pipeline(node.args[i], sub)) {
-          step.source_labels.push_back(render_pipeline(sub));
+          step.sub_pipelines.push_back(std::move(sub));
         } else {
-          step.source_labels.push_back(render_type_compact(node.args[i], true));
+          Pipeline fallback;
+          PipelineStep fallback_step;
+          fallback_step.operator_name = render_type_compact(node.args[i], true);
+          fallback_step.is_source = true;
+          fallback.steps.push_back(std::move(fallback_step));
+          step.sub_pipelines.push_back(std::move(fallback));
         }
       }
       for (size_t i = 2; i < node.args.size(); ++i) {
-        step.args.push_back(simplify_lambda(render_type_compact(node.args[i], true)));
+        step.args.push_back(render_type_compact(node.args[i], true));
       }
       break;
     }
@@ -418,7 +498,7 @@ static bool build_pipeline(const TypeNode& node, Pipeline& pipeline) {
     case OperatorKind::PIPE:
     case OperatorKind::SINK: {
       for (const auto& arg : node.args) {
-        step.args.push_back(simplify_lambda(render_type_compact(arg, true)));
+        step.args.push_back(render_type_compact(arg, true));
       }
       break;
     }
@@ -428,6 +508,33 @@ static bool build_pipeline(const TypeNode& node, Pipeline& pipeline) {
   return true;
 }
 
+// Render a single pipeline step inline (without arrow prefix).
+static std::string render_step(const PipelineStep& step) {
+  std::ostringstream out;
+  out << step.operator_name;
+
+  if (!step.sub_pipelines.empty()) {
+    out << "(";
+    for (size_t i = 0; i < step.sub_pipelines.size(); ++i) {
+      if (i > 0) out << ", ";
+      out << render_pipeline(step.sub_pipelines[i]);
+    }
+    for (const auto& a : step.args) {
+      out << ", " << a;
+    }
+    out << ")";
+  } else if (!step.args.empty()) {
+    out << "(";
+    for (size_t i = 0; i < step.args.size(); ++i) {
+      if (i > 0) out << ", ";
+      out << step.args[i];
+    }
+    out << ")";
+  }
+  return out.str();
+}
+
+// Render pipeline as a single line (used for inline/nested pipelines).
 static std::string render_pipeline(const Pipeline& pipeline) {
   if (pipeline.steps.empty()) return "<?>";
 
@@ -438,37 +545,104 @@ static std::string render_pipeline(const Pipeline& pipeline) {
       out << " \xe2\x86\x92 ";
     }
     first = false;
-
-    out << step.operator_name;
-
-    if (!step.source_labels.empty()) {
-      out << "(";
-      for (size_t i = 0; i < step.source_labels.size(); ++i) {
-        if (i > 0) out << ", ";
-        out << step.source_labels[i];
-      }
-      for (const auto& a : step.args) {
-        out << ", " << a;
-      }
-      out << ")";
-    } else if (!step.args.empty()) {
-      out << "(";
-      for (size_t i = 0; i < step.args.size(); ++i) {
-        if (i > 0) out << ", ";
-        out << step.args[i];
-      }
-      out << ")";
-    }
+    out << render_step(step);
   }
   return out.str();
+}
+
+// Render pipeline as multi-line with incremental indentation.
+// Returns one string per line (no trailing newlines in strings).
+static std::vector<std::string> render_pipeline_lines(
+    const Pipeline& pipeline, int base_indent);
+
+static std::vector<std::string> render_pipeline_lines(
+    const Pipeline& pipeline, int base_indent) {
+  std::vector<std::string> lines;
+  if (pipeline.steps.empty()) {
+    lines.push_back(std::string(base_indent, ' ') + "<?>");
+    return lines;
+  }
+
+  // UTF-8 arrow.
+  const std::string arrow = "\xe2\x86\x92 ";
+
+  for (size_t step_idx = 0; step_idx < pipeline.steps.size(); ++step_idx) {
+    const auto& step = pipeline.steps[step_idx];
+    int step_indent = base_indent + static_cast<int>(step_idx) * 2;
+    std::string pad(step_indent, ' ');
+    std::string prefix = (step_idx > 0) ? (pad + arrow) : pad;
+
+    if (!step.sub_pipelines.empty()) {
+      // Multi-source op: operator_name(\n  sub1,\n  sub2\n)
+      std::string header = prefix + step.operator_name + "(";
+      lines.push_back(header);
+
+      int sub_indent = step_indent + 2;
+      for (size_t si = 0; si < step.sub_pipelines.size(); ++si) {
+        auto sub_lines = render_pipeline_lines(step.sub_pipelines[si], sub_indent);
+        for (size_t li = 0; li < sub_lines.size(); ++li) {
+          if (li == sub_lines.size() - 1 && si < step.sub_pipelines.size() - 1) {
+            sub_lines[li] += ",";
+          }
+          lines.push_back(sub_lines[li]);
+        }
+      }
+      // Closing paren.
+      std::string close = std::string(step_indent, ' ') + ")";
+      lines.push_back(close);
+    } else if (!step.args.empty()) {
+      // Render args.
+      std::string inline_render = step.operator_name + "(";
+      for (size_t i = 0; i < step.args.size(); ++i) {
+        if (i > 0) inline_render += ", ";
+        inline_render += step.args[i];
+      }
+      inline_render += ")";
+
+      if (step.operator_name.size() > 40) {
+        // Break args onto next line.
+        lines.push_back(prefix + step.operator_name + "(");
+        int arg_indent = step_indent + 2;
+        std::string arg_pad(arg_indent, ' ');
+        std::string arg_line = arg_pad;
+        for (size_t i = 0; i < step.args.size(); ++i) {
+          if (i > 0) arg_line += ", ";
+          arg_line += step.args[i];
+        }
+        lines.push_back(arg_line);
+        lines.push_back(std::string(step_indent, ' ') + ")");
+      } else {
+        lines.push_back(prefix + inline_render);
+      }
+    } else {
+      lines.push_back(prefix + step.operator_name);
+    }
+  }
+
+  return lines;
 }
 
 // ============================================================================
 // Full Type Simplifier
 // ============================================================================
 
+// Collapse GCC's C++03-style "> >" spacing to ">>".
+static std::string collapse_angle_spacing(const std::string& input) {
+  // Collapse "> >" to ">>".
+  std::string result;
+  result.reserve(input.size());
+  for (size_t i = 0; i < input.size(); ++i) {
+    if (input[i] == ' ' && i + 1 < input.size() && input[i + 1] == '>' &&
+        i > 0 && input[i - 1] == '>') {
+      continue;
+    }
+    result += input[i];
+  }
+  return result;
+}
+
 static std::string simplify_type(const std::string& raw) {
-  std::string stripped = strip_namespaces(raw);
+  std::string stripped = collapse_angle_spacing(strip_namespaces(raw));
   TypeNode tree = parse_type(stripped);
 
   Pipeline pipeline;
@@ -477,6 +651,21 @@ static std::string simplify_type(const std::string& raw) {
   }
 
   return render_type_compact(tree, true);
+}
+
+// Simplify a type and render as multi-line pipeline lines.
+// Returns empty vector if no multi-step pipeline was found.
+static std::vector<std::string> simplify_type_multiline_lines(
+    const std::string& raw, int indent) {
+  std::string stripped = collapse_angle_spacing(strip_namespaces(raw));
+  TypeNode tree = parse_type(stripped);
+
+  Pipeline pipeline;
+  if (build_pipeline(tree, pipeline) && pipeline.steps.size() > 1) {
+    return render_pipeline_lines(pipeline, indent);
+  }
+
+  return {};
 }
 
 // ============================================================================
@@ -563,7 +752,131 @@ static std::string simplify_types_in_line(const std::string& line) {
     }
   }
 
+  return collapse_angle_spacing(result);
+}
+
+// Like simplify_types_in_line, but renders multi-step pipelines across
+// multiple lines with indentation. Used for diagnostic lines (error:, note:)
+// where the types are long enough to benefit from multi-line rendering.
+// base_indent is the indentation for continuation lines.
+static std::string simplify_types_in_line_multiline(
+    const std::string& line, int base_indent) {
+  std::string stripped = strip_namespaces(line);
+
+  const auto& op_map = get_operator_map();
+
+  // Build sorted list of operator names (longest first) once.
+  static std::vector<std::string> sorted_names;
+  if (sorted_names.empty()) {
+    for (const auto& [name, _] : op_map) {
+      sorted_names.push_back(name);
+    }
+    std::sort(sorted_names.begin(), sorted_names.end(),
+      [](const auto& a, const auto& b) { return a.size() > b.size(); });
+  }
+
+  std::string result;
+  size_t pos = 0;
+
+  while (pos < stripped.size()) {
+    bool found = false;
+    for (const auto& name : sorted_names) {
+      if (pos + name.size() > stripped.size()) continue;
+      if (stripped.compare(pos, name.size(), name) != 0) continue;
+
+      // Word boundary check.
+      if (pos > 0 && (std::isalnum(stripped[pos - 1]) || stripped[pos - 1] == '_')) continue;
+
+      size_t after_name = pos + name.size();
+      size_t type_end;
+      if (after_name < stripped.size() && stripped[after_name] == '<') {
+        type_end = find_type_end(stripped, pos);
+      } else {
+        type_end = after_name;
+      }
+
+      std::string type_str = stripped.substr(pos, type_end - pos);
+
+      // Try multi-line pipeline rendering for this type.
+      auto ml_lines = simplify_type_multiline_lines(type_str, base_indent);
+      if (!ml_lines.empty()) {
+        // Multi-step pipeline: render across multiple lines.
+        result += "\n";
+        for (size_t li = 0; li < ml_lines.size(); ++li) {
+          result += ml_lines[li];
+          if (li < ml_lines.size() - 1) result += "\n";
+        }
+      } else {
+        // Single type or no pipeline: render inline.
+        result += simplify_type(type_str);
+      }
+
+      pos = type_end;
+      found = true;
+      break;
+    }
+    if (!found) {
+      result += stripped[pos];
+      pos++;
+    }
+  }
+
+  return collapse_angle_spacing(result);
+}
+
+// ============================================================================
+// ANSI Code Handling
+// ============================================================================
+
+// Strip ANSI escape sequences from a string.
+static std::string strip_ansi(const std::string& input) {
+  std::string result;
+  result.reserve(input.size());
+  for (size_t i = 0; i < input.size(); ++i) {
+    if (input[i] == '\033' && i + 1 < input.size() && input[i + 1] == '[') {
+      // Skip ESC [ ... m/K sequence.
+      i += 2;
+      while (i < input.size() && input[i] != 'm' && input[i] != 'K') {
+        i++;
+      }
+      // Skip the terminating 'm' or 'K'.
+      continue;
+    }
+    result += input[i];
+  }
   return result;
+}
+
+// Split a line into a "diagnostic prefix" and the remainder,
+// both with ANSI codes stripped.
+// The prefix is everything up to and including the first
+// error:/note:/warning:/required from/In instantiation/In substitution keyword.
+// Returns {stripped_prefix, stripped_rest}.
+// ANSI is stripped from both parts because:
+// - The formatter restructures text, making embedded ANSI codes meaningless.
+// - PlatformIO / VSCode apply their own coloring on top.
+// - Embedded GCC ANSI resets would clash with PlatformIO's outer coloring.
+static std::pair<std::string, std::string> split_diagnostic_prefix(const std::string& line) {
+  std::string stripped = strip_ansi(line);
+
+  // Keywords that mark the end of the diagnostic prefix.
+  static const std::vector<std::string> keywords = {
+    "error: ", "note: ", "warning: ",
+    "required from here", "required from ",
+    "In instantiation of ", "In substitution of ",
+    "required for the satisfaction of ",
+  };
+
+  for (const auto& kw : keywords) {
+    size_t pos = stripped.find(kw);
+    if (pos == std::string::npos) continue;
+
+    size_t prefix_end = pos + kw.size();
+    return {stripped.substr(0, prefix_end), stripped.substr(prefix_end)};
+  }
+
+  // No keyword found: return the whole stripped line as rest.
+  return {"", stripped};
 }
 
 // ============================================================================
@@ -572,8 +885,189 @@ static std::string simplify_types_in_line(const std::string& line) {
 
 // Detect source code lines (e.g., "  294 |     code here").
 static bool is_source_code_line(const std::string& line) {
-  static const std::regex source_re(R"(^\s*\d+\s*\|)");
-  return std::regex_search(line, source_re);
+  std::string stripped = strip_ansi(line);
+  // Match numbered source lines (e.g., "  294 |  code here")
+  // and caret/underline lines (e.g., "      |      ^~~~~~~~").
+  static const std::regex source_re(R"(^\s*(\d+\s*)?\|)");
+  return std::regex_search(stripped, source_re);
+}
+
+// ============================================================================
+// [with ...] Clause Formatting
+// ============================================================================
+
+// Find matching closing bracket/paren at depth 0,
+// tracking balanced <>, (), [].
+static size_t find_matching_close(const std::string& s, size_t start, char open, char close) {
+  int depth = 0;
+  int angle = 0, paren = 0, bracket = 0;
+  for (size_t i = start; i < s.size(); ++i) {
+    char c = s[i];
+    if (c == '<') angle++;
+    else if (c == '>') angle--;
+    else if (c == '(') paren++;
+    else if (c == ')') paren--;
+    else if (c == '[') bracket++;
+    else if (c == ']') {
+      if (c == close && angle == 0 && paren == 0 && bracket == 0) return i;
+      bracket--;
+    }
+    if (c == open) depth++;
+    else if (c == close && angle == 0 && paren == 0 && bracket == 0) {
+      return i;
+    }
+  }
+  return std::string::npos;
+}
+
+// Split a string on a delimiter character at depth 0
+// (not inside balanced <>, (), []).
+static std::vector<std::string> split_at_depth0(
+    const std::string& s, char delim) {
+  std::vector<std::string> parts;
+  int angle = 0, paren = 0, bracket = 0;
+  size_t start = 0;
+  for (size_t i = 0; i < s.size(); ++i) {
+    char c = s[i];
+    if (c == '<') angle++;
+    else if (c == '>') angle--;
+    else if (c == '(') paren++;
+    else if (c == ')') paren--;
+    else if (c == '[') bracket++;
+    else if (c == ']') bracket--;
+    else if (c == delim && angle == 0 && paren == 0 && bracket == 0) {
+      parts.push_back(s.substr(start, i - start));
+      start = i + 1;
+    }
+  }
+  parts.push_back(s.substr(start));
+  return parts;
+}
+
+// Format a line containing a [with ...] clause with multi-line pipeline rendering.
+// The line should already be ANSI-stripped.
+static std::string format_with_clause_line(const std::string& line) {
+  std::string stripped = strip_namespaces(line);
+
+  // Find "[with " in the line.
+  size_t with_start = stripped.find("[with ");
+  if (with_start == std::string::npos) return simplify_types_in_line(line);
+
+  // Find matching ']'.
+  size_t content_start = with_start + 6;  // past "[with "
+  size_t with_end = std::string::npos;
+  {
+    int angle = 0, paren = 0, bracket = 1;
+    for (size_t i = content_start; i < stripped.size(); ++i) {
+      char c = stripped[i];
+      if (c == '<') angle++;
+      else if (c == '>') angle--;
+      else if (c == '(') paren++;
+      else if (c == ')') paren--;
+      else if (c == '[') bracket++;
+      else if (c == ']') {
+        bracket--;
+        if (bracket == 0 && angle == 0 && paren == 0) {
+          with_end = i;
+          break;
+        }
+      }
+    }
+  }
+  if (with_end == std::string::npos) return simplify_types_in_line(line);
+
+  std::string prefix = simplify_types_in_line(stripped.substr(0, with_start));
+  std::string with_content = stripped.substr(content_start, with_end - content_start);
+  std::string suffix_str = stripped.substr(with_end + 1);
+
+  // Split on ';' at depth 0.
+  auto assignments = split_at_depth0(with_content, ';');
+
+  std::ostringstream out;
+  out << prefix << "[with\n";
+
+  for (size_t ai = 0; ai < assignments.size(); ++ai) {
+    std::string asgn = trim(assignments[ai]);
+    if (asgn.empty()) continue;
+
+    // Split on first '='.
+    auto eq_pos = asgn.find('=');
+    if (eq_pos == std::string::npos) {
+      // No '=', just output as-is.
+      out << "  " << collapse_angle_spacing(strip_namespaces(asgn));
+      if (ai < assignments.size() - 1) out << ";";
+      out << "\n";
+      continue;
+    }
+
+    std::string var_name = trim(asgn.substr(0, eq_pos));
+    std::string type_str = trim(asgn.substr(eq_pos + 1));
+
+    // Extract trailing ref qualifier (& or &&).
+    std::string ref_qual;
+    while (!type_str.empty() && type_str.back() == '&') {
+      ref_qual = "&" + ref_qual;
+      type_str.pop_back();
+    }
+    type_str = trim(type_str);
+
+    out << "  " << var_name << " =\n";
+
+    // Try multi-line pipeline rendering.
+    auto pipeline_lines = simplify_type_multiline_lines(type_str, 4);
+    if (!pipeline_lines.empty()) {
+      for (size_t li = 0; li < pipeline_lines.size(); ++li) {
+        out << pipeline_lines[li];
+        if (li == pipeline_lines.size() - 1) {
+          out << ref_qual;
+          if (ai < assignments.size() - 1) out << ";";
+        }
+        out << "\n";
+      }
+    } else {
+      // Single type, render inline at indent 4.
+      std::string simplified = collapse_angle_spacing(
+          strip_namespaces(simplify_type(type_str)));
+      out << "    " << simplified << ref_qual;
+      if (ai < assignments.size() - 1) out << ";";
+      out << "\n";
+    }
+  }
+
+  out << "]" << simplify_types_in_line(suffix_str);
+  return out.str();
+}
+
+// Determine the ANSI color code for a diagnostic prefix.
+// Matches PlatformIO's coloring: error → red, everything else → yellow.
+static std::string ansi_color_for_prefix(const std::string& prefix) {
+  if (prefix.find("error:") != std::string::npos) return "\033[31m";
+  return "\033[33m";  // yellow for warnings, notes, and other diagnostics
+}
+
+// Output a potentially multi-line formatted string.
+// The first line is printed as-is (PlatformIO colors it).
+// Continuation lines get an ANSI color prefix so they inherit the
+// diagnostic level's color even though PlatformIO defaults them to yellow.
+static void output_formatted(const std::string& formatted, const std::string& ansi_color) {
+  size_t pos = 0;
+  bool first = true;
+  while (pos < formatted.size()) {
+    size_t nl = formatted.find('\n', pos);
+    std::string segment;
+    if (nl == std::string::npos) {
+      segment = formatted.substr(pos);
+      pos = formatted.size();
+    } else {
+      segment = formatted.substr(pos, nl - pos);
+      pos = nl + 1;
+    }
+    if (!first && !ansi_color.empty()) {
+      std::cout << ansi_color;
+    }
+    std::cout << segment << "\n";
+    first = false;
+  }
 }
 
 static void process_stream(std::istream& in) {
@@ -581,9 +1075,44 @@ static void process_stream(std::istream& in) {
 
   while (std::getline(in, line)) {
     if (is_source_code_line(line)) {
+      // Source code lines: pass through unchanged (preserve ANSI).
       std::cout << line << "\n";
     } else {
-      std::cout << simplify_types_in_line(line) << "\n";
+      // Split into ANSI-stripped diagnostic prefix and rest.
+      auto [prefix, rest] = split_diagnostic_prefix(line);
+
+      std::string ansi = prefix.empty() ? "" : ansi_color_for_prefix(prefix);
+
+      if (rest.find("[with ") != std::string::npos) {
+        output_formatted(prefix + format_with_clause_line(rest), ansi);
+      } else if (!prefix.empty()) {
+        // Has diagnostic prefix.
+        // rest is ANSI-stripped; use multi-line rendering for long types.
+        std::string formatted = simplify_types_in_line_multiline(rest, 2);
+        if (formatted.find('\n') != std::string::npos) {
+          // Multi-line result: break after the opening quote so
+          // the type/pipeline content starts indented on the next line.
+          std::string combined = prefix + formatted;
+          size_t quote_pos = combined.find('\'');
+          if (quote_pos != std::string::npos && quote_pos < combined.size() - 1) {
+            std::string before = combined.substr(0, quote_pos + 1);
+            std::string after = combined.substr(quote_pos + 1);
+            // Trim leading whitespace/newline from 'after' and re-indent.
+            size_t first_non_ws = after.find_first_not_of(" \n");
+            if (first_non_ws != std::string::npos) {
+              after = after.substr(first_non_ws);
+            }
+            output_formatted(before + "\n  " + after, ansi);
+          } else {
+            output_formatted(combined, ansi);
+          }
+        } else {
+          output_formatted(prefix + formatted, ansi);
+        }
+      } else {
+        // No diagnostic keyword found: process the whole stripped line.
+        std::cout << simplify_types_in_line(rest) << "\n";
+      }
     }
   }
 }
