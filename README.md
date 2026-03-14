@@ -2,9 +2,9 @@
 
 ## A functional reactive programming library for embedded devices, written in C++.
 
-Rheoscape was written to fill a gap in embedded programming -- a way to easily compose streams of data in the functional reactive style while keeping control over how the streams are executed. In embedded environments this is important: you want to be able to reason about what's happening, when, and how often, so that you can tune your program to squeeze nicely into the constrained hardware you're building for.
+Rheoscape brings the functional reactive programming style to embedded development, using embedded-friendly idioms. It helps you tame your polling-driven loop code and construct streams of data that look almost magical!
 
-Rheoscape comes with a few conveniences for constructing elegant, readable streams using the `|` operator. Here's the classic 'blink without delay' sketch, rewritten with Rheoscape:
+Here's the classic Arduino 'blink without delay' sketch, rewritten with Rheoscape:
 
 ```c++
 #include <Arduino.h>
@@ -18,84 +18,32 @@ using namespace sinks::arduino;
 static pull_fn blink_led;
 
 void setup() {
+    // Construct a pipe from the clock, through a 50% 2-second wave, to a GPIO.
     blink_led = from_clock<arduino_millis_clock>()
-        | square_wave(constant(arduino_millis_clock::duration(2000)))
+        // 2 second cycle @ 0.5 duty cycle = 1 second on / 1 second off
+        | pwm_wave(constant(arduino_millis_clock::duration(2000)), constant(0.5f))
         | digital_pin_sink(3);
 }
 
 void loop() {
+    // Poll the pipe every time around the loop.
     blink_led();
 }
 ```
 
-This more complex example reads a moisture sensor, shows moisture with a needle gauge, and turns a water valve on when the sensor reaches a user-set dryness threshold:
+This example shows the basic structure of a sketch built with Rheoscape:
 
-```c++
-#include <Arduino.h>
-#include <rheoscape.h>
+1. Define a static 'pull' variable.
+2. Construct a pipeline in `setup`, assigning it to the static pull variable.
+3. Call the pull variable, which contains a function, in your loop.
 
-using namespace rheoscape;
-using namespace operators;
-using namespace sources;
-using namespace sources::arduino;
-using namespace sinks::arduino;
+For more complex examples, see the `examples/` folder.
 
-pull_fn set_servo_to_soil_moisture_reading;
-pull_fn handle_watering_threshold_input;
+## Why choose Rheoscape?
 
-void setup() {
-    // Soil moisture sensor on GPIO 3.
-    static auto soil_moisture_sensor = analog_pin_source(3)
-        // We've calibrated the sensor and it's fully wet at 350 and fully dry at 800.
-        // Change that range to 0-100%, flipping the range around.
-        | normalize(constant(Range(800, 350)), constant(Range(0, 100)));
-
-    // Show the moisture reading on a servo-controlled gauge.
-    set_servo_to_soil_moisture_reading = soil_moisture_sensor
-        // Translate that into a rotation angle for our servo.
-        | normalize(constant(Range(0, 100)), constant(Range(0, 180)))
-        // We have a cheap micro servo on GPIO 4.
-        | servo_sink(4);
-
-    // Allow the user to calibrate the point where the water pump turns on to water the plants,
-    // and save that threshold to EEPROM.
-    static auto [watering_threshold] = make_memory_mirrored_eeprom_pipes(
-        50, ;
-    // Rotary encoder on pins 4 and 5.
-    static auto rotary_encoder = digital_pin_interrupt_source<4, 5>(INPUT_PULLUP)
-        | quadrature_encode();
-    handle_watering_threshold_input = make_state_editor(
-        rotary_encoder,
-        watering_threshold,
-        [](QuadratureEncodeDirection dir, int threshold) {
-            // QuadratureEncodeDirection::Clockwise maps to +1
-            // and CounterClockwise maps to -1.
-            threshold += dir;
-            // Clamp to 0-100%.
-            if (threshold < 0) { threshold = 0; }
-            else if (threshold > 100) { threshold = 100; }
-            return threshold;
-        }
-    );
-
-    // Turn the pump on or off depending on the soil reading and the watering threshold.
-    watering_threshold.get_source_fn()
-        | sample(soil_moisture_sensor)
-        | map([](int threshold, int reading) {
-            return reading < threshold
-                // Water pump relay is active low.
-                ? LOW
-                : HIGH;
-        })
-        // Water pump relay is on GPIO 6.
-        | digital_pin_sink(6);
-}
-
-void loop() {
-    set_servo_to_soil_moisture_reading();
-    handle_watering_threshold_input();
-}
-```
+* You're tired of the mess of imperative code in your `setup` and `loop` functions, most of which does nothing but poll sensors, clocks, and GPIOs.
+* You're not ready to give up C++ for one of those cool but exotic embedded FRP languages and their exotic toolchains.
+* You like the FRP style, but you still want to have control over what gets executed and when.
 
 ## Get started
 
@@ -131,7 +79,7 @@ That's it! Happy streaming.
 
 ## Dependencies
 
-If dependencies don't get installed automatically, you'll need to at least install `fmtlib/fmt`. Many sources and sinks also require `Arduino.h` and will be disabled if it can't be found. These sources and sinks might also require the following libraries:
+If dependencies don't get installed automatically, you'll need to at least install `fmtlib/fmt`. Many sources and sinks also require `Arduino.h` and will be disabled if it can't be found. Certain sources and sinks might also require the following libraries:
 
 * `claws/BH1750@^1.3.0`
 * `adafruit/Adafruit GFX Library@^1.12.1`
@@ -151,38 +99,39 @@ Rheoscape works with any C++ project, but the Arduino sources and sinks only wor
 
 Rheoscape is licensed under the [GPL v3](https://www.gnu.org/licenses/gpl-3.0.en.html).
 
-## Important terms
+## Important concepts
 
-Rheoscape is based on the idea of **streams** between [**sources**](#source) and [**sinks**](#sink). Almost everything in Rheoscape is just a callable. That's the entire core of Rheoscape -- a spec for agreeing on how a source and a sink should interact to create a stream. (But Rheoscape does come with a decent-sized standard library.)
+Rheoscape is based on the idea of **streams** between [**sources**](#source) and [**sinks**](#sink). Almost everything in Rheoscape is just a callable. That's the entire core of Rheoscape -- a pattern for agreeing on how a source and a sink should interact to create a stream. (But Rheoscape does come with a decent-sized standard library too.)
 
 ### Source
 
-A source emits values. It's just a function that receives an observer, or [**push function**](#push-function), and whenever it's ready to emit a value, it passes the value to the push function bound to it. It also returns a [**pull function**](#pull-function) when it's called (we'll get to that in a moment).
+A source emits values. It's just a function that receives an observer, or [**push function**](#push-function) and returns a [**pull function**](#pull-function) with which you poll the source.
 
-Here's a type alias for source, pull, and push functions:
-
-```c++
-using pull_fn = std::function<void()>;
-
-template <typename T>
-using push_fn = std::function<void(T)>;
-
-template <typename T>
-using source_fn = std::function<pull_fn(push_fn<T>)>;
+```
+push = (value) -> void
+pull = (void) -> void
+source = (push) -> pull
 ```
 
-(Note that, while Rheoscape does define these types, it doesn't use them much in the standard library because `std::function` is a type-erased type so the compiler can't optimise long chains of them.)
+Some sources push their values without being asked. We call them **push sources**. But these are very rare -- generally, you collect all the pull functions from the tail ends of your graphs, then call them in the main program loop.
 
-A source might take its own initiative, pushing its values downstream as they become available, like when an HTTP request comes in or an interrupt fires. We call this a **push source**. (Note that very few sources can actually take initiative without some sort of prodding; we'll talk more about this in [Program flow](#program-flow).)
+_Why pull? Didn't you say this would make polling go away?_ Well, not _go away_, just become much tidier. The polling and timing logic is all wrapped up in the stream. Arduino isn't very push-friendly. The microcontrollers it runs on have a few interrupts, but general wisdom says your interrupt handlers should do as little as possible -- certainly not call observer functions that might have a bunch of processing logic attached to them.
 
-Or a [**sink**](#sink) (we'll get to sinks in a moment too) might request values from the source by calling the source's pull function. This sink might be an OLED display refreshing, or a GPIO that controls a heater and needs to pull a temperature reading. In most cases, streams are pull-based because it works nicely with the way Arduino programs usually run, with a 'main' control loop that polls things that need to be updated regularly.
+But polling also gives you the choice to only exercise the parts of your reactive graph that you care about -- the ones that make changes happen. If the user is on a screen that doesn't show temperature, there's no need to pull on the stream that reads the temperature sensor.
 
-You can think of a source function as a stream factory -- you can bind a sink to most sources multiple times and get entirely independent streams. That way, when sink A pulls on a source, it doesn't push a value to sink B's push function. (Not usually anyway -- there are some exceptions.)
+These reasons are probably why most Arduino sensor and network server libraries (which Rheoscape depends on) need you to call on some sort of polling function. So Rheoscape just follows that pattern, for the most part.
+
+There are just a few exceptions to the pull-driven pattern:
+
+* [**States**](#state), which are sources that hold a mutable value and push state changes as soon as they happen.
+* Certain [**operators**](#operator) such as `share` and `tee` have 'side' streams that they push values to whenever the 'main' stream receives a value.
+
+You can think of a source function as a stream factory -- you can bind different sinks to a source and get entirely independent streams. That way, when sink A pulls on a source, it doesn't push a value to sink B's push function. (Not usually anyway -- there are some exceptions.)
 
 Here's a simple source, just a lambda that returns the number 3 whenever it's pulled:
 
 ```c++
-source_fn<int> threes_source = [](push_fn<int> push) {
+auto threes_source = [](auto push) {
     return [push]() {
         push(3);
     };
@@ -199,20 +148,26 @@ A push function is a simple observer function. It takes one argument, typed to t
 
 As mentioned, a source returns a pull function when it's called. This is a handle that lets the sink request a new value, which will be delivered to the sink's push function.
 
-Not all sources support pulling. Some of them are push-only, and their pull functions do nothing.
-
 ### Sink
 
-A sink isn't a concrete thing; it's more of a concept -- it's just the act of passing a push function to a source and getting a pull function in return. Sinking, or binding, to a source can be as simple as passing a lambda and storing the pull function in a variable for later use. This example uses the `threes_source` from above:
+A sink isn't a concrete thing; it's more of an idea -- it's just the act of passing a push function to a source and getting a pull function in return. Sinking, or binding, to a source can be as simple as passing a lambda and storing the pull function in a variable for later use. This example uses the `threes_source` from above:
 
 ```c++
-pull_fn pull_threes = threes_source([](int v) {
+auto log_threes = threes_source([](int v) {
     Serial.print("Got a number: ");
     Serial.println(v);
 });
 ```
 
-Every time you call `pull_threes()`, it'll print a message to the serial port.
+Every time you call `log_threes()`, it'll print a message to the serial port.
+
+```c++
+void loop() {
+    log_threes();
+}
+```
+
+**At its simplest, this is all that Rheoscape is.** With no supporting library code, the two functions above have implemented the Rheoscape pattern with a very simple stream. All Rheoscape does is define a bunch of concepts and type traits to formalise the pattern, and supply syntactic sugar and a big standard library to accelerate your development.
 
 ### State
 
@@ -234,44 +189,32 @@ State objects have a common interface:
 * `try_get()`: Get the value wrapped in a `std::optional`, if it exists.
 * `add_sink(PushFn push, bool initial_value = true)`: An alternative way of binding a push function to the state rather than using its source function.
 
-### Stream
-
-A stream is just a chain of sources and sinks where values flow from the primary source to a final sink.
-
 #### Operator
 
-Something can be both a source and a sink at the same time -- we call these **operators**, and they transform the shape of the stream as it passes downstream from source to sink. Familiar functional operators like `map`, `filter`, and `scan` are included in the standard library. Operators accept a source function (and maybe other arguments) and return a new source function. Here's a simple implementation of `map`:
+Something can be both a source and a sink at the same time -- we call these **operators**, and they transform the shape of the stream as it passes downstream from source to sink. Familiar functional operators like `map`, `filter`, and `scan` are included in the standard library. Operators accept a source function (and maybe other arguments) and return a source function that represents a transformed stream.
+
+You build operators using their factory functions. You can do it two ways -- nested style, where the primary source is the first argument:
 
 ```c++
-template <typename TOut, typename TIn>
-source_fn<TOut> map(source_fn<TIn> source, std::function<TOut(TIn)> mapper) {
-    // Return a new source function that pushes a transformed value for every upstream value.
-    return [source, mapper](push_fn<TOut> push) {
-        // Bind to the upstream source.
-        // The upstream source's pull function is passed downstream.
-        return source([mapper, push](TIn value) {
-            push(mapper(value));
-        });
-    };
-}
-```
-
-You'd then use `map` like this:
-
-```c++
-source_fn<int> pull_threes_squared = map(
+auto threes_squared = map(
     threes_source,
     [](int v) { return v * v; }
 );
 ```
 
+and piped style, where the primary source is on the left hand of the `|` operator:
+
+```c++
+auto threes_squared = threes_source | map([](int v) { return v * v; });
+```
+
 ## Program flow
 
-Rheoscape streams are opinionated about concurrency: they don't do it. Ever. This was an intentional design choice to keep control flow easy to reason about and program for. No mutexes or contention over shared state, no async operations. Either a source pushes a new value all the way down its pipeline, or a sink pulls the next value from its upstream source(s), in a continuous synchronous flow.
+Rheoscape streams are opinionated about concurrency: Don't do it at all, if you can help it. This was an intentional design choice to keep control flow easy to reason about and program for. No threads, no mutexes or contention over shared state, no async operations, no reentrancy to worry about. Either a source pushes a new value all the way down its pipeline, or a sink pulls the next value from its upstream source(s), in a continuous synchronous flow.
 
-\* _That doesn't mean there's no concurrency at all. Some sources use interrupt service routines (ISRs) to collect data in real time, although in practice the ISRs don't actually emit values downstream -- that would make the ISR too heavy and prone to concurrency problems. You still need to pull on the stream to collect waiting values. With ISR-driven sources, we try hard to prevent contention over shared state by temporarily disabling interrupts and taking an atomic snapshot of the values the ISR has written._
+The only exception is interrupt-driven pin sources, which have a tiny interrupt routine that snapshots the state of the pins. They still need to be pulled, though, to retrieve the waiting pin state changes.
 
-Push-only streams flow like this:
+Push streams flow like this:
 
 ```mermaid
 sequenceDiagram
@@ -482,8 +425,9 @@ The Rheoscape standard library comes with a lot of good structs, classes, source
 
 Rheoscape is designed to do as much of its hard work at compile time as possible. It does this in these ways:
 
-* **No exceptions**: Sources that can error emit streams of `Fallible<T, Err>` values instead of throwing exceptions. Truly exceptional conditions are handled by `assert` rather than `throw`. (This doesn't cover the standard library -- you're still on your own if you try to call `.value()` on a `std::nullopt`.)
+* **No exceptions**: Sources that can error emit streams of `Fallible<T, Err>` values instead of throwing exceptions. Truly exceptional conditions are handled by `assert` or `static_assert` rather than `throw`. (This doesn't cover the standard library -- you're still on your own if you try to call `.value()` on a `std::nullopt`.)
 * **Disciplined ownership semantics**: Rheoscape avoids duplicating values as they're passed down a stream.
+* **Use the stack as much as possible**: Rheoscape tries to avoid allocating things on the heap unless they're expected to last for the life of your program. Streamed values are always allocated on the stack.
 * **Configurable aggressive inlining**: Flow graphs are just stacks of functions, and they can get quite tall (each operator adds at least two functions to a call stack). These stacks can be aggressively inlined (albeit at the cost of larger binary weight) with the `RHEOSCAPE_AGGRESSIVE_INLINE` macro.
 
     <table>
@@ -513,11 +457,37 @@ Rheoscape is designed to do as much of its hard work at compile time as possible
     </tbody>
     </table>
 
-## Known limitations
+    In practice the gains of `RHEOSCAPE_AGGRESSIVE_INLINE` are pretty low, as Platformio's default optimisation settings already inline Rheoscape's simple callable structs pretty aggressively.
 
-**Type checking in pre-composed pipelines:** When you pre-compose a pipeline fragment (e.g., `auto pipe = map(fn) | filter(pred)`) without connecting it to a source, the compiler cannot verify type compatibility at the composition site. There is no way to tell if a headless pipe is correct when you compose it; type errors will surface at the site where you attach a source to the head of the pipe. If you need early type checking, connect your pipeline to a source before attaching further stages.
+## Known issues
 
-**Terminal sinks in pre-composed pipelines:** The `|` operator treats any non-source callable that accepts a source as a composable pipe stage. This includes terminal sinks like `foreach`. Writing `auto pipe = map(fn) | foreach(exec)` will compile, but the resulting composed callable returns `void` when given a source — it's not a source function and can't have further stages piped after it. This is harmless when used at the end of a chain (e.g., `source | map(fn) | foreach(exec)` works correctly), but if you accidentally compose a sink in the middle of a pre-composed pipeline (e.g., `auto broken = map(fn) | foreach(exec) | filter(pred)`), the error will surface at the site where you attach a source.
+### Type checking in pre-composed pipelines
+
+When you pre-compose a pipeline fragment (e.g., `auto pipe = map(fn) | filter(pred)`) without connecting it to a source, the compiler cannot verify type compatibility at the composition site. There is no way to tell if a headless pipe is correct when you compose it; type errors will surface at the site where you attach a source to the head of the pipe. If you need early type checking, connect your pipeline to a source before attaching further stages.
+
+### Terminal sinks in pre-composed pipelines
+
+The `|` operator treats any non-source callable that accepts a source as a composable pipe stage. This includes terminal sinks like `foreach`. Writing `auto pipe = map(fn) | foreach(exec)` will compile, but the resulting composed callable returns `void` when given a source — it's not a source function and can't have further stages piped after it. This is harmless when used at the end of a chain (e.g., `source | map(fn) | foreach(exec)` works correctly), but if you accidentally compose a sink in the middle of a pre-composed pipeline (e.g., `auto broken = map(fn) | foreach(exec) | filter(pred)`), the error will surface at the site where you attach a source.
+
+### Debugging symbols and compile times
+
+Rheoscape's philosophy of doing the hard work at compile time is both a strength and a weakness. Once your graphs start getting complex, compile time increases sharply. Anecdotally, the `medical_laser_device` example took 25 minutes to compile with `gcc` on an AMD Ryzen 7040 series. Adding `-g0` to `build_flags` dropped this time to _25 seconds_ -- a 60× speedup! Lesson learned: turn off debugging symbol generation unless you absolutely need it. And when you do need it, here are some tips for speeding things up:
+
+* **Use type erasure**. `source_fn<T>`, `pipe_fn<TOut, TIn>`, and `pull_fn` are aliases for `std::function`. They break up long template chains into shorter, more digestible units for the debugger.
+* **Break your program up into separate translation units.** If you can tolerate it, separate complex graphs into different `.cpp` files, define header files for them, and import only those headers into your `main.cpp` file. This does the same thing as type erasure, but with less granularity and more hassle.
+
+### Backtraces are horrible to read
+
+As with many heavily templated libraries, the frames outputted by `gcc` compiler errors and warnings are unreadable. There's a tool that you can find in `tools/rheoscape_error_fmt` that helps format these frames as something that looks like a Rheoscape pipeline. Here's how to use it:
+
+1. Build the `env:rheoscape_errorf_fmt` env using PlatformIO; that'll give you the binary.
+2. Wire the binary into your build pipeline by adding this to any `env` section in your `platformio.ini` file:
+
+    ```
+    extra_scripts = post:tools/rheoscape_error_fmt/pio_filter.py
+    ```
+
+(Note: I don't make any promises about this tool -- it was written entirely by AI and probably has a lot of bugs.)
 
 ## Gratitude and evolution
 
