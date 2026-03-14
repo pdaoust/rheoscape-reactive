@@ -542,7 +542,7 @@ static std::string render_pipeline(const Pipeline& pipeline) {
   bool first = true;
   for (const auto& step : pipeline.steps) {
     if (!first) {
-      out << " \xe2\x86\x92 ";
+      out << " | ";
     }
     first = false;
     out << render_step(step);
@@ -564,13 +564,14 @@ static std::vector<std::string> render_pipeline_lines(
   }
 
   // UTF-8 arrow.
-  const std::string arrow = "\xe2\x86\x92 ";
+  //const std::string pipe_symbol = "\xe2\x86\x92 ";
+  const std::string pipe_symbol = "| ";
 
   for (size_t step_idx = 0; step_idx < pipeline.steps.size(); ++step_idx) {
     const auto& step = pipeline.steps[step_idx];
-    int step_indent = base_indent + static_cast<int>(step_idx) * 2;
+    int step_indent = base_indent;
     std::string pad(step_indent, ' ');
-    std::string prefix = (step_idx > 0) ? (pad + arrow) : pad;
+    std::string prefix = (step_idx > 0) ? (pad + pipe_symbol) : pad;
 
     if (!step.sub_pipelines.empty()) {
       // Multi-source op: operator_name(\n  sub1,\n  sub2\n)
